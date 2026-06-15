@@ -1,0 +1,1609 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model area_postal_codes {
+  id              BigInt   @id @default(autoincrement())
+  service_area_id BigInt
+  postal_code     String   @db.VarChar(20)
+  locality        String?  @db.VarChar(255)
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([service_area_id, postal_code], map: "area_postal_codes_unique")
+}
+
+model auth_sessions {
+  id                 BigInt    @id @default(autoincrement())
+  public_id          String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id            BigInt
+  refresh_token_hash String    @unique
+  device_id          String?   @db.VarChar(255)
+  device_name        String?   @db.VarChar(255)
+  device_type        String?   @db.VarChar(100)
+  os                 String?   @db.VarChar(100)
+  app_version        String?   @db.VarChar(50)
+  ip_address         String?   @db.Inet
+  user_agent         String?
+  is_active          Boolean   @default(true)
+  expires_at         DateTime  @db.Timestamptz(6)
+  last_used_at       DateTime? @db.Timestamptz(6)
+  revoked_at         DateTime? @db.Timestamptz(6)
+  created_at         DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model blood_admin_notes {
+  id          BigInt   @id @default(autoincrement())
+  entity_type String   @db.VarChar(50)
+  entity_id   BigInt
+  admin_id    BigInt
+  note        String
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model blood_compatibility {
+  id              BigInt      @id @default(autoincrement())
+  donor_group     blood_group
+  recipient_group blood_group
+  is_compatible   Boolean     @default(false)
+
+  @@unique([donor_group, recipient_group], map: "blood_compatibility_unique")
+}
+
+model blood_donation_responses {
+  id               BigInt          @id @default(autoincrement())
+  public_id        String          @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  blood_request_id BigInt
+  donor_id         BigInt
+  units_pledged    Decimal         @default(1) @db.Decimal(5, 2)
+  status           donation_status @default(PENDING)
+  response_note    String?
+  donation_date    DateTime?       @db.Date
+  donation_id      BigInt?
+  admin_note       String?
+  reviewed_by_id   BigInt?
+  reviewed_at      DateTime?       @db.Timestamptz(6)
+  created_at       DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime        @default(now()) @db.Timestamptz(6)
+
+  @@unique([blood_request_id, donor_id], map: "blood_donation_responses_unique")
+}
+
+model blood_donations {
+  id               BigInt          @id @default(autoincrement())
+  public_id        String          @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  donor_id         BigInt
+  blood_group      blood_group
+  donation_date    DateTime        @db.Date
+  donation_center  String?         @db.VarChar(255)
+  hospital_name    String?         @db.VarChar(255)
+  city             String?         @db.VarChar(100)
+  state            String?         @db.VarChar(100)
+  units_donated    Decimal         @default(1) @db.Decimal(5, 2)
+  status           donation_status @default(PENDING)
+  proof_image_url  String?
+  notes            String?
+  verified_by_id   BigInt?
+  verified_at      DateTime?       @db.Timestamptz(6)
+  rejection_reason String?
+  certificate_url  String?
+  is_camp_donation Boolean         @default(false)
+  campaign_id      BigInt?
+  reward_claimed   Boolean         @default(false)
+  reward_claim_id  BigInt?
+  created_at       DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime        @default(now()) @db.Timestamptz(6)
+  deleted_at       DateTime?       @db.Timestamptz(6)
+}
+
+model blood_donor_profiles {
+  id                 BigInt      @id @default(autoincrement())
+  user_id            BigInt      @unique
+  blood_group        blood_group
+  is_available       Boolean     @default(true)
+  total_donations    Int         @default(0)
+  last_donation_date DateTime?   @db.Date
+  next_eligible_date DateTime?   @db.Date
+  weight_kg          Decimal?    @db.Decimal(5, 2)
+  height_cm          Decimal?    @db.Decimal(5, 2)
+  medical_conditions String?
+  currently_on_meds  Boolean     @default(false)
+  preferred_city     String?     @db.VarChar(100)
+  preferred_state    String?     @db.VarChar(100)
+  notify_nearby      Boolean     @default(true)
+  radius_km          Int         @default(10)
+  created_at         DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime    @default(now()) @db.Timestamptz(6)
+}
+
+model blood_requests {
+  id               BigInt               @id @default(autoincrement())
+  public_id        String               @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  requester_id     BigInt
+  patient_name     String               @db.VarChar(255)
+  blood_group      blood_group
+  units_required   Decimal              @default(1) @db.Decimal(5, 2)
+  units_fulfilled  Decimal              @default(0) @db.Decimal(5, 2)
+  urgency          urgency_level        @default(MEDIUM)
+  hospital_name    String               @db.VarChar(255)
+  hospital_address String
+  city             String               @db.VarChar(100)
+  state            String               @db.VarChar(100)
+  contact_name     String               @db.VarChar(255)
+  contact_mobile   String               @db.VarChar(20)
+  required_by_date DateTime             @db.Timestamptz(6)
+  status           blood_request_status @default(OPEN)
+  notes            String?
+  is_emergency     Boolean              @default(false)
+  admin_note       String?
+  verified_by_id   BigInt?
+  expires_at       DateTime?            @db.Timestamptz(6)
+  created_at       DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime             @default(now()) @db.Timestamptz(6)
+  deleted_at       DateTime?            @db.Timestamptz(6)
+}
+
+model cart_items {
+  id           BigInt   @id @default(autoincrement())
+  cart_id      BigInt
+  product_id   BigInt
+  variant_id   BigInt?
+  quantity     Int      @default(1)
+  price_at_add Decimal  @db.Decimal(12, 2)
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([cart_id, product_id, variant_id], map: "cart_items_unique")
+}
+
+model carts {
+  id              BigInt   @id @default(autoincrement())
+  public_id       String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id         BigInt?  @unique
+  session_id      String?  @db.VarChar(255)
+  coupon_code     String?  @db.VarChar(100)
+  discount_amount Decimal  @default(0) @db.Decimal(12, 2)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model commission_settings {
+  id             BigInt    @id @default(autoincrement())
+  category_id    BigInt?
+  seller_id      BigInt?
+  rate           Decimal   @db.Decimal(5, 2)
+  is_default     Boolean   @default(false)
+  effective_from DateTime  @default(dbgenerated("CURRENT_DATE")) @db.Date
+  effective_to   DateTime? @db.Date
+  created_by_id  BigInt
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model coupon_usages {
+  id        BigInt   @id @default(autoincrement())
+  coupon_id BigInt
+  user_id   BigInt
+  order_id  BigInt?
+  discount  Decimal  @db.Decimal(12, 2)
+  used_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([coupon_id, user_id, order_id], map: "coupon_usages_unique")
+}
+
+model coupons {
+  id              BigInt    @id @default(autoincrement())
+  public_id       String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code            String    @unique @db.VarChar(100)
+  description     String?
+  discount_type   String    @default("PERCENTAGE") @db.VarChar(20)
+  discount_value  Decimal   @db.Decimal(10, 2)
+  min_order_value Decimal   @default(0) @db.Decimal(12, 2)
+  max_discount    Decimal?  @db.Decimal(12, 2)
+  usage_limit     Int?
+  used_count      Int       @default(0)
+  per_user_limit  Int       @default(1)
+  is_active       Boolean   @default(true)
+  applicable_to   String    @default("ALL") @db.VarChar(50)
+  starts_at       DateTime  @default(now()) @db.Timestamptz(6)
+  expires_at      DateTime? @db.Timestamptz(6)
+  created_by_id   BigInt
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model delivery_fees {
+  id              BigInt        @id @default(autoincrement())
+  public_id       String        @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  service_area_id BigInt
+  shipping_type   shipping_type @default(STANDARD)
+  min_order_value Decimal       @default(0) @db.Decimal(12, 2)
+  fee             Decimal       @default(0) @db.Decimal(10, 2)
+  is_free_above   Decimal?      @db.Decimal(12, 2)
+  estimated_days  Int           @default(3)
+  is_active       Boolean       @default(true)
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime      @default(now()) @db.Timestamptz(6)
+}
+
+model delivery_tracking_events {
+  id          BigInt   @id @default(autoincrement())
+  shipment_id BigInt
+  status      String   @db.VarChar(100)
+  location    String?  @db.VarChar(255)
+  description String?
+  occurred_at DateTime @default(now()) @db.Timestamptz(6)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model device_tokens {
+  id         BigInt   @id @default(autoincrement())
+  public_id  String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    BigInt
+  token      String
+  platform   String   @db.VarChar(50)
+  device_id  String?  @db.VarChar(255)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([user_id, device_id, platform], map: "device_tokens_unique")
+}
+
+model donation_certificates {
+  id             BigInt   @id @default(autoincrement())
+  public_id      String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  donation_id    BigInt   @unique
+  donor_id       BigInt
+  certificate_no String   @unique @db.VarChar(100)
+  issued_at      DateTime @default(now()) @db.Timestamptz(6)
+  file_url       String
+  is_valid       Boolean  @default(true)
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model donation_item_images {
+  id               BigInt   @id @default(autoincrement())
+  donation_item_id BigInt
+  url              String
+  sort_order       Int      @default(0)
+  is_primary       Boolean  @default(false)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model donation_item_requests {
+  id               BigInt          @id @default(autoincrement())
+  public_id        String          @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  donation_item_id BigInt
+  requester_id     BigInt
+  quantity_needed  Int             @default(1)
+  purpose          String
+  status           approval_status @default(PENDING)
+  admin_note       String?
+  reviewed_by_id   BigInt?
+  reviewed_at      DateTime?       @db.Timestamptz(6)
+  created_at       DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime        @default(now()) @db.Timestamptz(6)
+}
+
+model donation_items {
+  id             BigInt                  @id @default(autoincrement())
+  public_id      String                  @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  donor_id       BigInt
+  title          String                  @db.VarChar(500)
+  description    String
+  category_id    BigInt?
+  condition      donation_item_condition @default(GOOD)
+  quantity       Int                     @default(1)
+  status         donation_item_status    @default(AVAILABLE)
+  pickup_city    String                  @db.VarChar(100)
+  pickup_state   String                  @db.VarChar(100)
+  pickup_address String?
+  is_pickup_only Boolean                 @default(true)
+  admin_note     String?
+  verified_by_id BigInt?
+  verified_at    DateTime?               @db.Timestamptz(6)
+  tags           String[]
+  created_at     DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime                @default(now()) @db.Timestamptz(6)
+  deleted_at     DateTime?               @db.Timestamptz(6)
+}
+
+model donation_transfers {
+  id                  BigInt    @id @default(autoincrement())
+  public_id           String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  donation_item_id    BigInt
+  request_id          BigInt
+  donor_id            BigInt
+  recipient_id        BigInt
+  quantity            Int       @default(1)
+  transfer_date       DateTime? @db.Date
+  proof_image_url     String?
+  donor_confirmed     Boolean   @default(false)
+  recipient_confirmed Boolean   @default(false)
+  admin_confirmed     Boolean   @default(false)
+  notes               String?
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model emergency_contacts {
+  id            BigInt   @id @default(autoincrement())
+  public_id     String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       BigInt
+  name          String   @db.VarChar(255)
+  relation      String   @db.VarChar(100)
+  mobile        String   @db.VarChar(20)
+  email         String?  @db.VarChar(255)
+  is_primary    Boolean  @default(false)
+  notify_on_sos Boolean  @default(true)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model equipment {
+  id                 BigInt              @id @default(autoincrement())
+  public_id          String              @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category_id        BigInt
+  owner_id           BigInt?
+  name               String              @db.VarChar(255)
+  slug               String              @unique @db.VarChar(255)
+  description        String
+  brand              String?             @db.VarChar(255)
+  model              String?             @db.VarChar(255)
+  serial_number      String?             @db.VarChar(255)
+  condition          equipment_condition @default(GOOD)
+  daily_rate         Decimal             @db.Decimal(10, 2)
+  weekly_rate        Decimal?            @db.Decimal(10, 2)
+  monthly_rate       Decimal?            @db.Decimal(10, 2)
+  security_deposit   Decimal             @default(0) @db.Decimal(12, 2)
+  min_rental_days    Int                 @default(1)
+  max_rental_days    Int                 @default(90)
+  total_quantity     Int                 @default(1)
+  available_quantity Int                 @default(1)
+  rented_quantity    Int                 @default(0)
+  is_active          Boolean             @default(true)
+  is_featured        Boolean             @default(false)
+  requires_training  Boolean             @default(false)
+  training_notes     String?
+  service_area_id    BigInt?
+  pickup_available   Boolean             @default(false)
+  delivery_available Boolean             @default(true)
+  weight_kg          Decimal?            @db.Decimal(8, 2)
+  dimensions         Json?
+  specifications     Json?
+  admin_verified     Boolean             @default(false)
+  verified_by_id     BigInt?
+  verified_at        DateTime?           @db.Timestamptz(6)
+  meta_title         String?             @db.VarChar(255)
+  meta_description   String?
+  created_at         DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime            @default(now()) @db.Timestamptz(6)
+  deleted_at         DateTime?           @db.Timestamptz(6)
+}
+
+model equipment_availability {
+  id            BigInt   @id @default(autoincrement())
+  equipment_id  BigInt
+  date          DateTime @db.Date
+  available_qty Int      @default(0)
+  booked_qty    Int      @default(0)
+  is_blocked    Boolean  @default(false)
+  block_reason  String?
+
+  @@unique([equipment_id, date], map: "equipment_availability_unique")
+}
+
+model equipment_categories {
+  id          BigInt   @id @default(autoincrement())
+  public_id   String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @db.VarChar(255)
+  slug        String   @unique @db.VarChar(255)
+  description String?
+  icon_url    String?
+  image_url   String?
+  parent_id   BigInt?
+  sort_order  Int      @default(0)
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model equipment_images {
+  id           BigInt   @id @default(autoincrement())
+  equipment_id BigInt
+  url          String
+  alt_text     String?  @db.VarChar(255)
+  sort_order   Int      @default(0)
+  is_primary   Boolean  @default(false)
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model equipment_maintenance {
+  id               BigInt    @id @default(autoincrement())
+  equipment_id     BigInt
+  maintenance_type String    @db.VarChar(100)
+  description      String
+  performed_by     String?   @db.VarChar(255)
+  performed_at     DateTime  @db.Timestamptz(6)
+  cost             Decimal?  @db.Decimal(10, 2)
+  next_due_date    DateTime? @db.Date
+  notes            String?
+  created_by_id    BigInt
+  created_at       DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model featured_products {
+  id            BigInt    @id @default(autoincrement())
+  product_id    BigInt    @unique
+  position      Int       @default(0)
+  banner_url    String?
+  starts_at     DateTime  @default(now()) @db.Timestamptz(6)
+  ends_at       DateTime? @db.Timestamptz(6)
+  is_active     Boolean   @default(true)
+  created_by_id BigInt
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model invoices {
+  id              BigInt   @id @default(autoincrement())
+  public_id       String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoice_number  String   @unique @db.VarChar(100)
+  payment_id      BigInt
+  user_id         BigInt
+  billing_name    String   @db.VarChar(255)
+  billing_address String
+  billing_gst     String?  @db.VarChar(50)
+  items           Json
+  subtotal        Decimal  @db.Decimal(12, 2)
+  tax_amount      Decimal  @default(0) @db.Decimal(10, 2)
+  discount_amount Decimal  @default(0) @db.Decimal(10, 2)
+  total_amount    Decimal  @db.Decimal(12, 2)
+  currency        String   @default("INR") @db.VarChar(10)
+  issued_at       DateTime @default(now()) @db.Timestamptz(6)
+  file_url        String?
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model membership_history {
+  id              BigInt   @id @default(autoincrement())
+  user_id         BigInt
+  subscription_id BigInt
+  plan_id         BigInt
+  action          String   @db.VarChar(100)
+  performed_by_id BigInt?
+  note            String?
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model membership_plans {
+  id                BigInt        @id @default(autoincrement())
+  public_id         String        @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String        @db.VarChar(255)
+  slug              String        @unique @db.VarChar(255)
+  description       String?
+  price             Decimal       @db.Decimal(10, 2)
+  billing_cycle     billing_cycle @default(MONTHLY)
+  duration_days     Int
+  role              user_role     @default(PREMIUM_USER)
+  features          Json          @default("[]")
+  max_products      Int?
+  commission_rate   Decimal?      @db.Decimal(5, 2)
+  reward_multiplier Decimal       @default(1.0) @db.Decimal(5, 2)
+  is_active         Boolean       @default(true)
+  sort_order        Int           @default(0)
+  created_at        DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime      @default(now()) @db.Timestamptz(6)
+}
+
+model membership_subscriptions {
+  id            BigInt            @id @default(autoincrement())
+  public_id     String            @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       BigInt
+  plan_id       BigInt
+  status        membership_status @default(PENDING)
+  starts_at     DateTime          @db.Timestamptz(6)
+  ends_at       DateTime          @db.Timestamptz(6)
+  auto_renew    Boolean           @default(true)
+  cancelled_at  DateTime?         @db.Timestamptz(6)
+  cancel_reason String?
+  payment_id    BigInt?
+  created_at    DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime          @default(now()) @db.Timestamptz(6)
+}
+
+model order_items {
+  id              BigInt   @id @default(autoincrement())
+  public_id       String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id        BigInt
+  product_id      BigInt
+  variant_id      BigInt?
+  seller_id       BigInt
+  product_name    String   @db.VarChar(500)
+  variant_name    String?  @db.VarChar(255)
+  sku             String?  @db.VarChar(255)
+  quantity        Int      @default(1)
+  unit_price      Decimal  @db.Decimal(12, 2)
+  tax_rate        Decimal  @default(0) @db.Decimal(5, 2)
+  tax_amount      Decimal  @default(0) @db.Decimal(10, 2)
+  discount_amount Decimal  @default(0) @db.Decimal(10, 2)
+  total_price     Decimal  @db.Decimal(12, 2)
+  image_url       String?
+  is_returnable   Boolean  @default(true)
+  return_days     Int      @default(7)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model order_return_items {
+  id            BigInt            @id @default(autoincrement())
+  return_id     BigInt
+  order_item_id BigInt
+  quantity      Int               @default(1)
+  reason        String?
+  condition     return_condition?
+  created_at    DateTime          @default(now()) @db.Timestamptz(6)
+}
+
+model order_returns {
+  id             BigInt                @id @default(autoincrement())
+  public_id      String                @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id       BigInt
+  buyer_id       BigInt
+  seller_id      BigInt
+  status         return_request_status @default(PENDING)
+  reason         String
+  description    String?
+  images         Json?
+  refund_amount  Decimal?              @db.Decimal(12, 2)
+  refund_method  payment_method?
+  admin_note     String?
+  reviewed_by_id BigInt?
+  reviewed_at    DateTime?             @db.Timestamptz(6)
+  created_at     DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime              @default(now()) @db.Timestamptz(6)
+}
+
+model orders {
+  id                  BigInt         @id @default(autoincrement())
+  public_id           String         @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_number        String         @unique @db.VarChar(100)
+  buyer_id            BigInt
+  seller_id           BigInt
+  status              order_status   @default(PENDING)
+  subtotal            Decimal        @db.Decimal(12, 2)
+  discount_amount     Decimal        @default(0) @db.Decimal(12, 2)
+  shipping_fee        Decimal        @default(0) @db.Decimal(10, 2)
+  tax_amount          Decimal        @default(0) @db.Decimal(10, 2)
+  reward_discount     Decimal        @default(0) @db.Decimal(10, 2)
+  total_amount        Decimal        @db.Decimal(12, 2)
+  payment_method      payment_method
+  payment_status      payment_status @default(PENDING)
+  coupon_id           BigInt?
+  coupon_discount     Decimal        @default(0) @db.Decimal(12, 2)
+  shipping_address_id BigInt
+  shipping_type       shipping_type  @default(STANDARD)
+  estimated_delivery  DateTime?      @db.Date
+  notes               String?
+  cancel_reason       String?
+  cancelled_by_id     BigInt?
+  cancelled_at        DateTime?      @db.Timestamptz(6)
+  commission_rate     Decimal        @default(10) @db.Decimal(5, 2)
+  commission_amount   Decimal        @default(0) @db.Decimal(12, 2)
+  seller_payout       Decimal        @default(0) @db.Decimal(12, 2)
+  payout_status       String         @default("PENDING") @db.VarChar(50)
+  payout_at           DateTime?      @db.Timestamptz(6)
+  created_at          DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime       @default(now()) @db.Timestamptz(6)
+}
+
+model otp_verifications {
+  id           BigInt      @id @default(autoincrement())
+  public_id    String      @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  identifier   String      @db.VarChar(255)
+  purpose      otp_purpose
+  otp_hash     String
+  attempts     Int         @default(0)
+  max_attempts Int         @default(5)
+  is_used      Boolean     @default(false)
+  expires_at   DateTime    @db.Timestamptz(6)
+  verified_at  DateTime?   @db.Timestamptz(6)
+  ip_address   String?     @db.Inet
+  created_at   DateTime    @default(now()) @db.Timestamptz(6)
+}
+
+model password_reset_tokens {
+  id         BigInt    @id @default(autoincrement())
+  user_id    BigInt
+  token_hash String    @unique
+  is_used    Boolean   @default(false)
+  expires_at DateTime  @db.Timestamptz(6)
+  used_at    DateTime? @db.Timestamptz(6)
+  ip_address String?   @db.Inet
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model payment_attempts {
+  id             BigInt         @id @default(autoincrement())
+  payment_id     BigInt
+  attempt_number Int            @default(1)
+  status         payment_status
+  amount         Decimal        @db.Decimal(12, 2)
+  method         payment_method
+  gateway        String?        @db.VarChar(100)
+  response       Json?
+  error_code     String?        @db.VarChar(100)
+  error_message  String?
+  ip_address     String?        @db.Inet
+  attempted_at   DateTime       @default(now()) @db.Timestamptz(6)
+}
+
+model payments {
+  id                 BigInt          @id @default(autoincrement())
+  public_id          String          @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id            BigInt
+  purpose            payment_purpose
+  reference_type     String          @db.VarChar(100)
+  reference_id       BigInt
+  amount             Decimal         @db.Decimal(12, 2)
+  currency           String          @default("INR") @db.VarChar(10)
+  method             payment_method
+  status             payment_status  @default(PENDING)
+  gateway            String?         @db.VarChar(100)
+  gateway_order_id   String?         @db.VarChar(255)
+  gateway_payment_id String?         @db.VarChar(255)
+  gateway_signature  String?
+  gateway_response   Json?
+  failure_reason     String?
+  refunded_amount    Decimal         @default(0) @db.Decimal(12, 2)
+  metadata           Json?
+  created_at         DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime        @default(now()) @db.Timestamptz(6)
+}
+
+model product_categories {
+  id               BigInt   @id @default(autoincrement())
+  public_id        String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String   @db.VarChar(255)
+  slug             String   @unique @db.VarChar(255)
+  description      String?
+  image_url        String?
+  icon_url         String?
+  parent_id        BigInt?
+  commission_rate  Decimal? @db.Decimal(5, 2)
+  sort_order       Int      @default(0)
+  is_active        Boolean  @default(true)
+  is_featured      Boolean  @default(false)
+  meta_title       String?  @db.VarChar(255)
+  meta_description String?
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model product_images {
+  id         BigInt   @id @default(autoincrement())
+  product_id BigInt
+  url        String
+  alt_text   String?  @db.VarChar(255)
+  sort_order Int      @default(0)
+  is_primary Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model product_inventory_logs {
+  id              BigInt   @id @default(autoincrement())
+  product_id      BigInt
+  variant_id      BigInt?
+  change          Int
+  reason          String   @db.VarChar(255)
+  reference_type  String?  @db.VarChar(100)
+  reference_id    BigInt?
+  performed_by_id BigInt?
+  note            String?
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model product_reviews {
+  id              BigInt    @id @default(autoincrement())
+  public_id       String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id      BigInt
+  order_id        BigInt
+  reviewer_id     BigInt
+  rating          Int       @db.SmallInt
+  title           String?   @db.VarChar(255)
+  body            String?
+  images          Json?
+  is_verified     Boolean   @default(false)
+  is_visible      Boolean   @default(true)
+  helpful_count   Int       @default(0)
+  seller_reply    String?
+  seller_reply_at DateTime? @db.Timestamptz(6)
+  admin_note      String?
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@unique([order_id, reviewer_id, product_id], map: "product_reviews_unique")
+}
+
+model product_variants {
+  id               BigInt   @id @default(autoincrement())
+  public_id        String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id       BigInt
+  name             String   @db.VarChar(255)
+  sku              String?  @db.VarChar(255)
+  price            Decimal  @db.Decimal(12, 2)
+  compare_at_price Decimal? @db.Decimal(12, 2)
+  stock_quantity   Int      @default(0)
+  weight_grams     Int?
+  image_url        String?
+  attributes       Json     @default("{}")
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model products {
+  id                  BigInt         @id @default(autoincrement())
+  public_id           String         @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seller_id           BigInt
+  category_id         BigInt
+  name                String         @db.VarChar(500)
+  slug                String         @unique @db.VarChar(500)
+  description         String
+  short_description   String?
+  brand               String?        @db.VarChar(255)
+  sku                 String?        @db.VarChar(255)
+  barcode             String?        @db.VarChar(255)
+  status              product_status @default(DRAFT)
+  price               Decimal        @db.Decimal(12, 2)
+  compare_at_price    Decimal?       @db.Decimal(12, 2)
+  cost_price          Decimal?       @db.Decimal(12, 2)
+  is_taxable          Boolean        @default(true)
+  tax_rate            Decimal        @default(0) @db.Decimal(5, 2)
+  stock_quantity      Int            @default(0)
+  low_stock_threshold Int            @default(5)
+  weight_grams        Int?
+  length_cm           Decimal?       @db.Decimal(8, 2)
+  width_cm            Decimal?       @db.Decimal(8, 2)
+  height_cm           Decimal?       @db.Decimal(8, 2)
+  is_featured         Boolean        @default(false)
+  is_admin_product    Boolean        @default(false)
+  allow_cod           Boolean        @default(true)
+  is_returnable       Boolean        @default(true)
+  return_days         Int            @default(7)
+  tags                String[]
+  specifications      Json?
+  rating              Decimal        @default(0) @db.Decimal(3, 2)
+  total_reviews       Int            @default(0)
+  total_sales         Int            @default(0)
+  commission_rate     Decimal?       @db.Decimal(5, 2)
+  verified_by_id      BigInt?
+  verified_at         DateTime?      @db.Timestamptz(6)
+  rejection_reason    String?
+  meta_title          String?        @db.VarChar(255)
+  meta_description    String?
+  created_at          DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime       @default(now()) @db.Timestamptz(6)
+  deleted_at          DateTime?      @db.Timestamptz(6)
+}
+
+model refunds {
+  id                BigInt         @id @default(autoincrement())
+  public_id         String         @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payment_id        BigInt
+  user_id           BigInt
+  amount            Decimal        @db.Decimal(12, 2)
+  reason            String
+  status            payment_status @default(PENDING)
+  gateway_refund_id String?        @db.VarChar(255)
+  gateway_response  Json?
+  initiated_by_id   BigInt?
+  processed_at      DateTime?      @db.Timestamptz(6)
+  created_at        DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime       @default(now()) @db.Timestamptz(6)
+}
+
+model rental_penalties {
+  id                    BigInt    @id @default(autoincrement())
+  public_id             String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rental_transaction_id BigInt
+  renter_id             BigInt
+  reason                String
+  amount                Decimal   @db.Decimal(12, 2)
+  is_paid               Boolean   @default(false)
+  paid_at               DateTime? @db.Timestamptz(6)
+  payment_id            BigInt?
+  waived                Boolean   @default(false)
+  waived_by_id          BigInt?
+  waiver_reason         String?
+  created_at            DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model rental_requests {
+  id                   BigInt        @id @default(autoincrement())
+  public_id            String        @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  equipment_id         BigInt
+  renter_id            BigInt
+  quantity             Int           @default(1)
+  start_date           DateTime      @db.Date
+  end_date             DateTime      @db.Date
+  rental_days          Int
+  daily_rate           Decimal       @db.Decimal(10, 2)
+  rental_amount        Decimal       @db.Decimal(12, 2)
+  security_deposit     Decimal       @default(0) @db.Decimal(12, 2)
+  delivery_fee         Decimal       @default(0) @db.Decimal(10, 2)
+  total_amount         Decimal       @db.Decimal(12, 2)
+  status               rental_status @default(PENDING)
+  delivery_type        shipping_type @default(STANDARD)
+  delivery_address_id  BigInt?
+  special_instructions String?
+  admin_note           String?
+  reviewed_by_id       BigInt?
+  reviewed_at          DateTime?     @db.Timestamptz(6)
+  created_at           DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime      @default(now()) @db.Timestamptz(6)
+}
+
+model rental_returns {
+  id                    BigInt           @id @default(autoincrement())
+  public_id             String           @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rental_transaction_id BigInt
+  return_date           DateTime         @db.Date
+  condition             return_condition
+  inspection_notes      String?
+  images                Json?
+  penalty_amount        Decimal          @default(0) @db.Decimal(12, 2)
+  penalty_reason        String?
+  deposit_refund_amount Decimal          @default(0) @db.Decimal(12, 2)
+  refund_status         payment_status   @default(PENDING)
+  inspected_by_id       BigInt
+  inspected_at          DateTime         @default(now()) @db.Timestamptz(6)
+  created_at            DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime         @default(now()) @db.Timestamptz(6)
+}
+
+model rental_transactions {
+  id                      BigInt               @id @default(autoincrement())
+  public_id               String               @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rental_request_id       BigInt               @unique
+  renter_id               BigInt
+  equipment_id            BigInt
+  actual_start_date       DateTime?            @db.Date
+  actual_end_date         DateTime?            @db.Date
+  agreed_end_date         DateTime             @db.Date
+  status                  rental_status        @default(ACTIVE)
+  security_deposit_paid   Decimal              @default(0) @db.Decimal(12, 2)
+  security_deposit_status payment_status       @default(PENDING)
+  total_rental_amount     Decimal              @db.Decimal(12, 2)
+  penalty_amount          Decimal              @default(0) @db.Decimal(12, 2)
+  refund_amount           Decimal              @default(0) @db.Decimal(12, 2)
+  payment_id              BigInt?
+  condition_at_checkout   equipment_condition?
+  condition_at_return     return_condition?
+  checkout_notes          String?
+  return_notes            String?
+  checkout_images         Json?
+  return_images           Json?
+  checked_out_by_id       BigInt?
+  received_by_id          BigInt?
+  created_at              DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime             @default(now()) @db.Timestamptz(6)
+}
+
+model reward_claim_requests {
+  id                BigInt              @id @default(autoincrement())
+  public_id         String              @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id           BigInt
+  rule_id           BigInt
+  activity          reward_activity
+  reference_type    String?             @db.VarChar(100)
+  reference_id      BigInt?
+  proof_images      Json?
+  proof_description String?
+  status            reward_claim_status @default(PENDING)
+  points_requested  Int
+  points_credited   Int?
+  admin_note        String?
+  reviewed_by_id    BigInt?
+  reviewed_at       DateTime?           @db.Timestamptz(6)
+  credited_at       DateTime?           @db.Timestamptz(6)
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @db.Timestamptz(6)
+}
+
+model reward_configurations {
+  id            BigInt   @id @default(autoincrement())
+  key           String   @unique @db.VarChar(100)
+  value         String
+  description   String?
+  updated_by_id BigInt?
+  updated_at    DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model reward_redemptions {
+  id             BigInt         @id @default(autoincrement())
+  public_id      String         @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id        BigInt
+  wallet_id      BigInt
+  points_used    Int
+  monetary_value Decimal        @db.Decimal(10, 2)
+  order_id       BigInt?
+  rental_id      BigInt?
+  status         payment_status @default(PENDING)
+  transaction_id BigInt?
+  created_at     DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime       @default(now()) @db.Timestamptz(6)
+}
+
+model reward_rules {
+  id                      BigInt          @id @default(autoincrement())
+  public_id               String          @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  activity                reward_activity @unique(map: "reward_rules_activity_unique")
+  name                    String          @db.VarChar(255)
+  description             String?
+  points                  Int
+  multiplier              Decimal         @default(1.0) @db.Decimal(5, 2)
+  max_per_day             Int?
+  max_per_month           Int?
+  max_lifetime            Int?
+  requires_proof          Boolean         @default(false)
+  requires_admin_approval Boolean         @default(false)
+  is_active               Boolean         @default(true)
+  valid_from              DateTime?       @db.Timestamptz(6)
+  valid_until             DateTime?       @db.Timestamptz(6)
+  conditions              Json?
+  created_by_id           BigInt
+  created_at              DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime        @default(now()) @db.Timestamptz(6)
+}
+
+model reward_transactions {
+  id              BigInt                  @id @default(autoincrement())
+  public_id       String                  @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wallet_id       BigInt
+  user_id         BigInt
+  type            reward_transaction_type
+  points          Int
+  balance_after   Int
+  activity        reward_activity?
+  rule_id         BigInt?
+  reference_type  String?                 @db.VarChar(100)
+  reference_id    BigInt?
+  description     String
+  expires_at      DateTime?               @db.Timestamptz(6)
+  performed_by_id BigInt?
+  created_at      DateTime                @default(now()) @db.Timestamptz(6)
+}
+
+model reward_wallets {
+  id               BigInt   @id @default(autoincrement())
+  public_id        String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          BigInt   @unique
+  total_earned     Int      @default(0)
+  total_redeemed   Int      @default(0)
+  total_expired    Int      @default(0)
+  current_balance  Int      @default(0)
+  lifetime_balance Int      @default(0)
+  tier             String   @default("BRONZE") @db.VarChar(50)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model seller_profiles {
+  id                BigInt        @id @default(autoincrement())
+  public_id         String        @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id           BigInt        @unique
+  business_name     String        @db.VarChar(255)
+  business_type     String?       @db.VarChar(100)
+  gst_number        String?       @db.VarChar(50)
+  pan_number        String?       @db.VarChar(50)
+  description       String?
+  logo_url          String?
+  banner_url        String?
+  status            seller_status @default(PENDING)
+  is_premium        Boolean       @default(false)
+  rating            Decimal       @default(0) @db.Decimal(3, 2)
+  total_reviews     Int           @default(0)
+  total_sales       Int           @default(0)
+  commission_rate   Decimal       @default(10.00) @db.Decimal(5, 2)
+  bank_account_no   String?       @db.VarChar(50)
+  bank_ifsc         String?       @db.VarChar(20)
+  bank_name         String?       @db.VarChar(255)
+  bank_account_name String?       @db.VarChar(255)
+  upi_id            String?       @db.VarChar(255)
+  verified_by_id    BigInt?
+  verified_at       DateTime?     @db.Timestamptz(6)
+  rejection_reason  String?
+  service_area_ids  BigInt[]
+  created_at        DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime      @default(now()) @db.Timestamptz(6)
+  deleted_at        DateTime?     @db.Timestamptz(6)
+}
+
+model service_areas {
+  id         BigInt      @id @default(autoincrement())
+  public_id  String      @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String      @db.VarChar(255)
+  city       String      @db.VarChar(100)
+  state      String      @db.VarChar(100)
+  country    String      @default("India") @db.VarChar(100)
+  status     area_status @default(ACTIVE)
+  base_lat   Decimal?    @db.Decimal(10, 8)
+  base_lng   Decimal?    @db.Decimal(11, 8)
+  radius_km  Decimal?    @db.Decimal(8, 2)
+  created_at DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at DateTime    @default(now()) @db.Timestamptz(6)
+}
+
+model shipments {
+  id              BigInt    @id @default(autoincrement())
+  public_id       String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id        BigInt    @unique
+  tracking_number String?   @db.VarChar(255)
+  carrier         String?   @db.VarChar(255)
+  tracking_url    String?
+  status          String    @default("PENDING") @db.VarChar(100)
+  shipped_at      DateTime? @db.Timestamptz(6)
+  delivered_at    DateTime? @db.Timestamptz(6)
+  estimated_date  DateTime? @db.Date
+  notes           String?
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model user_addresses {
+  id            BigInt    @id @default(autoincrement())
+  public_id     String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       BigInt
+  label         String?   @db.VarChar(100)
+  full_name     String    @db.VarChar(255)
+  mobile        String    @db.VarChar(20)
+  address_line1 String
+  address_line2 String?
+  city          String    @db.VarChar(100)
+  state         String    @db.VarChar(100)
+  postal_code   String    @db.VarChar(20)
+  country       String    @default("India") @db.VarChar(100)
+  latitude      Decimal?  @db.Decimal(10, 8)
+  longitude     Decimal?  @db.Decimal(11, 8)
+  is_default    Boolean   @default(false)
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
+  deleted_at    DateTime? @db.Timestamptz(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model users {
+  id                 BigInt       @id @default(autoincrement())
+  public_id          String       @unique(map: "users_public_id_unique") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  role               user_role    @default(USER)
+  status             user_status  @default(PENDING_VERIFICATION)
+  full_name          String       @db.VarChar(255)
+  email              String?      @unique(map: "users_email_unique") @db.VarChar(255)
+  mobile             String?      @unique(map: "users_mobile_unique") @db.VarChar(20)
+  mobile_verified    Boolean      @default(false)
+  email_verified     Boolean      @default(false)
+  password_hash      String?
+  gender             gender?
+  date_of_birth      DateTime?    @db.Date
+  profile_image_url  String?
+  blood_group        blood_group?
+  bio                String?
+  is_available_donor Boolean      @default(false)
+  last_donation_date DateTime?    @db.Date
+  referral_code      String?      @unique @db.VarChar(20)
+  referred_by_id     BigInt?
+  total_donations    Int          @default(0)
+  total_points       Int          @default(0)
+  created_at         DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime     @default(now()) @db.Timestamptz(6)
+  deleted_at         DateTime?    @db.Timestamptz(6)
+}
+
+model wallet_accounts {
+  id             BigInt   @id @default(autoincrement())
+  public_id      String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id        BigInt   @unique
+  balance        Decimal  @default(0) @db.Decimal(12, 2)
+  total_credited Decimal  @default(0) @db.Decimal(12, 2)
+  total_debited  Decimal  @default(0) @db.Decimal(12, 2)
+  is_active      Boolean  @default(true)
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model wallet_transactions {
+  id             BigInt           @id @default(autoincrement())
+  public_id      String           @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wallet_id      BigInt
+  user_id        BigInt
+  type           transaction_type
+  amount         Decimal          @db.Decimal(12, 2)
+  balance_after  Decimal          @db.Decimal(12, 2)
+  reference_type String?          @db.VarChar(100)
+  reference_id   BigInt?
+  description    String
+  payment_id     BigInt?
+  created_at     DateTime         @default(now()) @db.Timestamptz(6)
+}
+
+model wishlists {
+  id         BigInt   @id @default(autoincrement())
+  user_id    BigInt
+  product_id BigInt
+  variant_id BigInt?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([user_id, product_id], map: "wishlists_unique")
+}
+
+enum alert_recipient_status {
+  NOTIFIED
+  ACKNOWLEDGED
+  RESPONDED
+  UNAVAILABLE
+}
+
+enum approval_entity_type {
+  BLOOD_DONATION
+  BLOOD_REQUEST
+  PRODUCT
+  SELLER_PROFILE
+  BLOG
+  CAMPAIGN
+  REWARD_CLAIM
+  RENTAL
+  DONATION_ITEM
+  EQUIPMENT
+  COMMUNITY_GROUP
+  Q_A_QUESTION    @map("Q&A_QUESTION")
+}
+
+enum approval_status {
+  PENDING
+  APPROVED
+  REJECTED
+  MORE_INFO_REQUIRED
+}
+
+enum area_status {
+  ACTIVE
+  INACTIVE
+  COMING_SOON
+}
+
+enum auth_provider {
+  EMAIL
+  MOBILE_OTP
+  GOOGLE
+  FACEBOOK
+}
+
+enum billing_cycle {
+  MONTHLY
+  QUARTERLY
+  SEMI_ANNUAL
+  ANNUAL
+}
+
+enum blog_status {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  ARCHIVED
+  REJECTED
+}
+
+enum blood_group {
+  A_POSITIVE
+  A_NEGATIVE
+  B_POSITIVE
+  B_NEGATIVE
+  AB_POSITIVE
+  AB_NEGATIVE
+  O_POSITIVE
+  O_NEGATIVE
+}
+
+enum blood_request_status {
+  OPEN
+  FULFILLED
+  PARTIALLY_FULFILLED
+  CANCELLED
+  EXPIRED
+}
+
+enum campaign_status {
+  DRAFT
+  PENDING_APPROVAL
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+  REJECTED
+}
+
+enum campaign_type {
+  BLOOD
+  DONATION
+  AWARENESS
+  EMERGENCY
+  MEDICAL
+  FUNDRAISING
+}
+
+enum conversation_type {
+  DIRECT
+  GROUP
+  SUPPORT
+  CAMPAIGN
+  CHANNEL
+}
+
+enum donation_item_condition {
+  NEW
+  LIKE_NEW
+  GOOD
+  FAIR
+  POOR
+}
+
+enum donation_item_status {
+  AVAILABLE
+  REQUESTED
+  APPROVED
+  TRANSFERRED
+  CANCELLED
+}
+
+enum donation_status {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+  CANCELLED
+  UNDER_REVIEW
+}
+
+enum equipment_condition {
+  EXCELLENT
+  GOOD
+  FAIR
+  NEEDS_REPAIR
+  OUT_OF_SERVICE
+}
+
+enum feature_flag_status {
+  ENABLED
+  DISABLED
+  BETA
+  DEPRECATED
+}
+
+enum gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum group_member_role {
+  MEMBER
+  MODERATOR
+  ADMIN
+  OWNER
+}
+
+enum group_member_status {
+  ACTIVE
+  PENDING
+  BANNED
+  LEFT
+  REMOVED
+}
+
+enum group_privacy {
+  PUBLIC
+  PRIVATE
+  INVITE_ONLY
+}
+
+enum membership_status {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  PAUSED
+  PENDING
+}
+
+enum message_status {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  DELETED
+}
+
+enum message_type {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  FILE
+  LOCATION
+  SYSTEM
+  STICKER
+  BLOOD_REQUEST
+  SOS_ALERT
+}
+
+enum notification_channel {
+  PUSH
+  EMAIL
+  SMS
+  IN_APP
+}
+
+enum notification_type {
+  ORDER
+  DELIVERY
+  PAYMENT
+  REWARD
+  CAMPAIGN
+  BLOOD_REQUEST
+  RENTAL
+  SUPPORT
+  COMMUNITY
+  CHAT
+  SYSTEM
+  PREMIUM
+  SOS
+  SAFETY
+}
+
+enum order_status {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  RETURNED
+  REFUNDED
+}
+
+enum otp_purpose {
+  REGISTRATION
+  LOGIN
+  FORGOT_PASSWORD
+  PHONE_VERIFICATION
+  EMAIL_VERIFICATION
+  TRANSACTION
+  SOS
+}
+
+enum participant_status {
+  REGISTERED
+  CONFIRMED
+  ATTENDED
+  CANCELLED
+  NO_SHOW
+}
+
+enum payment_method {
+  UPI
+  CARD
+  NET_BANKING
+  WALLET
+  COD
+  REWARD_POINTS
+  SUBSCRIPTION
+  BANK_TRANSFER
+}
+
+enum payment_purpose {
+  ORDER
+  RENTAL
+  SUBSCRIPTION
+  DONATION
+  CAMPAIGN
+  REWARD_REDEMPTION
+  SECURITY_DEPOSIT
+}
+
+enum payment_status {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  CANCELLED
+}
+
+enum post_status {
+  ACTIVE
+  HIDDEN
+  REMOVED
+  PENDING_REVIEW
+}
+
+enum product_status {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  INACTIVE
+  REJECTED
+  OUT_OF_STOCK
+  ARCHIVED
+}
+
+enum question_status {
+  OPEN
+  ANSWERED
+  CLOSED
+  PENDING_REVIEW
+  REMOVED
+}
+
+enum rental_status {
+  PENDING
+  APPROVED
+  ACTIVE
+  OVERDUE
+  RETURNED
+  CANCELLED
+  REJECTED
+  COMPLETED
+}
+
+enum report_reason {
+  SPAM
+  HARASSMENT
+  HATE_SPEECH
+  MISINFORMATION
+  VIOLENCE
+  NUDITY
+  COPYRIGHT
+  OTHER
+}
+
+enum report_status {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+enum return_condition {
+  EXCELLENT
+  GOOD
+  FAIR
+  DAMAGED
+  LOST
+}
+
+enum return_request_status {
+  PENDING
+  APPROVED
+  REJECTED
+  PICKUP_SCHEDULED
+  PICKED_UP
+  REFUND_INITIATED
+  COMPLETED
+}
+
+enum reward_activity {
+  BLOOD_DONATION
+  BLOOD_REQUEST_FULFILLMENT
+  CAMPAIGN_PARTICIPATION
+  PRODUCT_DONATION
+  DONATION_ITEM_DONATION
+  EQUIPMENT_SUPPORT
+  COMMUNITY_POST
+  REFERRAL
+  PROFILE_COMPLETION
+  FIRST_PURCHASE
+  REVIEW_SUBMISSION
+  SOS_RESPONSE
+  BLOG_CREATION
+  QA_ANSWER
+}
+
+enum reward_claim_status {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  CREDITED
+}
+
+enum reward_transaction_type {
+  EARNED
+  REDEEMED
+  EXPIRED
+  ADJUSTED
+  BONUS
+  REVERSED
+}
+
+enum seller_status {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REJECTED
+  UNDER_REVIEW
+}
+
+enum shipping_type {
+  STANDARD
+  EXPRESS
+  SAME_DAY
+  PICKUP
+}
+
+enum sos_status {
+  TRIGGERED
+  ACKNOWLEDGED
+  RESPONDING
+  RESOLVED
+  FALSE_ALARM
+}
+
+enum ticket_priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ticket_status {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  WAITING_FOR_USER
+  RESOLVED
+  CLOSED
+  REOPENED
+}
+
+enum transaction_type {
+  CREDIT
+  DEBIT
+  REFUND
+  REVERSAL
+  ADJUSTMENT
+}
+
+enum urgency_level {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum user_role {
+  USER
+  SELLER
+  PREMIUM_USER
+  PREMIUM_SELLER
+  ADMIN
+  SUPER_ADMIN
+  MODERATOR
+}
+
+enum user_status {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  BANNED
+  PENDING_VERIFICATION
+}
