@@ -8,20 +8,20 @@ datasource db {
 }
 
 model area_postal_codes {
-  id              BigInt   @id @default(autoincrement())
-  service_area_id BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  service_area_id String @db.Uuid
   postal_code     String   @db.VarChar(20)
   locality        String?  @db.VarChar(255)
   is_active       Boolean  @default(true)
   created_at      DateTime @default(now()) @db.Timestamptz(6)
-
   @@unique([service_area_id, postal_code], map: "area_postal_codes_unique")
+  @@index([is_active])
+  @@index([created_at])
 }
 
 model auth_sessions {
-  id                 BigInt    @id @default(autoincrement())
-  public_id          String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id            BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id            String @db.Uuid
   refresh_token_hash String    @unique
   device_id          String?   @db.VarChar(255)
   device_name        String?   @db.VarChar(255)
@@ -36,49 +36,56 @@ model auth_sessions {
   revoked_at         DateTime? @db.Timestamptz(6)
   created_at         DateTime  @default(now()) @db.Timestamptz(6)
   updated_at         DateTime  @default(now()) @db.Timestamptz(6)
+  @@index([is_active])
+  @@index([created_at])
+  @@index([user_id])
 }
 
 model blood_admin_notes {
-  id          BigInt   @id @default(autoincrement())
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   entity_type String   @db.VarChar(50)
-  entity_id   BigInt
-  admin_id    BigInt
+  entity_id   String @db.Uuid
+  admin_id    String @db.Uuid
   note        String
   created_at  DateTime @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([entity_id])
+  @@index([admin_id])
+  @@index([entity_type, entity_id])
 }
 
 model blood_compatibility {
-  id              BigInt      @id @default(autoincrement())
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   donor_group     blood_group
   recipient_group blood_group
   is_compatible   Boolean     @default(false)
-
   @@unique([donor_group, recipient_group], map: "blood_compatibility_unique")
 }
 
 model blood_donation_responses {
-  id               BigInt          @id @default(autoincrement())
-  public_id        String          @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  blood_request_id BigInt
-  donor_id         BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  blood_request_id String @db.Uuid
+  donor_id         String @db.Uuid
   units_pledged    Decimal         @default(1) @db.Decimal(5, 2)
   status           donation_status @default(PENDING)
   response_note    String?
   donation_date    DateTime?       @db.Date
-  donation_id      BigInt?
+  donation_id      String? @db.Uuid
   admin_note       String?
-  reviewed_by_id   BigInt?
+  reviewed_by_id   String? @db.Uuid
   reviewed_at      DateTime?       @db.Timestamptz(6)
   created_at       DateTime        @default(now()) @db.Timestamptz(6)
   updated_at       DateTime        @default(now()) @db.Timestamptz(6)
-
   @@unique([blood_request_id, donor_id], map: "blood_donation_responses_unique")
+  @@index([status])
+  @@index([created_at])
+  @@index([donation_id])
+  @@index([reviewed_by_id])
 }
 
 model blood_donations {
-  id               BigInt          @id @default(autoincrement())
-  public_id        String          @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  donor_id         BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  donor_id         String @db.Uuid
   blood_group      blood_group
   donation_date    DateTime        @db.Date
   donation_center  String?         @db.VarChar(255)
@@ -89,22 +96,29 @@ model blood_donations {
   status           donation_status @default(PENDING)
   proof_image_url  String?
   notes            String?
-  verified_by_id   BigInt?
+  verified_by_id   String? @db.Uuid
   verified_at      DateTime?       @db.Timestamptz(6)
   rejection_reason String?
   certificate_url  String?
   is_camp_donation Boolean         @default(false)
-  campaign_id      BigInt?
+  campaign_id      String? @db.Uuid
   reward_claimed   Boolean         @default(false)
-  reward_claim_id  BigInt?
+  reward_claim_id  String? @db.Uuid
   created_at       DateTime        @default(now()) @db.Timestamptz(6)
   updated_at       DateTime        @default(now()) @db.Timestamptz(6)
   deleted_at       DateTime?       @db.Timestamptz(6)
+  @@index([status])
+  @@index([created_at])
+  @@index([deleted_at])
+  @@index([donor_id])
+  @@index([verified_by_id])
+  @@index([campaign_id])
+  @@index([reward_claim_id])
 }
 
 model blood_donor_profiles {
-  id                 BigInt      @id @default(autoincrement())
-  user_id            BigInt      @unique
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id            String @db.Uuid      @unique
   blood_group        blood_group
   is_available       Boolean     @default(true)
   total_donations    Int         @default(0)
@@ -120,12 +134,12 @@ model blood_donor_profiles {
   radius_km          Int         @default(10)
   created_at         DateTime    @default(now()) @db.Timestamptz(6)
   updated_at         DateTime    @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
 }
 
 model blood_requests {
-  id               BigInt               @id @default(autoincrement())
-  public_id        String               @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  requester_id     BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  requester_id     String @db.Uuid
   patient_name     String               @db.VarChar(255)
   blood_group      blood_group
   units_required   Decimal              @default(1) @db.Decimal(5, 2)
@@ -142,64 +156,72 @@ model blood_requests {
   notes            String?
   is_emergency     Boolean              @default(false)
   admin_note       String?
-  verified_by_id   BigInt?
+  verified_by_id   String? @db.Uuid
   expires_at       DateTime?            @db.Timestamptz(6)
   created_at       DateTime             @default(now()) @db.Timestamptz(6)
   updated_at       DateTime             @default(now()) @db.Timestamptz(6)
   deleted_at       DateTime?            @db.Timestamptz(6)
+  @@index([urgency])
+  @@index([status])
+  @@index([created_at])
+  @@index([deleted_at])
+  @@index([requester_id])
+  @@index([verified_by_id])
 }
 
 model cart_items {
-  id           BigInt   @id @default(autoincrement())
-  cart_id      BigInt
-  product_id   BigInt
-  variant_id   BigInt?
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cart_id      String @db.Uuid
+  product_id   String @db.Uuid
+  variant_id   String? @db.Uuid
   quantity     Int      @default(1)
   price_at_add Decimal  @db.Decimal(12, 2)
   created_at   DateTime @default(now()) @db.Timestamptz(6)
   updated_at   DateTime @default(now()) @db.Timestamptz(6)
-
   @@unique([cart_id, product_id, variant_id], map: "cart_items_unique")
+  @@index([created_at])
 }
 
 model carts {
-  id              BigInt   @id @default(autoincrement())
-  public_id       String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id         BigInt?  @unique
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id         String? @db.Uuid  @unique
   session_id      String?  @db.VarChar(255)
   coupon_code     String?  @db.VarChar(100)
   discount_amount Decimal  @default(0) @db.Decimal(12, 2)
   created_at      DateTime @default(now()) @db.Timestamptz(6)
   updated_at      DateTime @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
 }
 
 model commission_settings {
-  id             BigInt    @id @default(autoincrement())
-  category_id    BigInt?
-  seller_id      BigInt?
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category_id    String? @db.Uuid
+  seller_id      String? @db.Uuid
   rate           Decimal   @db.Decimal(5, 2)
   is_default     Boolean   @default(false)
   effective_from DateTime  @default(dbgenerated("CURRENT_DATE")) @db.Date
   effective_to   DateTime? @db.Date
-  created_by_id  BigInt
+  created_by_id  String @db.Uuid
   created_at     DateTime  @default(now()) @db.Timestamptz(6)
   updated_at     DateTime  @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([category_id])
+  @@index([seller_id])
+  @@index([created_by_id])
 }
 
 model coupon_usages {
-  id        BigInt   @id @default(autoincrement())
-  coupon_id BigInt
-  user_id   BigInt
-  order_id  BigInt?
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  coupon_id String @db.Uuid
+  user_id   String @db.Uuid
+  order_id  String? @db.Uuid
   discount  Decimal  @db.Decimal(12, 2)
   used_at   DateTime @default(now()) @db.Timestamptz(6)
-
   @@unique([coupon_id, user_id, order_id], map: "coupon_usages_unique")
 }
 
 model coupons {
-  id              BigInt    @id @default(autoincrement())
-  public_id       String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   code            String    @unique @db.VarChar(100)
   description     String?
   discount_type   String    @default("PERCENTAGE") @db.VarChar(20)
@@ -213,15 +235,17 @@ model coupons {
   applicable_to   String    @default("ALL") @db.VarChar(50)
   starts_at       DateTime  @default(now()) @db.Timestamptz(6)
   expires_at      DateTime? @db.Timestamptz(6)
-  created_by_id   BigInt
+  created_by_id   String @db.Uuid
   created_at      DateTime  @default(now()) @db.Timestamptz(6)
   updated_at      DateTime  @default(now()) @db.Timestamptz(6)
+  @@index([is_active])
+  @@index([created_at])
+  @@index([created_by_id])
 }
 
 model delivery_fees {
-  id              BigInt        @id @default(autoincrement())
-  public_id       String        @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  service_area_id BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  service_area_id String @db.Uuid
   shipping_type   shipping_type @default(STANDARD)
   min_order_value Decimal       @default(0) @db.Decimal(12, 2)
   fee             Decimal       @default(0) @db.Decimal(10, 2)
@@ -230,75 +254,87 @@ model delivery_fees {
   is_active       Boolean       @default(true)
   created_at      DateTime      @default(now()) @db.Timestamptz(6)
   updated_at      DateTime      @default(now()) @db.Timestamptz(6)
+  @@index([is_active])
+  @@index([created_at])
+  @@index([service_area_id])
 }
 
 model delivery_tracking_events {
-  id          BigInt   @id @default(autoincrement())
-  shipment_id BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  shipment_id String @db.Uuid
   status      String   @db.VarChar(100)
   location    String?  @db.VarChar(255)
   description String?
   occurred_at DateTime @default(now()) @db.Timestamptz(6)
   created_at  DateTime @default(now()) @db.Timestamptz(6)
+  @@index([status])
+  @@index([created_at])
+  @@index([shipment_id])
 }
 
 model device_tokens {
-  id         BigInt   @id @default(autoincrement())
-  public_id  String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id    BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String @db.Uuid
   token      String
   platform   String   @db.VarChar(50)
   device_id  String?  @db.VarChar(255)
   is_active  Boolean  @default(true)
   created_at DateTime @default(now()) @db.Timestamptz(6)
   updated_at DateTime @default(now()) @db.Timestamptz(6)
-
   @@unique([user_id, device_id, platform], map: "device_tokens_unique")
+  @@index([is_active])
+  @@index([created_at])
 }
 
 model donation_certificates {
-  id             BigInt   @id @default(autoincrement())
-  public_id      String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  donation_id    BigInt   @unique
-  donor_id       BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  donation_id    String @db.Uuid   @unique
+  donor_id       String @db.Uuid
   certificate_no String   @unique @db.VarChar(100)
   issued_at      DateTime @default(now()) @db.Timestamptz(6)
   file_url       String
   is_valid       Boolean  @default(true)
   created_at     DateTime @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([donor_id])
 }
 
 model donation_item_images {
-  id               BigInt   @id @default(autoincrement())
-  donation_item_id BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  donation_item_id String @db.Uuid
   url              String
   sort_order       Int      @default(0)
   is_primary       Boolean  @default(false)
   created_at       DateTime @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([donation_item_id])
 }
 
 model donation_item_requests {
-  id               BigInt          @id @default(autoincrement())
-  public_id        String          @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  donation_item_id BigInt
-  requester_id     BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  donation_item_id String @db.Uuid
+  requester_id     String @db.Uuid
   quantity_needed  Int             @default(1)
   purpose          String
   status           approval_status @default(PENDING)
   admin_note       String?
-  reviewed_by_id   BigInt?
+  reviewed_by_id   String? @db.Uuid
   reviewed_at      DateTime?       @db.Timestamptz(6)
   created_at       DateTime        @default(now()) @db.Timestamptz(6)
   updated_at       DateTime        @default(now()) @db.Timestamptz(6)
+  @@index([status])
+  @@index([created_at])
+  @@index([donation_item_id])
+  @@index([requester_id])
+  @@index([reviewed_by_id])
 }
 
 model donation_items {
-  id             BigInt                  @id @default(autoincrement())
-  public_id      String                  @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  donor_id       BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  donor_id       String @db.Uuid
   title          String                  @db.VarChar(500)
   description    String
-  category_id    BigInt?
+  category_id    String? @db.Uuid
   condition      donation_item_condition @default(GOOD)
   quantity       Int                     @default(1)
   status         donation_item_status    @default(AVAILABLE)
@@ -307,21 +343,26 @@ model donation_items {
   pickup_address String?
   is_pickup_only Boolean                 @default(true)
   admin_note     String?
-  verified_by_id BigInt?
+  verified_by_id String? @db.Uuid
   verified_at    DateTime?               @db.Timestamptz(6)
   tags           String[]
   created_at     DateTime                @default(now()) @db.Timestamptz(6)
   updated_at     DateTime                @default(now()) @db.Timestamptz(6)
   deleted_at     DateTime?               @db.Timestamptz(6)
+  @@index([status])
+  @@index([created_at])
+  @@index([deleted_at])
+  @@index([donor_id])
+  @@index([category_id])
+  @@index([verified_by_id])
 }
 
 model donation_transfers {
-  id                  BigInt    @id @default(autoincrement())
-  public_id           String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  donation_item_id    BigInt
-  request_id          BigInt
-  donor_id            BigInt
-  recipient_id        BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  donation_item_id    String @db.Uuid
+  request_id          String @db.Uuid
+  donor_id            String @db.Uuid
+  recipient_id        String @db.Uuid
   quantity            Int       @default(1)
   transfer_date       DateTime? @db.Date
   proof_image_url     String?
@@ -331,12 +372,16 @@ model donation_transfers {
   notes               String?
   created_at          DateTime  @default(now()) @db.Timestamptz(6)
   updated_at          DateTime  @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([donation_item_id])
+  @@index([request_id])
+  @@index([donor_id])
+  @@index([recipient_id])
 }
 
 model emergency_contacts {
-  id            BigInt   @id @default(autoincrement())
-  public_id     String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id       BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String @db.Uuid
   name          String   @db.VarChar(255)
   relation      String   @db.VarChar(100)
   mobile        String   @db.VarChar(20)
@@ -345,13 +390,14 @@ model emergency_contacts {
   notify_on_sos Boolean  @default(true)
   created_at    DateTime @default(now()) @db.Timestamptz(6)
   updated_at    DateTime @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([user_id])
 }
 
 model equipment {
-  id                 BigInt              @id @default(autoincrement())
-  public_id          String              @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  category_id        BigInt
-  owner_id           BigInt?
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category_id        String @db.Uuid
+  owner_id           String? @db.Uuid
   name               String              @db.VarChar(255)
   slug               String              @unique @db.VarChar(255)
   description        String
@@ -372,62 +418,72 @@ model equipment {
   is_featured        Boolean             @default(false)
   requires_training  Boolean             @default(false)
   training_notes     String?
-  service_area_id    BigInt?
+  service_area_id    String? @db.Uuid
   pickup_available   Boolean             @default(false)
   delivery_available Boolean             @default(true)
   weight_kg          Decimal?            @db.Decimal(8, 2)
   dimensions         Json?
   specifications     Json?
   admin_verified     Boolean             @default(false)
-  verified_by_id     BigInt?
+  verified_by_id     String? @db.Uuid
   verified_at        DateTime?           @db.Timestamptz(6)
   meta_title         String?             @db.VarChar(255)
   meta_description   String?
   created_at         DateTime            @default(now()) @db.Timestamptz(6)
   updated_at         DateTime            @default(now()) @db.Timestamptz(6)
   deleted_at         DateTime?           @db.Timestamptz(6)
+  @@index([is_active])
+  @@index([created_at])
+  @@index([deleted_at])
+  @@index([category_id])
+  @@index([owner_id])
+  @@index([service_area_id])
+  @@index([verified_by_id])
 }
 
 model equipment_availability {
-  id            BigInt   @id @default(autoincrement())
-  equipment_id  BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  equipment_id  String @db.Uuid
   date          DateTime @db.Date
   available_qty Int      @default(0)
   booked_qty    Int      @default(0)
   is_blocked    Boolean  @default(false)
   block_reason  String?
-
   @@unique([equipment_id, date], map: "equipment_availability_unique")
 }
 
 model equipment_categories {
-  id          BigInt   @id @default(autoincrement())
-  public_id   String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name        String   @db.VarChar(255)
   slug        String   @unique @db.VarChar(255)
   description String?
   icon_url    String?
   image_url   String?
-  parent_id   BigInt?
+  parent_id   String? @db.Uuid
   sort_order  Int      @default(0)
   is_active   Boolean  @default(true)
   created_at  DateTime @default(now()) @db.Timestamptz(6)
   updated_at  DateTime @default(now()) @db.Timestamptz(6)
+  @@index([is_active])
+  @@index([created_at])
+  @@index([parent_id])
 }
 
 model equipment_images {
-  id           BigInt   @id @default(autoincrement())
-  equipment_id BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  equipment_id String @db.Uuid
   url          String
   alt_text     String?  @db.VarChar(255)
   sort_order   Int      @default(0)
   is_primary   Boolean  @default(false)
   created_at   DateTime @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([equipment_id])
 }
 
 model equipment_maintenance {
-  id               BigInt    @id @default(autoincrement())
-  equipment_id     BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  equipment_id     String @db.Uuid
   maintenance_type String    @db.VarChar(100)
   description      String
   performed_by     String?   @db.VarChar(255)
@@ -435,28 +491,33 @@ model equipment_maintenance {
   cost             Decimal?  @db.Decimal(10, 2)
   next_due_date    DateTime? @db.Date
   notes            String?
-  created_by_id    BigInt
+  created_by_id    String @db.Uuid
   created_at       DateTime  @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([equipment_id])
+  @@index([created_by_id])
 }
 
 model featured_products {
-  id            BigInt    @id @default(autoincrement())
-  product_id    BigInt    @unique
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id    String @db.Uuid    @unique
   position      Int       @default(0)
   banner_url    String?
   starts_at     DateTime  @default(now()) @db.Timestamptz(6)
   ends_at       DateTime? @db.Timestamptz(6)
   is_active     Boolean   @default(true)
-  created_by_id BigInt
+  created_by_id String @db.Uuid
   created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  @@index([is_active])
+  @@index([created_at])
+  @@index([created_by_id])
 }
 
 model invoices {
-  id              BigInt   @id @default(autoincrement())
-  public_id       String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   invoice_number  String   @unique @db.VarChar(100)
-  payment_id      BigInt
-  user_id         BigInt
+  payment_id      String @db.Uuid
+  user_id         String @db.Uuid
   billing_name    String   @db.VarChar(255)
   billing_address String
   billing_gst     String?  @db.VarChar(50)
@@ -469,22 +530,29 @@ model invoices {
   issued_at       DateTime @default(now()) @db.Timestamptz(6)
   file_url        String?
   created_at      DateTime @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([payment_id])
+  @@index([user_id])
 }
 
 model membership_history {
-  id              BigInt   @id @default(autoincrement())
-  user_id         BigInt
-  subscription_id BigInt
-  plan_id         BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id         String @db.Uuid
+  subscription_id String @db.Uuid
+  plan_id         String @db.Uuid
   action          String   @db.VarChar(100)
-  performed_by_id BigInt?
+  performed_by_id String? @db.Uuid
   note            String?
   created_at      DateTime @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([user_id])
+  @@index([subscription_id])
+  @@index([plan_id])
+  @@index([performed_by_id])
 }
 
 model membership_plans {
-  id                BigInt        @id @default(autoincrement())
-  public_id         String        @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name              String        @db.VarChar(255)
   slug              String        @unique @db.VarChar(255)
   description       String?
@@ -500,31 +568,37 @@ model membership_plans {
   sort_order        Int           @default(0)
   created_at        DateTime      @default(now()) @db.Timestamptz(6)
   updated_at        DateTime      @default(now()) @db.Timestamptz(6)
+  @@index([role])
+  @@index([is_active])
+  @@index([created_at])
 }
 
 model membership_subscriptions {
-  id            BigInt            @id @default(autoincrement())
-  public_id     String            @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id       BigInt
-  plan_id       BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String @db.Uuid
+  plan_id       String @db.Uuid
   status        membership_status @default(PENDING)
   starts_at     DateTime          @db.Timestamptz(6)
   ends_at       DateTime          @db.Timestamptz(6)
   auto_renew    Boolean           @default(true)
   cancelled_at  DateTime?         @db.Timestamptz(6)
   cancel_reason String?
-  payment_id    BigInt?
+  payment_id    String? @db.Uuid
   created_at    DateTime          @default(now()) @db.Timestamptz(6)
   updated_at    DateTime          @default(now()) @db.Timestamptz(6)
+  @@index([status])
+  @@index([created_at])
+  @@index([user_id])
+  @@index([plan_id])
+  @@index([payment_id])
 }
 
 model order_items {
-  id              BigInt   @id @default(autoincrement())
-  public_id       String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_id        BigInt
-  product_id      BigInt
-  variant_id      BigInt?
-  seller_id       BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id        String @db.Uuid
+  product_id      String @db.Uuid
+  variant_id      String? @db.Uuid
+  seller_id       String @db.Uuid
   product_name    String   @db.VarChar(500)
   variant_name    String?  @db.VarChar(255)
   sku             String?  @db.VarChar(255)
@@ -538,24 +612,31 @@ model order_items {
   is_returnable   Boolean  @default(true)
   return_days     Int      @default(7)
   created_at      DateTime @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([order_id])
+  @@index([product_id])
+  @@index([variant_id])
+  @@index([seller_id])
 }
 
 model order_return_items {
-  id            BigInt            @id @default(autoincrement())
-  return_id     BigInt
-  order_item_id BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  return_id     String @db.Uuid
+  order_item_id String @db.Uuid
   quantity      Int               @default(1)
   reason        String?
   condition     return_condition?
   created_at    DateTime          @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([return_id])
+  @@index([order_item_id])
 }
 
 model order_returns {
-  id             BigInt                @id @default(autoincrement())
-  public_id      String                @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_id       BigInt
-  buyer_id       BigInt
-  seller_id      BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id       String @db.Uuid
+  buyer_id       String @db.Uuid
+  seller_id      String @db.Uuid
   status         return_request_status @default(PENDING)
   reason         String
   description    String?
@@ -563,18 +644,23 @@ model order_returns {
   refund_amount  Decimal?              @db.Decimal(12, 2)
   refund_method  payment_method?
   admin_note     String?
-  reviewed_by_id BigInt?
+  reviewed_by_id String? @db.Uuid
   reviewed_at    DateTime?             @db.Timestamptz(6)
   created_at     DateTime              @default(now()) @db.Timestamptz(6)
   updated_at     DateTime              @default(now()) @db.Timestamptz(6)
+  @@index([status])
+  @@index([created_at])
+  @@index([order_id])
+  @@index([buyer_id])
+  @@index([seller_id])
+  @@index([reviewed_by_id])
 }
 
 model orders {
-  id                  BigInt         @id @default(autoincrement())
-  public_id           String         @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   order_number        String         @unique @db.VarChar(100)
-  buyer_id            BigInt
-  seller_id           BigInt
+  buyer_id            String @db.Uuid
+  seller_id           String @db.Uuid
   status              order_status   @default(PENDING)
   subtotal            Decimal        @db.Decimal(12, 2)
   discount_amount     Decimal        @default(0) @db.Decimal(12, 2)
@@ -584,14 +670,14 @@ model orders {
   total_amount        Decimal        @db.Decimal(12, 2)
   payment_method      payment_method
   payment_status      payment_status @default(PENDING)
-  coupon_id           BigInt?
+  coupon_id           String? @db.Uuid
   coupon_discount     Decimal        @default(0) @db.Decimal(12, 2)
-  shipping_address_id BigInt
+  shipping_address_id String @db.Uuid
   shipping_type       shipping_type  @default(STANDARD)
   estimated_delivery  DateTime?      @db.Date
   notes               String?
   cancel_reason       String?
-  cancelled_by_id     BigInt?
+  cancelled_by_id     String? @db.Uuid
   cancelled_at        DateTime?      @db.Timestamptz(6)
   commission_rate     Decimal        @default(10) @db.Decimal(5, 2)
   commission_amount   Decimal        @default(0) @db.Decimal(12, 2)
@@ -600,11 +686,18 @@ model orders {
   payout_at           DateTime?      @db.Timestamptz(6)
   created_at          DateTime       @default(now()) @db.Timestamptz(6)
   updated_at          DateTime       @default(now()) @db.Timestamptz(6)
+  @@index([status])
+  @@index([payment_status])
+  @@index([created_at])
+  @@index([buyer_id])
+  @@index([seller_id])
+  @@index([coupon_id])
+  @@index([shipping_address_id])
+  @@index([cancelled_by_id])
 }
 
 model otp_verifications {
-  id           BigInt      @id @default(autoincrement())
-  public_id    String      @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   identifier   String      @db.VarChar(255)
   purpose      otp_purpose
   otp_hash     String
@@ -615,22 +708,26 @@ model otp_verifications {
   verified_at  DateTime?   @db.Timestamptz(6)
   ip_address   String?     @db.Inet
   created_at   DateTime    @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([identifier, purpose])
 }
 
 model password_reset_tokens {
-  id         BigInt    @id @default(autoincrement())
-  user_id    BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String @db.Uuid
   token_hash String    @unique
   is_used    Boolean   @default(false)
   expires_at DateTime  @db.Timestamptz(6)
   used_at    DateTime? @db.Timestamptz(6)
   ip_address String?   @db.Inet
   created_at DateTime  @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([user_id])
 }
 
 model payment_attempts {
-  id             BigInt         @id @default(autoincrement())
-  payment_id     BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payment_id     String @db.Uuid
   attempt_number Int            @default(1)
   status         payment_status
   amount         Decimal        @db.Decimal(12, 2)
@@ -641,15 +738,16 @@ model payment_attempts {
   error_message  String?
   ip_address     String?        @db.Inet
   attempted_at   DateTime       @default(now()) @db.Timestamptz(6)
+  @@index([status])
+  @@index([payment_id])
 }
 
 model payments {
-  id                 BigInt          @id @default(autoincrement())
-  public_id          String          @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id            BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id            String @db.Uuid
   purpose            payment_purpose
   reference_type     String          @db.VarChar(100)
-  reference_id       BigInt
+  reference_id       String @db.Uuid
   amount             Decimal         @db.Decimal(12, 2)
   currency           String          @default("INR") @db.VarChar(10)
   method             payment_method
@@ -664,17 +762,21 @@ model payments {
   metadata           Json?
   created_at         DateTime        @default(now()) @db.Timestamptz(6)
   updated_at         DateTime        @default(now()) @db.Timestamptz(6)
+  @@index([status])
+  @@index([created_at])
+  @@index([user_id])
+  @@index([reference_id])
+  @@index([reference_type, reference_id])
 }
 
 model product_categories {
-  id               BigInt   @id @default(autoincrement())
-  public_id        String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name             String   @db.VarChar(255)
   slug             String   @unique @db.VarChar(255)
   description      String?
   image_url        String?
   icon_url         String?
-  parent_id        BigInt?
+  parent_id        String? @db.Uuid
   commission_rate  Decimal? @db.Decimal(5, 2)
   sort_order       Int      @default(0)
   is_active        Boolean  @default(true)
@@ -683,38 +785,48 @@ model product_categories {
   meta_description String?
   created_at       DateTime @default(now()) @db.Timestamptz(6)
   updated_at       DateTime @default(now()) @db.Timestamptz(6)
+  @@index([is_active])
+  @@index([created_at])
+  @@index([parent_id])
 }
 
 model product_images {
-  id         BigInt   @id @default(autoincrement())
-  product_id BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id String @db.Uuid
   url        String
   alt_text   String?  @db.VarChar(255)
   sort_order Int      @default(0)
   is_primary Boolean  @default(false)
   created_at DateTime @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([product_id])
 }
 
 model product_inventory_logs {
-  id              BigInt   @id @default(autoincrement())
-  product_id      BigInt
-  variant_id      BigInt?
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id      String @db.Uuid
+  variant_id      String? @db.Uuid
   change          Int
   reason          String   @db.VarChar(255)
   reference_type  String?  @db.VarChar(100)
-  reference_id    BigInt?
-  performed_by_id BigInt?
+  reference_id    String? @db.Uuid
+  performed_by_id String? @db.Uuid
   note            String?
   created_at      DateTime @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([product_id])
+  @@index([variant_id])
+  @@index([reference_id])
+  @@index([performed_by_id])
+  @@index([reference_type, reference_id])
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model product_reviews {
-  id              BigInt    @id @default(autoincrement())
-  public_id       String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  product_id      BigInt
-  order_id        BigInt
-  reviewer_id     BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id      String @db.Uuid
+  order_id        String @db.Uuid
+  reviewer_id     String @db.Uuid
   rating          Int       @db.SmallInt
   title           String?   @db.VarChar(255)
   body            String?
@@ -727,14 +839,13 @@ model product_reviews {
   admin_note      String?
   created_at      DateTime  @default(now()) @db.Timestamptz(6)
   updated_at      DateTime  @default(now()) @db.Timestamptz(6)
-
   @@unique([order_id, reviewer_id, product_id], map: "product_reviews_unique")
+  @@index([created_at])
 }
 
 model product_variants {
-  id               BigInt   @id @default(autoincrement())
-  public_id        String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  product_id       BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id       String @db.Uuid
   name             String   @db.VarChar(255)
   sku              String?  @db.VarChar(255)
   price            Decimal  @db.Decimal(12, 2)
@@ -746,13 +857,15 @@ model product_variants {
   is_active        Boolean  @default(true)
   created_at       DateTime @default(now()) @db.Timestamptz(6)
   updated_at       DateTime @default(now()) @db.Timestamptz(6)
+  @@index([is_active])
+  @@index([created_at])
+  @@index([product_id])
 }
 
 model products {
-  id                  BigInt         @id @default(autoincrement())
-  public_id           String         @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  seller_id           BigInt
-  category_id         BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seller_id           String @db.Uuid
+  category_id         String @db.Uuid
   name                String         @db.VarChar(500)
   slug                String         @unique @db.VarChar(500)
   description         String
@@ -783,7 +896,7 @@ model products {
   total_reviews       Int            @default(0)
   total_sales         Int            @default(0)
   commission_rate     Decimal?       @db.Decimal(5, 2)
-  verified_by_id      BigInt?
+  verified_by_id      String? @db.Uuid
   verified_at         DateTime?      @db.Timestamptz(6)
   rejection_reason    String?
   meta_title          String?        @db.VarChar(255)
@@ -791,46 +904,59 @@ model products {
   created_at          DateTime       @default(now()) @db.Timestamptz(6)
   updated_at          DateTime       @default(now()) @db.Timestamptz(6)
   deleted_at          DateTime?      @db.Timestamptz(6)
+  @@index([status])
+  @@index([created_at])
+  @@index([deleted_at])
+  @@index([seller_id])
+  @@index([category_id])
+  @@index([verified_by_id])
 }
 
 model refunds {
-  id                BigInt         @id @default(autoincrement())
-  public_id         String         @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  payment_id        BigInt
-  user_id           BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payment_id        String @db.Uuid
+  user_id           String @db.Uuid
   amount            Decimal        @db.Decimal(12, 2)
   reason            String
   status            payment_status @default(PENDING)
   gateway_refund_id String?        @db.VarChar(255)
   gateway_response  Json?
-  initiated_by_id   BigInt?
+  initiated_by_id   String? @db.Uuid
   processed_at      DateTime?      @db.Timestamptz(6)
   created_at        DateTime       @default(now()) @db.Timestamptz(6)
   updated_at        DateTime       @default(now()) @db.Timestamptz(6)
+  @@index([status])
+  @@index([created_at])
+  @@index([payment_id])
+  @@index([user_id])
+  @@index([initiated_by_id])
 }
 
 model rental_penalties {
-  id                    BigInt    @id @default(autoincrement())
-  public_id             String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  rental_transaction_id BigInt
-  renter_id             BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rental_transaction_id String @db.Uuid
+  renter_id             String @db.Uuid
   reason                String
   amount                Decimal   @db.Decimal(12, 2)
   is_paid               Boolean   @default(false)
   paid_at               DateTime? @db.Timestamptz(6)
-  payment_id            BigInt?
+  payment_id            String? @db.Uuid
   waived                Boolean   @default(false)
-  waived_by_id          BigInt?
+  waived_by_id          String? @db.Uuid
   waiver_reason         String?
   created_at            DateTime  @default(now()) @db.Timestamptz(6)
   updated_at            DateTime  @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([rental_transaction_id])
+  @@index([renter_id])
+  @@index([payment_id])
+  @@index([waived_by_id])
 }
 
 model rental_requests {
-  id                   BigInt        @id @default(autoincrement())
-  public_id            String        @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  equipment_id         BigInt
-  renter_id            BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  equipment_id         String @db.Uuid
+  renter_id            String @db.Uuid
   quantity             Int           @default(1)
   start_date           DateTime      @db.Date
   end_date             DateTime      @db.Date
@@ -842,19 +968,24 @@ model rental_requests {
   total_amount         Decimal       @db.Decimal(12, 2)
   status               rental_status @default(PENDING)
   delivery_type        shipping_type @default(STANDARD)
-  delivery_address_id  BigInt?
+  delivery_address_id  String? @db.Uuid
   special_instructions String?
   admin_note           String?
-  reviewed_by_id       BigInt?
+  reviewed_by_id       String? @db.Uuid
   reviewed_at          DateTime?     @db.Timestamptz(6)
   created_at           DateTime      @default(now()) @db.Timestamptz(6)
   updated_at           DateTime      @default(now()) @db.Timestamptz(6)
+  @@index([status])
+  @@index([created_at])
+  @@index([equipment_id])
+  @@index([renter_id])
+  @@index([delivery_address_id])
+  @@index([reviewed_by_id])
 }
 
 model rental_returns {
-  id                    BigInt           @id @default(autoincrement())
-  public_id             String           @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  rental_transaction_id BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rental_transaction_id String @db.Uuid
   return_date           DateTime         @db.Date
   condition             return_condition
   inspection_notes      String?
@@ -863,18 +994,20 @@ model rental_returns {
   penalty_reason        String?
   deposit_refund_amount Decimal          @default(0) @db.Decimal(12, 2)
   refund_status         payment_status   @default(PENDING)
-  inspected_by_id       BigInt
+  inspected_by_id       String @db.Uuid
   inspected_at          DateTime         @default(now()) @db.Timestamptz(6)
   created_at            DateTime         @default(now()) @db.Timestamptz(6)
   updated_at            DateTime         @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([rental_transaction_id])
+  @@index([inspected_by_id])
 }
 
 model rental_transactions {
-  id                      BigInt               @id @default(autoincrement())
-  public_id               String               @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  rental_request_id       BigInt               @unique
-  renter_id               BigInt
-  equipment_id            BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rental_request_id       String @db.Uuid               @unique
+  renter_id               String @db.Uuid
+  equipment_id            String @db.Uuid
   actual_start_date       DateTime?            @db.Date
   actual_end_date         DateTime?            @db.Date
   agreed_end_date         DateTime             @db.Date
@@ -884,67 +1017,86 @@ model rental_transactions {
   total_rental_amount     Decimal              @db.Decimal(12, 2)
   penalty_amount          Decimal              @default(0) @db.Decimal(12, 2)
   refund_amount           Decimal              @default(0) @db.Decimal(12, 2)
-  payment_id              BigInt?
+  payment_id              String? @db.Uuid
   condition_at_checkout   equipment_condition?
   condition_at_return     return_condition?
   checkout_notes          String?
   return_notes            String?
   checkout_images         Json?
   return_images           Json?
-  checked_out_by_id       BigInt?
-  received_by_id          BigInt?
+  checked_out_by_id       String? @db.Uuid
+  received_by_id          String? @db.Uuid
   created_at              DateTime             @default(now()) @db.Timestamptz(6)
   updated_at              DateTime             @default(now()) @db.Timestamptz(6)
+  @@index([status])
+  @@index([created_at])
+  @@index([renter_id])
+  @@index([equipment_id])
+  @@index([payment_id])
+  @@index([checked_out_by_id])
+  @@index([received_by_id])
 }
 
 model reward_claim_requests {
-  id                BigInt              @id @default(autoincrement())
-  public_id         String              @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id           BigInt
-  rule_id           BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id           String @db.Uuid
+  rule_id           String @db.Uuid
   activity          reward_activity
   reference_type    String?             @db.VarChar(100)
-  reference_id      BigInt?
+  reference_id      String? @db.Uuid
   proof_images      Json?
   proof_description String?
   status            reward_claim_status @default(PENDING)
   points_requested  Int
   points_credited   Int?
   admin_note        String?
-  reviewed_by_id    BigInt?
+  reviewed_by_id    String? @db.Uuid
   reviewed_at       DateTime?           @db.Timestamptz(6)
   credited_at       DateTime?           @db.Timestamptz(6)
   created_at        DateTime            @default(now()) @db.Timestamptz(6)
   updated_at        DateTime            @default(now()) @db.Timestamptz(6)
+  @@index([status])
+  @@index([created_at])
+  @@index([user_id])
+  @@index([rule_id])
+  @@index([reference_id])
+  @@index([reviewed_by_id])
+  @@index([reference_type, reference_id])
 }
 
 model reward_configurations {
-  id            BigInt   @id @default(autoincrement())
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   key           String   @unique @db.VarChar(100)
   value         String
   description   String?
-  updated_by_id BigInt?
+  updated_by_id String? @db.Uuid
   updated_at    DateTime @default(now()) @db.Timestamptz(6)
+  @@index([updated_by_id])
 }
 
 model reward_redemptions {
-  id             BigInt         @id @default(autoincrement())
-  public_id      String         @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id        BigInt
-  wallet_id      BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id        String @db.Uuid
+  wallet_id      String @db.Uuid
   points_used    Int
   monetary_value Decimal        @db.Decimal(10, 2)
-  order_id       BigInt?
-  rental_id      BigInt?
+  order_id       String? @db.Uuid
+  rental_id      String? @db.Uuid
   status         payment_status @default(PENDING)
-  transaction_id BigInt?
+  transaction_id String? @db.Uuid
   created_at     DateTime       @default(now()) @db.Timestamptz(6)
   updated_at     DateTime       @default(now()) @db.Timestamptz(6)
+  @@index([status])
+  @@index([created_at])
+  @@index([user_id])
+  @@index([wallet_id])
+  @@index([order_id])
+  @@index([rental_id])
+  @@index([transaction_id])
 }
 
 model reward_rules {
-  id                      BigInt          @id @default(autoincrement())
-  public_id               String          @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   activity                reward_activity @unique(map: "reward_rules_activity_unique")
   name                    String          @db.VarChar(255)
   description             String?
@@ -959,33 +1111,41 @@ model reward_rules {
   valid_from              DateTime?       @db.Timestamptz(6)
   valid_until             DateTime?       @db.Timestamptz(6)
   conditions              Json?
-  created_by_id           BigInt
+  created_by_id           String @db.Uuid
   created_at              DateTime        @default(now()) @db.Timestamptz(6)
   updated_at              DateTime        @default(now()) @db.Timestamptz(6)
+  @@index([is_active])
+  @@index([created_at])
+  @@index([created_by_id])
 }
 
 model reward_transactions {
-  id              BigInt                  @id @default(autoincrement())
-  public_id       String                  @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  wallet_id       BigInt
-  user_id         BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wallet_id       String @db.Uuid
+  user_id         String @db.Uuid
   type            reward_transaction_type
   points          Int
   balance_after   Int
   activity        reward_activity?
-  rule_id         BigInt?
+  rule_id         String? @db.Uuid
   reference_type  String?                 @db.VarChar(100)
-  reference_id    BigInt?
+  reference_id    String? @db.Uuid
   description     String
   expires_at      DateTime?               @db.Timestamptz(6)
-  performed_by_id BigInt?
+  performed_by_id String? @db.Uuid
   created_at      DateTime                @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([wallet_id])
+  @@index([user_id])
+  @@index([rule_id])
+  @@index([reference_id])
+  @@index([performed_by_id])
+  @@index([reference_type, reference_id])
 }
 
 model reward_wallets {
-  id               BigInt   @id @default(autoincrement())
-  public_id        String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id          BigInt   @unique
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          String @db.Uuid   @unique
   total_earned     Int      @default(0)
   total_redeemed   Int      @default(0)
   total_expired    Int      @default(0)
@@ -994,12 +1154,12 @@ model reward_wallets {
   tier             String   @default("BRONZE") @db.VarChar(50)
   created_at       DateTime @default(now()) @db.Timestamptz(6)
   updated_at       DateTime @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
 }
 
 model seller_profiles {
-  id                BigInt        @id @default(autoincrement())
-  public_id         String        @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id           BigInt        @unique
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id           String @db.Uuid        @unique
   business_name     String        @db.VarChar(255)
   business_type     String?       @db.VarChar(100)
   gst_number        String?       @db.VarChar(50)
@@ -1018,18 +1178,21 @@ model seller_profiles {
   bank_name         String?       @db.VarChar(255)
   bank_account_name String?       @db.VarChar(255)
   upi_id            String?       @db.VarChar(255)
-  verified_by_id    BigInt?
+  verified_by_id    String? @db.Uuid
   verified_at       DateTime?     @db.Timestamptz(6)
   rejection_reason  String?
-  service_area_ids  BigInt[]
+  service_area_ids  String[] @db.Uuid
   created_at        DateTime      @default(now()) @db.Timestamptz(6)
   updated_at        DateTime      @default(now()) @db.Timestamptz(6)
   deleted_at        DateTime?     @db.Timestamptz(6)
+  @@index([status])
+  @@index([created_at])
+  @@index([deleted_at])
+  @@index([verified_by_id])
 }
 
 model service_areas {
-  id         BigInt      @id @default(autoincrement())
-  public_id  String      @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name       String      @db.VarChar(255)
   city       String      @db.VarChar(100)
   state      String      @db.VarChar(100)
@@ -1040,12 +1203,13 @@ model service_areas {
   radius_km  Decimal?    @db.Decimal(8, 2)
   created_at DateTime    @default(now()) @db.Timestamptz(6)
   updated_at DateTime    @default(now()) @db.Timestamptz(6)
+  @@index([status])
+  @@index([created_at])
 }
 
 model shipments {
-  id              BigInt    @id @default(autoincrement())
-  public_id       String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  order_id        BigInt    @unique
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id        String @db.Uuid    @unique
   tracking_number String?   @db.VarChar(255)
   carrier         String?   @db.VarChar(255)
   tracking_url    String?
@@ -1056,12 +1220,13 @@ model shipments {
   notes           String?
   created_at      DateTime  @default(now()) @db.Timestamptz(6)
   updated_at      DateTime  @default(now()) @db.Timestamptz(6)
+  @@index([status])
+  @@index([created_at])
 }
 
 model user_addresses {
-  id            BigInt    @id @default(autoincrement())
-  public_id     String    @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id       BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String @db.Uuid
   label         String?   @db.VarChar(100)
   full_name     String    @db.VarChar(255)
   mobile        String    @db.VarChar(20)
@@ -1077,12 +1242,14 @@ model user_addresses {
   created_at    DateTime  @default(now()) @db.Timestamptz(6)
   updated_at    DateTime  @default(now()) @db.Timestamptz(6)
   deleted_at    DateTime? @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([deleted_at])
+  @@index([user_id])
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model users {
-  id                 BigInt       @id @default(autoincrement())
-  public_id          String       @unique(map: "users_public_id_unique") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   role               user_role    @default(USER)
   status             user_status  @default(PENDING_VERIFICATION)
   full_name          String       @db.VarChar(255)
@@ -1099,49 +1266,61 @@ model users {
   is_available_donor Boolean      @default(false)
   last_donation_date DateTime?    @db.Date
   referral_code      String?      @unique @db.VarChar(20)
-  referred_by_id     BigInt?
+  referred_by_id     String? @db.Uuid
   total_donations    Int          @default(0)
   total_points       Int          @default(0)
   created_at         DateTime     @default(now()) @db.Timestamptz(6)
   updated_at         DateTime     @default(now()) @db.Timestamptz(6)
   deleted_at         DateTime?    @db.Timestamptz(6)
+  @@index([role])
+  @@index([status])
+  @@index([created_at])
+  @@index([deleted_at])
+  @@index([referred_by_id])
 }
 
 model wallet_accounts {
-  id             BigInt   @id @default(autoincrement())
-  public_id      String   @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id        BigInt   @unique
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id        String @db.Uuid   @unique
   balance        Decimal  @default(0) @db.Decimal(12, 2)
   total_credited Decimal  @default(0) @db.Decimal(12, 2)
   total_debited  Decimal  @default(0) @db.Decimal(12, 2)
   is_active      Boolean  @default(true)
   created_at     DateTime @default(now()) @db.Timestamptz(6)
   updated_at     DateTime @default(now()) @db.Timestamptz(6)
+  @@index([is_active])
+  @@index([created_at])
 }
 
 model wallet_transactions {
-  id             BigInt           @id @default(autoincrement())
-  public_id      String           @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  wallet_id      BigInt
-  user_id        BigInt
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wallet_id      String @db.Uuid
+  user_id        String @db.Uuid
   type           transaction_type
   amount         Decimal          @db.Decimal(12, 2)
   balance_after  Decimal          @db.Decimal(12, 2)
   reference_type String?          @db.VarChar(100)
-  reference_id   BigInt?
+  reference_id   String? @db.Uuid
   description    String
-  payment_id     BigInt?
+  payment_id     String? @db.Uuid
   created_at     DateTime         @default(now()) @db.Timestamptz(6)
+  @@index([created_at])
+  @@index([wallet_id])
+  @@index([user_id])
+  @@index([reference_id])
+  @@index([payment_id])
+  @@index([reference_type, reference_id])
 }
 
 model wishlists {
-  id         BigInt   @id @default(autoincrement())
-  user_id    BigInt
-  product_id BigInt
-  variant_id BigInt?
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String @db.Uuid
+  product_id String @db.Uuid
+  variant_id String? @db.Uuid
   created_at DateTime @default(now()) @db.Timestamptz(6)
-
   @@unique([user_id, product_id], map: "wishlists_unique")
+  @@index([created_at])
+  @@index([variant_id])
 }
 
 enum alert_recipient_status {
