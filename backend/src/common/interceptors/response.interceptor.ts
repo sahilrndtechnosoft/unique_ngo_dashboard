@@ -7,8 +7,8 @@ import {
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { RESPONSE_MESSAGE_KEY } from '../decorators';
 import { ApiSuccessResponse } from '../constants';
+import { RESPONSE_MESSAGE_KEY } from '../decorators';
 
 @Injectable()
 export class ResponseInterceptor<T>
@@ -35,15 +35,10 @@ export class ResponseInterceptor<T>
           return data as ApiSuccessResponse<T>;
         }
 
-        const response: ApiSuccessResponse<T> = {
-          success: true,
-          message,
-        };
-
+        const response: ApiSuccessResponse<T> = { success: true, message };
         if (data !== undefined && data !== null) {
           response.data = data;
         }
-
         return response;
       }),
     );

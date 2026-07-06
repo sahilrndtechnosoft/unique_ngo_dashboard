@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes } from 'crypto';
+import { auth_sessions, users } from '../../../generated/prisma/client';
 import { JwtPayload } from '../../common/constants';
 import {
   addDays,
@@ -10,10 +11,50 @@ import {
   parseDurationToDays,
 } from '../../common/utils/crypto.util';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SessionMetadata } from '../dto/device-info.dto';
+
+export interface TokenUser {
+  id: string;
+  role: string;
+  email?: string | null;
+  mobile?: string | null;
+}
 
 export interface TokenPair {
   accessToken: string;
   refreshToken: string;
+}
+
+interface ValidatedRefreshToken {
+  session: auth_sessions;
+  user: users;
+  rawSecret: string;
+}
+
+type RevokeReason =
+  | 'logout'
+  | 'rotation'
+  | 'logout_all'
+  | 'reuse_detected'
+  | 'admin'
+  | 'expired';
+
+interface RevokeSessionOptions {
+  revokedByIp?: string;
+  replacedBySessionId?: string;
+  reason?: RevokeReason;
+}
+
+function isSessionExpired(session: auth_sessions): boolean {
+  return session.expires_at <= new Date();
+}
+
+function isSessionRevoked(session: auth_sessions): boolean {
+  return !session.is_active || session.revoked_at !== null;
+}
+
+function isSessionActive(session: auth_sessions): boolean {
+  return session.is_active && !isSessionRevoked(session) && !isSessionExpired(session);
 }
 
 @Injectable()
@@ -24,19 +65,7 @@ export class TokenService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async generateTokenPair(
-    user: {
-      id: string;
-      role: string;
-      email?: string | null;
-      mobile?: string | null;
-    },
-    metadata?: {
-      ipAddress?: string;
-      userAgent?: string;
-      deviceId?: string;
-    },
-  ): Promise<TokenPair> {
+  generateAccessToken(user: TokenUser): string {
     const payload: JwtPayload = {
       sub: user.id,
       role: user.role as JwtPayload['role'],
@@ -44,136 +73,286 @@ export class TokenService {
       mobile: user.mobile,
     };
 
-    const accessToken = this.jwtService.sign(payload, {
+    return this.jwtService.sign(payload, {
       secret: this.configService.get<string>('app.jwt.accessSecret'),
       expiresIn: this.configService.get<string>(
         'app.jwt.accessExpiresIn',
       )! as `${number}m`,
     });
+  }
 
+  async generateRefreshToken(
+    user: TokenUser,
+    metadata?: SessionMetadata,
+  ): Promise<{ refreshToken: string; session: auth_sessions }> {
     const refreshSecret = randomBytes(48).toString('hex');
-    const bcryptRounds = this.configService.get<number>('app.bcryptRounds')!;
-    const refreshTokenHash = await hashValue(refreshSecret, bcryptRounds);
-    const refreshExpiresIn = this.configService.get<string>(
-      'app.jwt.refreshExpiresIn',
-    )!;
-    const refreshDays = parseDurationToDays(refreshExpiresIn);
+    const refreshTokenHash = await this.hashRefreshSecret(refreshSecret);
+    const expiresAt = this.getRefreshTokenExpiryDate();
 
     const session = await this.prisma.auth_sessions.create({
       data: {
         user_id: user.id,
         refresh_token_hash: refreshTokenHash,
         device_id: metadata?.deviceId,
+        device_name: metadata?.deviceName,
+        device_type: metadata?.deviceType,
+        os: metadata?.os,
+        app_version: metadata?.appVersion,
         ip_address: metadata?.ipAddress,
         user_agent: metadata?.userAgent,
-        expires_at: addDays(new Date(), refreshDays),
+        expires_at: expiresAt,
+        last_used_at: new Date(),
       },
     });
 
-    const refreshToken = `${session.id}.${refreshSecret}`;
+    return {
+      refreshToken: this.formatRefreshToken(session.id, refreshSecret),
+      session,
+    };
+  }
 
+  async generateTokenPair(
+    user: TokenUser,
+    metadata?: SessionMetadata,
+  ): Promise<TokenPair> {
+    const accessToken = this.generateAccessToken(user);
+    const { refreshToken } = await this.generateRefreshToken(user, metadata);
     return { accessToken, refreshToken };
   }
 
-  async refreshTokens(
+  async validateRefreshToken(
     refreshToken: string,
-    metadata?: { ipAddress?: string; userAgent?: string },
-  ): Promise<TokenPair> {
-    const sessionId = this.extractSessionId(refreshToken);
-    const refreshSecret = this.extractRefreshSecret(refreshToken);
+    options: { detectReuse?: boolean; metadata?: SessionMetadata } = {
+      detectReuse: true,
+    },
+  ): Promise<ValidatedRefreshToken> {
+    const { sessionId, rawSecret } = this.parseRefreshToken(refreshToken);
 
-    const session = await this.prisma.auth_sessions.findFirst({
-      where: {
-        id: sessionId,
-        is_active: true,
-        revoked_at: null,
-        expires_at: { gt: new Date() },
-      },
+    const session = await this.prisma.auth_sessions.findUnique({
+      where: { id: sessionId },
     });
 
     if (!session) {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
-    const isMatch = await compareHash(refreshSecret, session.refresh_token_hash);
-    if (!isMatch) {
+    const isHashValid = await compareHash(rawSecret, session.refresh_token_hash);
+    if (!isHashValid) {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
-    const user = await this.prisma.users.findFirst({
-      where: {
-        id: session.user_id,
-        deleted_at: null,
-        status: { notIn: ['SUSPENDED', 'BANNED', 'INACTIVE'] },
-      },
-    });
+    if (isSessionExpired(session)) {
+      await this.markSessionRevoked(session.id, {
+        reason: 'expired',
+      });
+      throw new UnauthorizedException('Refresh token has expired');
+    }
 
+    if (isSessionRevoked(session)) {
+      if (options.detectReuse) {
+        await this.handleTokenReuse(session.user_id, options.metadata);
+        throw new UnauthorizedException(
+          'Suspicious activity detected. All sessions have been revoked. Please login again.',
+        );
+      }
+      throw new UnauthorizedException(
+        'Refresh token has been revoked. Please login again.',
+      );
+    }
+
+    const user = await this.findActiveUser(session.user_id);
     if (!user) {
       throw new UnauthorizedException('User account is not active');
     }
 
     await this.prisma.auth_sessions.update({
       where: { id: session.id },
-      data: {
-        is_active: false,
-        revoked_at: new Date(),
-      },
+      data: { last_used_at: new Date() },
     });
 
-    return this.generateTokenPair(
-      {
-        id: user.id,
-        role: user.role,
-        email: user.email,
-        mobile: user.mobile,
-      },
-      metadata,
-    );
+    return { session, user, rawSecret };
   }
 
-  async revokeRefreshToken(refreshToken: string): Promise<void> {
-    const sessionId = this.extractSessionId(refreshToken);
-    const refreshSecret = this.extractRefreshSecret(refreshToken);
+  async rotateRefreshToken(
+    refreshToken: string,
+    metadata?: SessionMetadata,
+  ): Promise<TokenPair> {
+    const { session, user } = await this.validateRefreshToken(refreshToken, {
+      detectReuse: true,
+      metadata,
+    });
 
-    const session = await this.prisma.auth_sessions.findFirst({
+    const accessToken = this.generateAccessToken(user);
+    const { refreshToken: newRefreshToken, session: newSession } =
+      await this.generateRefreshToken(user, metadata);
+
+    await this.markSessionRevoked(session.id, {
+      replacedBySessionId: newSession.id,
+      revokedByIp: metadata?.ipAddress,
+      reason: 'rotation',
+    });
+
+    return { accessToken, refreshToken: newRefreshToken };
+  }
+
+  async revokeRefreshToken(
+    refreshToken: string,
+    options?: RevokeSessionOptions,
+  ): Promise<void> {
+    const { sessionId, rawSecret } = this.parseRefreshToken(refreshToken);
+
+    const session = await this.prisma.auth_sessions.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session || !session.is_active) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const isHashValid = await compareHash(rawSecret, session.refresh_token_hash);
+    if (!isHashValid) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    await this.markSessionRevoked(session.id, {
+      ...options,
+      reason: options?.reason ?? 'logout',
+    });
+  }
+
+  async revokeAllUserSessions(
+    userId: string,
+    options?: RevokeSessionOptions,
+  ): Promise<{ revokedCount: number }> {
+    const now = new Date();
+
+    const result = await this.prisma.auth_sessions.updateMany({
       where: {
-        id: sessionId,
+        user_id: userId,
         is_active: true,
         revoked_at: null,
       },
+      data: {
+        is_active: false,
+        revoked_at: now,
+        revoked_by_ip: options?.revokedByIp,
+        revoke_reason: options?.reason ?? 'logout_all',
+      },
     });
 
-    if (!session) {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
+    return { revokedCount: result.count };
+  }
 
-    const isMatch = await compareHash(refreshSecret, session.refresh_token_hash);
-    if (!isMatch) {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
+  async getActiveSessions(userId: string) {
+    const sessions = await this.prisma.auth_sessions.findMany({
+      where: {
+        user_id: userId,
+        is_active: true,
+        revoked_at: null,
+        expires_at: { gt: new Date() },
+      },
+      orderBy: { last_used_at: 'desc' },
+      select: {
+        id: true,
+        device_id: true,
+        device_name: true,
+        device_type: true,
+        os: true,
+        ip_address: true,
+        user_agent: true,
+        expires_at: true,
+        last_used_at: true,
+        created_at: true,
+      },
+    });
 
+    return sessions.map((session) => ({
+      id: session.id,
+      deviceId: session.device_id,
+      deviceName: session.device_name,
+      deviceType: session.device_type,
+      os: session.os,
+      ipAddress: session.ip_address,
+      userAgent: session.user_agent,
+      expiresAt: session.expires_at,
+      lastUsedAt: session.last_used_at,
+      createdAt: session.created_at,
+      isActive: isSessionActive(session as auth_sessions),
+      isExpired: isSessionExpired(session as auth_sessions),
+      isRevoked: false,
+    }));
+  }
+
+  private async handleTokenReuse(
+    userId: string,
+    metadata?: SessionMetadata,
+  ): Promise<void> {
+    await this.revokeAllUserSessions(userId, {
+      revokedByIp: metadata?.ipAddress,
+      reason: 'reuse_detected',
+    });
+  }
+
+  private async markSessionRevoked(
+    sessionId: string,
+    options?: RevokeSessionOptions,
+  ): Promise<void> {
     await this.prisma.auth_sessions.update({
-      where: { id: session.id },
+      where: { id: sessionId },
       data: {
         is_active: false,
         revoked_at: new Date(),
+        revoked_by_ip: options?.revokedByIp,
+        replaced_by_session_id: options?.replacedBySessionId,
+        revoke_reason: options?.reason,
       },
     });
   }
 
-  private extractSessionId(refreshToken: string): string {
-    const separatorIndex = refreshToken.indexOf('.');
-    if (separatorIndex === -1) {
-      throw new UnauthorizedException('Invalid refresh token format');
-    }
-    return refreshToken.slice(0, separatorIndex);
+  private async findActiveUser(userId: string): Promise<users | null> {
+    return this.prisma.users.findFirst({
+      where: {
+        id: userId,
+        deleted_at: null,
+        status: { notIn: ['SUSPENDED', 'BANNED', 'INACTIVE'] },
+      },
+    });
   }
 
-  private extractRefreshSecret(refreshToken: string): string {
+  private getRefreshTokenExpiryDate(): Date {
+    const refreshDays = parseDurationToDays(
+      this.configService.get<string>('app.jwt.refreshExpiresIn')!,
+    );
+    return addDays(new Date(), refreshDays);
+  }
+
+  private async hashRefreshSecret(secret: string): Promise<string> {
+    return hashValue(
+      secret,
+      this.configService.get<number>('app.bcryptRounds')!,
+    );
+  }
+
+  private formatRefreshToken(sessionId: string, secret: string): string {
+    return `${sessionId}.${secret}`;
+  }
+
+  private parseRefreshToken(refreshToken: string): {
+    sessionId: string;
+    rawSecret: string;
+  } {
     const separatorIndex = refreshToken.indexOf('.');
     if (separatorIndex === -1) {
       throw new UnauthorizedException('Invalid refresh token format');
     }
-    return refreshToken.slice(separatorIndex + 1);
+
+    const sessionId = refreshToken.slice(0, separatorIndex);
+    const rawSecret = refreshToken.slice(separatorIndex + 1);
+
+    if (!sessionId || !rawSecret) {
+      throw new UnauthorizedException('Invalid refresh token format');
+    }
+
+    return { sessionId, rawSecret };
   }
 }

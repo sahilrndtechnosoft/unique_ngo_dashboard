@@ -20,25 +20,31 @@ model area_postal_codes {
 }
 
 model auth_sessions {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id            String @db.Uuid
-  refresh_token_hash String    @unique
-  device_id          String?   @db.VarChar(255)
-  device_name        String?   @db.VarChar(255)
-  device_type        String?   @db.VarChar(100)
-  os                 String?   @db.VarChar(100)
-  app_version        String?   @db.VarChar(50)
-  ip_address         String?   @db.Inet
-  user_agent         String?
-  is_active          Boolean   @default(true)
-  expires_at         DateTime  @db.Timestamptz(6)
-  last_used_at       DateTime? @db.Timestamptz(6)
-  revoked_at         DateTime? @db.Timestamptz(6)
-  created_at         DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at         DateTime  @default(now()) @db.Timestamptz(6)
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                String    @db.Uuid
+  refresh_token_hash     String    @unique
+  device_id              String?   @db.VarChar(255)
+  device_name            String?   @db.VarChar(255)
+  device_type            String?   @db.VarChar(100)
+  os                     String?   @db.VarChar(100)
+  app_version            String?   @db.VarChar(50)
+  ip_address             String?   @db.Inet
+  user_agent             String?
+  is_active              Boolean   @default(true)
+  expires_at             DateTime  @db.Timestamptz(6)
+  last_used_at           DateTime? @db.Timestamptz(6)
+  revoked_at             DateTime? @db.Timestamptz(6)
+  revoked_by_ip          String?   @db.Inet
+  replaced_by_session_id String?   @db.Uuid
+  revoke_reason          String?   @db.VarChar(100)
+  created_at             DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime  @default(now()) @db.Timestamptz(6)
   @@index([is_active])
   @@index([created_at])
+  @@index([expires_at])
   @@index([user_id])
+  @@index([user_id, is_active])
+  @@index([replaced_by_session_id])
 }
 
 model blood_admin_notes {

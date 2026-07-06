@@ -7,3 +7,4 @@ node_modules
 /dist
 
 docs/NESTJS_COMPLETE_GUIDE.md
+.cursor*

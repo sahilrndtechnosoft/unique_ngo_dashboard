@@ -1,176 +1,125 @@
-import {
-  Body,
-  Controller,
-  HttpCode,
-  HttpStatus,
-  Post,
-  Req,
-} from '@nestjs/common';
-import {
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
-import { Public, ResponseMessage } from '../common/decorators';
+import { CurrentUser, Public, ResponseMessage } from '../common/decorators';
+import { JwtPayload } from '../common/constants';
 import { AuthService } from './auth.service';
-import {
-  ForgotPasswordDto,
-  LoginDto,
-  LogoutDto,
-  RefreshTokenDto,
-  ResetPasswordDto,
-} from './dto/auth.dto';
+import { AuthPortal } from './constants/auth-portal';
+import { LogoutDto, RefreshTokenDto } from './dto/auth.dto';
+import { toSessionMetadata } from './dto/device-info.dto';
+import { LoginDto } from './dto/login.dto';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 
+function createPortalAuthController(portal: AuthPortal, tag: string, path: string) {
+  @ApiTags(tag)
+  @Controller(path)
+  @Public()
+  class PortalAuthController {
+    constructor(public readonly authService: AuthService) {}
+
+    @Post('send-otp')
+    @HttpCode(HttpStatus.OK)
+    @ResponseMessage('OTP sent successfully')
+    @ApiOperation({ summary: `Send OTP for ${portal} login` })
+    sendOtp(@Body() dto: SendOtpDto) {
+      return this.authService.sendOtp(dto.mobileNumber, portal);
+    }
+
+    @Post('verify-otp')
+    @HttpCode(HttpStatus.OK)
+    @ResponseMessage('Login successful')
+    @ApiOperation({ summary: `Verify OTP and login to ${portal} portal` })
+    verifyOtp(@Body() dto: VerifyOtpDto, @Req() req: Request) {
+      return this.authService.verifyOtp(
+        dto.mobileNumber,
+        dto.otp,
+        portal,
+        toSessionMetadata(dto, req),
+      );
+    }
+
+    @Post('login')
+    @HttpCode(HttpStatus.OK)
+    @ResponseMessage('Login successful')
+    @ApiOperation({ summary: `Email/password login to ${portal} portal` })
+    login(@Body() dto: LoginDto, @Req() req: Request) {
+      return this.authService.loginWithEmail(
+        dto.email,
+        dto.password,
+        portal,
+        toSessionMetadata(dto, req),
+      );
+    }
+  }
+
+  return PortalAuthController;
+}
+
+export const UserAuthController = createPortalAuthController(
+  AuthPortal.USER,
+  'Auth - User',
+  'auth/user',
+);
+
+export const AdminAuthController = createPortalAuthController(
+  AuthPortal.ADMIN,
+  'Auth - Admin',
+  'auth/admin',
+);
+
+export const SellerAuthController = createPortalAuthController(
+  AuthPortal.SELLER,
+  'Auth - Seller',
+  'auth/seller',
+);
+
 @ApiTags('Auth')
 @Controller('auth')
-@Public()
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('send-otp')
-  @HttpCode(HttpStatus.OK)
-  @ResponseMessage('OTP sent successfully')
-  @ApiOperation({ summary: 'Send OTP to mobile number' })
-  @ApiResponse({
-    status: 200,
-    description: 'OTP sent successfully. In development, OTP is included in the response.',
-    schema: {
-      example: {
-        success: true,
-        message: 'OTP sent successfully',
-        data: { otp: '123456' },
-      },
-    },
-  })
-  sendOtp(@Body() dto: SendOtpDto) {
-    return this.authService.sendOtp(dto.mobileNumber);
-  }
-
-  @Post('verify-otp')
-  @HttpCode(HttpStatus.OK)
-  @ResponseMessage('Login successful')
-  @ApiOperation({ summary: 'Verify OTP and login or register user' })
-  @ApiResponse({
-    status: 200,
-    description: 'OTP verified, tokens issued',
-    schema: {
-      example: {
-        success: true,
-        message: 'Login successful',
-        data: {
-          accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-          refreshToken: 'uuid.secret',
-          user: { id: 'uuid', fullName: 'User 3210', mobile: '9876543210' },
-        },
-      },
-    },
-  })
-  async verifyOtp(@Body() dto: VerifyOtpDto, @Req() req: Request) {
-    return this.authService.verifyOtp(dto.mobileNumber, dto.otp, {
-      ipAddress: req.ip,
-      userAgent: req.headers['user-agent'],
-    });
-  }
-
-  @Post('login')
-  @HttpCode(HttpStatus.OK)
-  @ResponseMessage('Login successful')
-  @ApiOperation({ summary: 'Login with email and password' })
-  @ApiResponse({
-    status: 200,
-    description: 'Credentials validated, tokens issued',
-    schema: {
-      example: {
-        success: true,
-        message: 'Login successful',
-        data: {
-          accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-          refreshToken: 'uuid.secret',
-          user: { id: 'uuid', email: 'user@example.com' },
-        },
-      },
-    },
-  })
-  async login(@Body() dto: LoginDto, @Req() req: Request) {
-    return this.authService.loginWithEmail(dto.email, dto.password, {
-      ipAddress: req.ip,
-      userAgent: req.headers['user-agent'],
-    });
-  }
-
-  @Post('forgot-password')
-  @HttpCode(HttpStatus.OK)
-  @ResponseMessage('If the email exists, a reset link has been sent')
-  @ApiOperation({ summary: 'Request password reset email' })
-  @ApiResponse({
-    status: 200,
-    description: 'Reset email sent if account exists',
-    schema: {
-      example: {
-        success: true,
-        message: 'If the email exists, a reset link has been sent',
-      },
-    },
-  })
-  async forgotPassword(@Body() dto: ForgotPasswordDto) {
-    await this.authService.forgotPassword(dto.email);
-  }
-
-  @Post('reset-password')
-  @HttpCode(HttpStatus.OK)
-  @ResponseMessage('Password reset successfully')
-  @ApiOperation({ summary: 'Reset password using token' })
-  @ApiResponse({
-    status: 200,
-    description: 'Password updated successfully',
-    schema: {
-      example: { success: true, message: 'Password reset successfully' },
-    },
-  })
-  async resetPassword(@Body() dto: ResetPasswordDto) {
-    await this.authService.resetPassword(dto.token, dto.password);
-  }
-
+  @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ResponseMessage('Token refreshed successfully')
-  @ApiOperation({ summary: 'Refresh access token using refresh token' })
-  @ApiResponse({
-    status: 200,
-    description: 'New token pair issued',
-    schema: {
-      example: {
-        success: true,
-        message: 'Token refreshed successfully',
-        data: {
-          accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-          refreshToken: 'uuid.secret',
-        },
-      },
-    },
-  })
-  async refresh(@Body() dto: RefreshTokenDto, @Req() req: Request) {
+  @ApiOperation({ summary: 'Refresh access token' })
+  refresh(@Body() dto: RefreshTokenDto, @Req() req: Request) {
     return this.authService.refreshToken(dto.refreshToken, {
       ipAddress: req.ip,
       userAgent: req.headers['user-agent'],
     });
   }
 
+  @Public()
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ResponseMessage('Logged out successfully')
-  @ApiOperation({ summary: 'Logout and invalidate refresh token' })
-  @ApiResponse({
-    status: 200,
-    description: 'Refresh token revoked',
-    schema: {
-      example: { success: true, message: 'Logged out successfully' },
-    },
-  })
-  async logout(@Body() dto: LogoutDto) {
-    await this.authService.logout(dto.refreshToken);
+  @ApiOperation({ summary: 'Logout and revoke refresh token' })
+  logout(@Body() dto: LogoutDto, @Req() req: Request) {
+    return this.authService.logout(dto.refreshToken, {
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+  }
+
+  @Post('logout-all')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ResponseMessage('Logged out from all devices successfully')
+  @ApiOperation({ summary: 'Revoke all active refresh tokens for the current user' })
+  logoutAll(@CurrentUser() user: JwtPayload, @Req() req: Request) {
+    return this.authService.logoutAllDevices(user.sub, {
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+  }
+
+  @Get('sessions')
+  @ApiBearerAuth()
+  @ResponseMessage('Active sessions retrieved successfully')
+  @ApiOperation({ summary: 'List active sessions for the current user' })
+  getSessions(@CurrentUser() user: JwtPayload) {
+    return this.authService.getActiveSessions(user.sub);
   }
 }

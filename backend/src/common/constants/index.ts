@@ -37,5 +37,3 @@ export const ALLOWED_IMAGE_MIME_TYPES = [
 ];
 
 export const MAX_PROFILE_PICTURE_SIZE = 5 * 1024 * 1024; // 5MB
-
-export * from './permissions';

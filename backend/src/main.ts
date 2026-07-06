@@ -39,15 +39,17 @@ async function bootstrap() {
     )
     .setVersion('1.0')
     .addBearerAuth()
-    .addTag('Auth', 'Authentication endpoints')
-    .addTag('Users', 'User profile management')
-    .addTag('Admin - Users', 'Admin user management (CRUD)')
+    .addTag('Auth', 'Shared auth (refresh, logout)')
+    .addTag('Auth - User', 'User app login (OTP + email)')
+    .addTag('Auth - Admin', 'Admin panel login (OTP + email)')
+    .addTag('Auth - Seller', 'Seller app login (OTP + email) and registration')
+    .addTag('Users', 'Profile management for users and sellers')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document);
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   console.log(`Application running on: http://localhost:${port}/api/v1`);
   console.log(`Swagger docs: http://localhost:${port}/api/docs`);
 }

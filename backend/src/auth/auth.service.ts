@@ -1,112 +1,193 @@
 import {
-  BadRequestException,
+  ConflictException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { otp_purpose, user_role, user_status } from '../../generated/prisma/client';
+import {
+  seller_status,
+  user_role,
+  user_status,
+  users,
+} from '../../generated/prisma/client';
+import { compareHash, normalizeMobile } from '../common/utils/crypto.util';
+import { UserRole } from '../common/constants';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-  addMinutes,
-  compareHash,
-  generateSecureToken,
-  hashValue,
-  normalizeMobile,
-} from '../common/utils/crypto.util';
-import { EmailService } from './services/email.service';
+  AuthPortal,
+  isRoleAllowedForPortal,
+  PORTAL_ALLOWED_ROLES,
+} from './constants/auth-portal';
+import {
+  PublicSellerProfile,
+  PublicUserProfile,
+  toPublicSeller,
+  toPublicUser,
+} from './mappers/user.mapper';
 import { OtpService } from './services/otp.service';
 import { TokenService } from './services/token.service';
-import { UsersService } from '../users/users.service';
+import { SessionMetadata } from './dto/device-info.dto';
+
+export interface AuthLoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: PublicUserProfile;
+  sellerProfile?: PublicSellerProfile;
+}
+
+const DEV_ADMIN_TEST_MOBILE = '9999999999';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly configService: ConfigService,
     private readonly otpService: OtpService,
     private readonly tokenService: TokenService,
-    private readonly emailService: EmailService,
-    private readonly usersService: UsersService,
+    private readonly configService: ConfigService,
   ) {}
 
-  async sendOtp(mobileNumber: string): Promise<{ otp?: string }> {
-    return this.otpService.sendOtp(mobileNumber, otp_purpose.LOGIN);
+  async sendOtp(mobileNumber: string, portal: AuthPortal) {
+    const mobile = normalizeMobile(mobileNumber);
+    const exposeOtp = this.configService.get<boolean>('app.exposeOtpInResponse')!;
+
+    if (portal === AuthPortal.ADMIN) {
+      const user = await this.prisma.users.findFirst({
+        where: {
+          mobile,
+          deleted_at: null,
+          role: { in: PORTAL_ALLOWED_ROLES[portal] as user_role[] },
+        },
+      });
+
+      if (!user) {
+        if (exposeOtp) {
+          return {
+            accountFound: false,
+            hint: `No admin account for mobile ${mobile}. Use seeded test mobile ${DEV_ADMIN_TEST_MOBILE}.`,
+          };
+        }
+        return {};
+      }
+    }
+
+    const result = await this.otpService.sendOtp(mobile);
+    return exposeOtp ? { accountFound: true, ...result } : result;
   }
 
   async verifyOtp(
     mobileNumber: string,
     otp: string,
-    metadata?: { ipAddress?: string; userAgent?: string },
-  ) {
+    portal: AuthPortal,
+    metadata?: SessionMetadata,
+  ): Promise<AuthLoginResponse> {
     const mobile = normalizeMobile(mobileNumber);
-    await this.otpService.verifyOtp(mobile, otp, otp_purpose.LOGIN);
+    await this.otpService.verifyOtp(mobile, otp);
 
     let user = await this.prisma.users.findFirst({
       where: { mobile, deleted_at: null },
     });
 
-    if (!user) {
-      user = await this.prisma.users.create({
-        data: {
-          mobile,
-          mobile_verified: true,
-          full_name: `User ${mobile.slice(-4)}`,
-          role: user_role.USER,
-          status: user_status.ACTIVE,
-        },
-      });
-    } else {
-      this.ensureUserCanLogin(user.status);
-
-      user = await this.prisma.users.update({
-        where: { id: user.id },
-        data: {
-          mobile_verified: true,
-          status:
-            user.status === user_status.PENDING_VERIFICATION
-              ? user_status.ACTIVE
-              : user.status,
-        },
-      });
+    if (!user && portal === AuthPortal.USER) {
+      user = await this.registerUser(mobile);
     }
 
-    const tokens = await this.tokenService.generateTokenPair(
-      {
-        id: user.id,
-        role: user.role,
-        email: user.email,
-        mobile: user.mobile,
-      },
-      metadata,
-    );
+    if (!user && portal === AuthPortal.SELLER) {
+      user = await this.registerSeller(mobile);
+    }
 
-    return {
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      user: this.usersService.toPublicProfile(user),
-    };
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials for this portal');
+    }
+
+    if (
+      portal === AuthPortal.SELLER &&
+      !isRoleAllowedForPortal(user.role as UserRole, AuthPortal.SELLER)
+    ) {
+      throw new ConflictException(
+        'This mobile is already registered with a different account type. Use another number for seller registration.',
+      );
+    }
+
+    if (portal === AuthPortal.SELLER) {
+      await this.ensureSellerProfile(user.id, mobile);
+    }
+
+    await this.ensureUserAllowedForPortal(user, portal);
+
+    user = await this.prisma.users.update({
+      where: { id: user.id },
+      data: {
+        mobile_verified: true,
+        status:
+          user.status === user_status.PENDING_VERIFICATION
+            ? user_status.ACTIVE
+            : user.status,
+      },
+    });
+
+    return this.buildLoginResponse(user, portal, metadata);
   }
 
   async loginWithEmail(
     email: string,
     password: string,
-    metadata?: { ipAddress?: string; userAgent?: string },
-  ) {
+    portal: AuthPortal,
+    metadata?: SessionMetadata,
+  ): Promise<AuthLoginResponse> {
     const user = await this.prisma.users.findFirst({
       where: { email: email.toLowerCase(), deleted_at: null },
     });
 
-    if (!user || !user.password_hash) {
+    if (!user?.password_hash) {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    this.ensureUserCanLogin(user.status);
+    await this.ensureUserAllowedForPortal(user, portal);
 
     const isPasswordValid = await compareHash(password, user.password_hash);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email or password');
     }
 
+    return this.buildLoginResponse(user, portal, metadata);
+  }
+
+  async refreshToken(refreshToken: string, metadata?: SessionMetadata) {
+    const tokens = await this.tokenService.rotateRefreshToken(
+      refreshToken,
+      metadata,
+    );
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
+  }
+
+  async logout(refreshToken: string, metadata?: SessionMetadata) {
+    await this.tokenService.revokeRefreshToken(refreshToken, {
+      revokedByIp: metadata?.ipAddress,
+      reason: 'logout',
+    });
+  }
+
+  async logoutAllDevices(userId: string, metadata?: SessionMetadata) {
+    const result = await this.tokenService.revokeAllUserSessions(userId, {
+      revokedByIp: metadata?.ipAddress,
+      reason: 'logout_all',
+    });
+    return { revokedCount: result.revokedCount };
+  }
+
+  async getActiveSessions(userId: string) {
+    return this.tokenService.getActiveSessions(userId);
+  }
+
+  private async buildLoginResponse(
+    user: users,
+    portal: AuthPortal,
+    metadata?: SessionMetadata,
+  ): Promise<AuthLoginResponse> {
     const tokens = await this.tokenService.generateTokenPair(
       {
         id: user.id,
@@ -117,100 +198,95 @@ export class AuthService {
       metadata,
     );
 
-    return {
+    const response: AuthLoginResponse = {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
-      user: this.usersService.toPublicProfile(user),
+      user: toPublicUser(user),
     };
-  }
 
-  async forgotPassword(email: string): Promise<void> {
-    const user = await this.prisma.users.findFirst({
-      where: { email: email.toLowerCase(), deleted_at: null },
-    });
-
-    if (!user) {
-      return;
-    }
-
-    const resetToken = generateSecureToken();
-    const bcryptRounds = this.configService.get<number>('app.bcryptRounds')!;
-    const tokenHash = await hashValue(resetToken, bcryptRounds);
-
-    await this.prisma.password_reset_tokens.create({
-      data: {
-        user_id: user.id,
-        token_hash: tokenHash,
-        expires_at: addMinutes(new Date(), 60),
-      },
-    });
-
-    await this.emailService.sendPasswordResetEmail(user.email!, resetToken);
-  }
-
-  async resetPassword(token: string, password: string): Promise<void> {
-    const bcryptRounds = this.configService.get<number>('app.bcryptRounds')!;
-    const now = new Date();
-
-    const tokens = await this.prisma.password_reset_tokens.findMany({
-      where: {
-        is_used: false,
-        expires_at: { gt: now },
-      },
-      orderBy: { created_at: 'desc' },
-      take: 20,
-    });
-
-    let matchedToken: (typeof tokens)[number] | null = null;
-
-    for (const record of tokens) {
-      const isMatch = await compareHash(token, record.token_hash);
-      if (isMatch) {
-        matchedToken = record;
-        break;
+    if (portal === AuthPortal.SELLER) {
+      const sellerProfile = await this.prisma.seller_profiles.findFirst({
+        where: { user_id: user.id, deleted_at: null },
+      });
+      if (sellerProfile) {
+        response.sellerProfile = toPublicSeller(sellerProfile);
       }
     }
 
-    if (!matchedToken) {
-      throw new BadRequestException('Invalid or expired reset token');
+    return response;
+  }
+
+  private async ensureUserAllowedForPortal(
+    user: users,
+    portal: AuthPortal,
+  ): Promise<void> {
+    if (
+      user.status === user_status.SUSPENDED ||
+      user.status === user_status.BANNED
+    ) {
+      throw new ForbiddenException('Your account has been suspended');
     }
 
-    const passwordHash = await hashValue(password, bcryptRounds);
+    if (user.status === user_status.INACTIVE) {
+      throw new ForbiddenException('Your account is inactive');
+    }
 
-    await this.prisma.$transaction([
-      this.prisma.users.update({
-        where: { id: matchedToken.user_id },
-        data: { password_hash: passwordHash },
-      }),
-      this.prisma.password_reset_tokens.update({
-        where: { id: matchedToken.id },
-        data: { is_used: true, used_at: now },
-      }),
-    ]);
+    if (!isRoleAllowedForPortal(user.role as UserRole, portal)) {
+      throw new ForbiddenException(
+        `Access denied. This account cannot login to the ${portal} portal`,
+      );
+    }
   }
 
-  async refreshToken(
-    refreshToken: string,
-    metadata?: { ipAddress?: string; userAgent?: string },
-  ) {
-    const tokens = await this.tokenService.refreshTokens(refreshToken, metadata);
-    return {
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-    };
+  private async registerUser(mobile: string): Promise<users> {
+    return this.prisma.users.create({
+      data: {
+        mobile,
+        mobile_verified: true,
+        full_name: `User ${mobile.slice(-4)}`,
+        role: user_role.USER,
+        status: user_status.ACTIVE,
+      },
+    });
   }
 
-  async logout(refreshToken: string): Promise<void> {
-    await this.tokenService.revokeRefreshToken(refreshToken);
+  private async registerSeller(mobile: string): Promise<users> {
+    return this.prisma.$transaction(async (tx) => {
+      const user = await tx.users.create({
+        data: {
+          mobile,
+          mobile_verified: true,
+          full_name: `Seller ${mobile.slice(-4)}`,
+          role: user_role.SELLER,
+          status: user_status.ACTIVE,
+        },
+      });
+
+      await tx.seller_profiles.create({
+        data: {
+          user_id: user.id,
+          business_name: `Seller ${mobile.slice(-4)}`,
+          status: seller_status.ACTIVE,
+        },
+      });
+
+      return user;
+    });
   }
 
-  private ensureUserCanLogin(status: user_status): void {
-    if (
-      status === user_status.SUSPENDED ||
-      status === user_status.BANNED ||
-      status === user_status.INACTIVE
-    ) {
-      throw new UnauthorizedException('Your account is not allowed to login');
+  private async ensureSellerProfile(userId: string, mobile: string): Promise<void> {
+    const profile = await this.prisma.seller_profiles.findFirst({
+      where: { user_id: userId, deleted_at: null },
+    });
+
+    if (!profile) {
+      await this.prisma.seller_profiles.create({
+        data: {
+          user_id: userId,
+          business_name: `Seller ${mobile.slice(-4)}`,
+          status: seller_status.ACTIVE,
+        },
+      });
     }
   }
 }

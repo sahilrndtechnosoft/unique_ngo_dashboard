@@ -25,7 +25,7 @@ export class OtpService {
 
   async sendOtp(
     mobileNumber: string,
-    purpose: otp_purpose,
+    purpose: otp_purpose = otp_purpose.LOGIN,
   ): Promise<{ otp?: string }> {
     const mobile = normalizeMobile(mobileNumber);
     const now = new Date();
@@ -43,11 +43,10 @@ export class OtpService {
       orderBy: { created_at: 'desc' },
     });
 
-    let otp: string;
+    const otp = generateOtp();
+    const otpHash = await hashValue(otp, bcryptRounds);
 
     if (existingOtp) {
-      otp = generateOtp();
-      const otpHash = await hashValue(otp, bcryptRounds);
       await this.prisma.otp_verifications.update({
         where: { id: existingOtp.id },
         data: {
@@ -57,8 +56,6 @@ export class OtpService {
         },
       });
     } else {
-      otp = generateOtp();
-      const otpHash = await hashValue(otp, bcryptRounds);
       await this.prisma.otp_verifications.create({
         data: {
           identifier: mobile,
@@ -70,14 +67,13 @@ export class OtpService {
     }
 
     await this.smsService.sendOtp(mobile, otp);
-
     return exposeOtp ? { otp } : {};
   }
 
   async verifyOtp(
     mobileNumber: string,
     otp: string,
-    purpose: otp_purpose,
+    purpose: otp_purpose = otp_purpose.LOGIN,
   ): Promise<void> {
     const mobile = normalizeMobile(mobileNumber);
     const now = new Date();
@@ -93,7 +89,9 @@ export class OtpService {
     });
 
     if (!record) {
-      throw new BadRequestException('OTP expired or not found. Please request a new OTP.');
+      throw new BadRequestException(
+        'OTP expired or not found. Please request a new OTP.',
+      );
     }
 
     if (record.attempts >= record.max_attempts) {
@@ -103,7 +101,6 @@ export class OtpService {
     }
 
     const isValid = await compareHash(otp, record.otp_hash);
-
     if (!isValid) {
       await this.prisma.otp_verifications.update({
         where: { id: record.id },
