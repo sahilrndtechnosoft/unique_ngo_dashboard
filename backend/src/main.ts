@@ -44,6 +44,8 @@ async function bootstrap() {
     .addTag('Auth - Admin', 'Admin panel login (OTP + email)')
     .addTag('Auth - Seller', 'Seller app login (OTP + email) and registration')
     .addTag('Users', 'Profile management for users and sellers')
+    .addTag('Admin - Roles', 'Create roles and assign module permissions')
+    .addTag('Admin - Permissions', 'Permission catalog and user role assignment')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);

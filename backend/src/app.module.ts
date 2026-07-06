@@ -3,9 +3,11 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
 import appConfig from './config/app.config';
+import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { PermissionsGuard } from './common/guards/permissions.guard';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { JwtStrategy } from './common/strategies/jwt.strategy';
 import { PrismaModule } from './prisma/prisma.module';
@@ -20,6 +22,7 @@ import { UsersModule } from './users/users.module';
     PassportModule.register({ defaultStrategy: 'jwt' }),
     PrismaModule,
     AuthModule,
+    AdminModule,
     UsersModule,
   ],
   providers: [
@@ -27,6 +30,10 @@ import { UsersModule } from './users/users.module';
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PermissionsGuard,
     },
     {
       provide: APP_INTERCEPTOR,

@@ -47,6 +47,44 @@ model auth_sessions {
   @@index([replaced_by_session_id])
 }
 
+model roles {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String             @db.VarChar(100)
+  slug             String             @unique @db.VarChar(100)
+  description      String?
+  is_system        Boolean            @default(false)
+  is_active        Boolean            @default(true)
+  created_at       DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime           @default(now()) @db.Timestamptz(6)
+  role_permissions role_permissions[]
+  users            users[]
+  @@index([is_active])
+  @@index([is_system])
+  @@index([created_at])
+}
+
+model permissions {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  module           String             @db.VarChar(100)
+  action           permission_action
+  description      String?            @db.VarChar(255)
+  role_permissions role_permissions[]
+  @@unique([module, action])
+  @@index([module])
+}
+
+model role_permissions {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  role_id       String      @db.Uuid
+  permission_id String      @db.Uuid
+  created_at    DateTime    @default(now()) @db.Timestamptz(6)
+  permission    permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+  role          roles       @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  @@unique([role_id, permission_id])
+  @@index([role_id])
+  @@index([permission_id])
+}
+
 model blood_admin_notes {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   entity_type String   @db.VarChar(50)
@@ -1257,6 +1295,7 @@ model user_addresses {
 model users {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   role               user_role    @default(USER)
+  rbac_role_id       String?      @db.Uuid
   status             user_status  @default(PENDING_VERIFICATION)
   full_name          String       @db.VarChar(255)
   email              String?      @unique(map: "users_email_unique") @db.VarChar(255)
@@ -1278,7 +1317,9 @@ model users {
   created_at         DateTime     @default(now()) @db.Timestamptz(6)
   updated_at         DateTime     @default(now()) @db.Timestamptz(6)
   deleted_at         DateTime?    @db.Timestamptz(6)
+  rbac_role          roles?       @relation(fields: [rbac_role_id], references: [id])
   @@index([role])
+  @@index([rbac_role_id])
   @@index([status])
   @@index([created_at])
   @@index([deleted_at])
@@ -1773,6 +1814,13 @@ enum urgency_level {
   MEDIUM
   HIGH
   CRITICAL
+}
+
+enum permission_action {
+  VIEW
+  CREATE
+  EDIT
+  DELETE
 }
 
 enum user_role {

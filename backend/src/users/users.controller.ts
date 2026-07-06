@@ -30,6 +30,7 @@ import { CurrentUser, ResponseMessage } from '../common/decorators';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateSellerProfileDto } from './dto/update-seller-profile.dto';
 import { UsersService } from './users.service';
+import { RbacService } from '../admin/services/rbac.service';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -38,7 +39,15 @@ export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly configService: ConfigService,
+    private readonly rbacService: RbacService,
   ) {}
+
+  @Get('me/permissions')
+  @ResponseMessage('Permissions fetched successfully')
+  @ApiOperation({ summary: 'Get current user module permissions for admin UI' })
+  getMyPermissions(@CurrentUser() user: JwtPayload) {
+    return this.rbacService.getUserPermissionsSummary(user.sub, user.role);
+  }
 
   @Get('me')
   @ResponseMessage('Profile fetched successfully')

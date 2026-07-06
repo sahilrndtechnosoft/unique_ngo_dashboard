@@ -8,6 +8,7 @@ import {
   user_role,
   user_status,
 } from '../generated/prisma/client';
+import { assignSuperAdminRole, seedRbac } from './seed-rbac';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@unique-ngo.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'Admin@123456';
@@ -139,7 +140,9 @@ async function main() {
   const prisma = new PrismaClient({ adapter });
 
   try {
+    await seedRbac(prisma);
     await seedAdmin(prisma);
+    await assignSuperAdminRole(prisma, ADMIN_EMAIL);
     await seedSeller(prisma);
 
     console.log('\n--- Admin login ---');

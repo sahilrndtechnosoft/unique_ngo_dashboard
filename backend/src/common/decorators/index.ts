@@ -8,3 +8,8 @@ export const ResponseMessage = (message: string) =>
   SetMetadata(RESPONSE_MESSAGE_KEY, message);
 
 export { CurrentUser } from './current-user.decorator';
+export {
+  RequireAnyPermission,
+  RequirePermissions,
+  Roles,
+} from './permissions.decorator';
