@@ -22,6 +22,11 @@ const SELLER_FULL_NAME = process.env.SELLER_FULL_NAME ?? 'Demo Seller';
 const SELLER_MOBILE = process.env.SELLER_MOBILE ?? '9888888888';
 const SELLER_BUSINESS = process.env.SELLER_BUSINESS ?? 'Demo Medical Store';
 
+const USER_EMAIL = process.env.USER_EMAIL ?? 'sudhanshu@gmail.com';
+const USER_PASSWORD = process.env.USER_PASSWORD ?? '12345678';
+const USER_FULL_NAME = process.env.USER_FULL_NAME ?? 'Demo User';
+const USER_MOBILE = process.env.USER_MOBILE ?? '9666666666';
+
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS ?? '12', 10);
 
 async function seedAdmin(prisma: PrismaClient) {
@@ -130,6 +135,73 @@ async function seedSeller(prisma: PrismaClient) {
   console.log(`Seller profile ready for: ${email}`);
 }
 
+async function seedUser(prisma: PrismaClient) {
+  const passwordHash = await bcrypt.hash(USER_PASSWORD, BCRYPT_ROUNDS);
+  const email = USER_EMAIL.toLowerCase();
+
+  const existing = await prisma.users.findFirst({
+    where: { email, deleted_at: null },
+  });
+
+  if (existing) {
+    await prisma.users.update({
+      where: { id: existing.id },
+      data: {
+        full_name: USER_FULL_NAME,
+        role: user_role.USER,
+        status: user_status.ACTIVE,
+        email_verified: true,
+        mobile_verified: true,
+        password_hash: passwordHash,
+        mobile: USER_MOBILE,
+      },
+    });
+    console.log(`User updated: ${email}`);
+    return;
+  }
+
+  await prisma.users.create({
+    data: {
+      full_name: USER_FULL_NAME,
+      email,
+      mobile: USER_MOBILE,
+      password_hash: passwordHash,
+      role: user_role.USER,
+      status: user_status.ACTIVE,
+      email_verified: true,
+      mobile_verified: true,
+    },
+  });
+
+  console.log(`User created: ${email}`);
+}
+
+async function seedAppSettings(prisma: PrismaClient) {
+  await prisma.app_settings.upsert({
+    where: { key: 'default' },
+    create: {
+      key: 'default',
+      company_name: 'Unique NGO',
+      tagline: 'Healthcare and social donation platform',
+      email: 'contact@unique-ngo.com',
+      phone: '9876543210',
+      city: 'Mumbai',
+      state: 'Maharashtra',
+      country: 'India',
+      footer_about:
+        'Unique NGO supports healthcare access, blood donation, and social welfare initiatives.',
+      footer_copyright: '© Unique NGO. All rights reserved.',
+      support_hours: 'Mon–Sat, 9 AM – 6 PM IST',
+    },
+    update: {
+      company_name: 'Unique NGO',
+      tagline: 'Healthcare and social donation platform',
+    },
+  });
+
+  console.log('App settings ready');
+}
+
 async function main() {
   if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL is not set');
@@ -144,6 +216,8 @@ async function main() {
     await seedAdmin(prisma);
     await assignSuperAdminRole(prisma, ADMIN_EMAIL);
     await seedSeller(prisma);
+    await seedUser(prisma);
+    await seedAppSettings(prisma);
 
     console.log('\n--- Admin login ---');
     console.log(`  Email:    ${ADMIN_EMAIL}`);
@@ -158,6 +232,13 @@ async function main() {
     console.log(`  Mobile:   ${SELLER_MOBILE}`);
     console.log('  POST /api/v1/auth/seller/login');
     console.log('  POST /api/v1/auth/seller/send-otp');
+
+    console.log('\n--- User login ---');
+    console.log(`  Email:    ${USER_EMAIL}`);
+    console.log(`  Password: ${USER_PASSWORD}`);
+    console.log(`  Mobile:   ${USER_MOBILE}`);
+    console.log('  POST /api/v1/auth/user/login');
+    console.log('  POST /api/v1/auth/user/send-otp');
   } finally {
     await prisma.$disconnect();
     await pool.end();

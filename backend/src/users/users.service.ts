@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { seller_profiles, users } from '../../generated/prisma/client';
 import { UserRole } from '../common/constants';
 import { hashValue } from '../common/utils/crypto.util';
+import { deleteUploadedFile } from '../common/utils/image-upload.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { toPublicSeller } from '../auth/mappers/user.mapper';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -132,11 +133,14 @@ export class UsersService {
 
   async updateProfilePicture(
     userId: string,
-    fileUrl: string,
+    filePath: string,
   ): Promise<PublicUserProfile> {
+    const existing = await this.findUserOrThrow(userId);
+    deleteUploadedFile(existing.profile_image_url);
+
     const user = await this.prisma.users.update({
       where: { id: userId },
-      data: { profile_image_url: fileUrl },
+      data: { profile_image_url: filePath },
     });
 
     const defaultAddress = await this.getDefaultAddress(userId);

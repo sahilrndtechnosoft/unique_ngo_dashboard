@@ -85,6 +85,56 @@ model role_permissions {
   @@index([permission_id])
 }
 
+model app_settings {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key                String   @unique @default("default") @db.VarChar(50)
+  company_name       String?  @db.VarChar(255)
+  tagline            String?  @db.VarChar(500)
+  logo_url           String?
+  favicon_url        String?
+  email              String?  @db.VarChar(255)
+  phone              String?  @db.VarChar(50)
+  whatsapp           String?  @db.VarChar(50)
+  address_line1      String?
+  address_line2      String?
+  city               String?  @db.VarChar(100)
+  state              String?  @db.VarChar(100)
+  postal_code        String?  @db.VarChar(20)
+  country            String?  @default("India") @db.VarChar(100)
+  website_url        String?
+  facebook_url       String?
+  instagram_url      String?
+  twitter_url        String?
+  linkedin_url       String?
+  youtube_url        String?
+  footer_about       String?
+  footer_copyright   String?  @db.VarChar(500)
+  footer_extra_html  String?
+  support_hours      String?  @db.VarChar(255)
+  updated_by_id      String?  @db.Uuid
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model banner_images {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String?   @db.VarChar(255)
+  subtitle    String?   @db.VarChar(500)
+  image_url   String
+  link_url    String?
+  button_text String?   @db.VarChar(100)
+  sort_order  Int       @default(0)
+  is_active   Boolean   @default(true)
+  created_by_id String? @db.Uuid
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime  @default(now()) @db.Timestamptz(6)
+  deleted_at  DateTime? @db.Timestamptz(6)
+  @@index([is_active])
+  @@index([sort_order])
+  @@index([deleted_at])
+  @@index([created_at])
+}
+
 model blood_admin_notes {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   entity_type String   @db.VarChar(50)

@@ -16,7 +16,6 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { existsSync, mkdirSync } from 'fs';
 import { diskStorage } from 'multer';
@@ -27,6 +26,7 @@ import {
   MAX_PROFILE_PICTURE_SIZE,
 } from '../common/constants';
 import { CurrentUser, ResponseMessage } from '../common/decorators';
+import { buildUploadedFilePath } from '../common/utils/image-upload.util';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateSellerProfileDto } from './dto/update-seller-profile.dto';
 import { UsersService } from './users.service';
@@ -38,7 +38,6 @@ import { RbacService } from '../admin/services/rbac.service';
 export class UsersController {
   constructor(
     private readonly usersService: UsersService,
-    private readonly configService: ConfigService,
     private readonly rbacService: RbacService,
   ) {}
 
@@ -117,11 +116,9 @@ export class UsersController {
       throw new BadRequestException('Profile picture file is required');
     }
 
-    const appUrl = this.configService.get<string>('app.appUrl')!;
-    const fileUrl = `${appUrl}/uploads/profile-pictures/${file.filename}`;
     const profile = await this.usersService.updateProfilePicture(
       user.sub,
-      fileUrl,
+      buildUploadedFilePath('profile-pictures', file.filename),
     );
 
     return { profilePicture: profile.profilePicture };

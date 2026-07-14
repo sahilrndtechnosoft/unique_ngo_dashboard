@@ -46,6 +46,9 @@ async function bootstrap() {
     .addTag('Users', 'Profile management for users and sellers')
     .addTag('Admin - Roles', 'Create roles and assign module permissions')
     .addTag('Admin - Permissions', 'Permission catalog and user role assignment')
+    .addTag('Admin - Settings', 'Company logo, details, and footer settings')
+    .addTag('Admin - Banners', 'Homepage banner image management')
+    .addTag('Public - Settings', 'Public company settings and banners')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
