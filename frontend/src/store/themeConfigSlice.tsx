@@ -2,6 +2,16 @@ import { createSlice } from '@reduxjs/toolkit';
 import i18next from 'i18next';
 import themeConfig from '../theme.config';
 
+/** Map browser locales like en-GB → en so flag assets resolve (EN.svg exists, EN-GB.svg does not). */
+export function normalizeLocaleCode(raw: string | null | undefined): string {
+    if (!raw) return 'en';
+    const lower = raw.toLowerCase().replace('_', '-');
+    if (lower === 'ae' || lower.startsWith('ar')) return 'ae';
+    if (lower.startsWith('en')) return 'en';
+    if (lower.startsWith('zh')) return 'zh';
+    return lower.split('-')[0] || 'en';
+}
+
 const defaultState = {
     isDarkMode: false,
     mainLayout: 'app',
@@ -41,7 +51,7 @@ const initialState = {
     rtlClass: localStorage.getItem('rtlClass') || themeConfig.rtlClass,
     animation: localStorage.getItem('animation') || themeConfig.animation,
     navbar: localStorage.getItem('navbar') || themeConfig.navbar,
-    locale: localStorage.getItem('i18nextLng') || themeConfig.locale,
+    locale: normalizeLocaleCode(localStorage.getItem('i18nextLng') || themeConfig.locale),
     isDarkMode: false,
     sidebar: localStorage.getItem('sidebar') || defaultState.sidebar,
     semidark: localStorage.getItem('semidark') || themeConfig.semidark,
@@ -125,7 +135,7 @@ const themeConfigSlice = createSlice({
             state.semidark = payload;
         },
         toggleLocale(state, { payload }) {
-            payload = payload || state.locale;
+            payload = normalizeLocaleCode(payload || state.locale);
             i18next.changeLanguage(payload);
             state.locale = payload;
         },

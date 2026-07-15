@@ -53,6 +53,18 @@ export const adminApi = {
     rejectProduct: (id: string, reason: string) =>
         api.post(`/admin/products/${id}/reject`, { reason }).then((r) => unwrap(r)),
     deleteProduct: (id: string) => api.delete(`/admin/products/${id}`).then((r) => unwrap(r)),
+    uploadProductImage: (id: string, file: File, isPrimary: boolean = false) => {
+        const form = new FormData();
+        form.append('file', file);
+        form.append('isPrimary', isPrimary ? 'true' : 'false');
+        return api
+            .post(`/admin/products/${id}/images`, form, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            })
+            .then((r) => unwrap(r));
+    },
+    deleteProductImage: (id: string, imageId: string) =>
+        api.delete(`/admin/products/${id}/images/${imageId}`).then((r) => unwrap(r)),
 
     listRoles: () => api.get('/admin/roles').then((r) => unwrap<any[]>(r)),
     getRole: (id: string) => api.get(`/admin/roles/${id}`).then((r) => unwrap(r)),

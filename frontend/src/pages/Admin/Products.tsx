@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { setPageTitle } from '../../store/themeConfigSlice';
 import { adminApi } from '../../services/admin.service';
-import { getErrorMessage } from '../../services/api';
+import { getErrorMessage, mediaUrl } from '../../services/api';
 import { useRowSelection } from '../../hooks/useRowSelection';
 import { AdminDataTable, AdminPageHeader, BulkActionsBar } from '../../components/Admin/AdminTable';
 import AdminFormModal from '../../components/Admin/AdminFormModal';
@@ -13,6 +13,7 @@ const STATUSES = ['DRAFT', 'PENDING_REVIEW', 'ACTIVE', 'INACTIVE', 'REJECTED', '
 type Mode = 'create' | 'edit' | 'view';
 
 const emptyForm = {
+    images: [] as any[],
     name: '',
     slug: '',
     description: '',
@@ -103,6 +104,7 @@ export default function AdminProducts() {
     const fillForm = (product: any) => {
         setEditingId(product.id);
         setForm({
+            images: product.images || [],
             name: product.name,
             slug: product.slug,
             description: product.description,
@@ -232,6 +234,42 @@ export default function AdminProducts() {
             showAlert(getErrorMessage(err), 'error');
         }
     };
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!editingId || !e.target.files?.length) return;
+        setBusy(true);
+        try {
+            await adminApi.uploadProductImage(editingId, e.target.files[0], form.images.length === 0);
+            showAlert('Image uploaded');
+            const updated = await adminApi.getProduct(editingId);
+            setForm((prev) => ({ ...prev, images: updated.images }));
+            await load(meta.page, pageSize);
+        } catch (err) {
+            showAlert(getErrorMessage(err), 'error');
+        } finally {
+            setBusy(false);
+            e.target.value = '';
+        }
+    };
+
+    const handleDeleteImage = async (imageId: string) => {
+        if (!editingId) return;
+        const ok = await confirmAction('Delete this image?');
+        if (!ok) return;
+        setBusy(true);
+        try {
+            await adminApi.deleteProductImage(editingId, imageId);
+            showAlert('Image deleted');
+            const updated = await adminApi.getProduct(editingId);
+            setForm((prev) => ({ ...prev, images: updated.images }));
+            await load(meta.page, pageSize);
+        } catch (err) {
+            showAlert(getErrorMessage(err), 'error');
+        } finally {
+            setBusy(false);
+        }
+    };
+
 
     const readOnly = mode === 'view';
 
@@ -467,6 +505,37 @@ export default function AdminProducts() {
                         </FormField>
                     </div>
                 </FormSection>
+
+                {editingId && (
+                    <FormSection title="Images" className="md:col-span-2 mt-5">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            {form.images.map((img: any) => (
+                                <div key={img.id} className="relative group border rounded p-1">
+                                    <img src={mediaUrl(img.url)} alt={img.altText || 'Product image'} className="w-full h-32 object-cover rounded" />
+                                    {!readOnly && (
+                                        <button
+                                            type="button"
+                                            className="absolute top-2 right-2 bg-danger text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+                                            onClick={() => handleDeleteImage(img.id)}
+                                        >
+                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    )}
+                                    {img.isPrimary && (
+                                        <span className="absolute bottom-2 left-2 bg-primary text-white text-xs px-2 py-1 rounded">Primary</span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        {!readOnly && (
+                            <FormField label="Upload Image">
+                                <input type="file" accept="image/*" className="form-input" onChange={handleImageUpload} disabled={busy} />
+                            </FormField>
+                        )}
+                    </FormSection>
+                )}
             </AdminFormModal>
         </div>
     );
