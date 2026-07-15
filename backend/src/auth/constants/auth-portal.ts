@@ -7,13 +7,9 @@ export enum AuthPortal {
 }
 
 export const PORTAL_ALLOWED_ROLES: Record<AuthPortal, UserRole[]> = {
-  [AuthPortal.USER]: [UserRole.USER, UserRole.PREMIUM_USER],
-  [AuthPortal.ADMIN]: [
-    UserRole.ADMIN,
-    UserRole.SUPER_ADMIN,
-    UserRole.MODERATOR,
-  ],
-  [AuthPortal.SELLER]: [UserRole.SELLER, UserRole.PREMIUM_SELLER],
+  [AuthPortal.USER]: [UserRole.USER],
+  [AuthPortal.ADMIN]: [UserRole.ADMIN, UserRole.SUPER_ADMIN],
+  [AuthPortal.SELLER]: [UserRole.SELLER],
 };
 
 export function isRoleAllowedForPortal(

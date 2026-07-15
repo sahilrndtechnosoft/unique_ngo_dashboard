@@ -7,8 +7,10 @@ import {
   seller_status,
   user_role,
   user_status,
+  users,
 } from '../generated/prisma/client';
 import { assignSuperAdminRole, seedRbac } from './seed-rbac';
+import { printDemoCredentials, seedDemoData } from './seed-demo-data';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@unique-ngo.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'Admin@123456';
@@ -29,84 +31,86 @@ const USER_MOBILE = process.env.USER_MOBILE ?? '9666666666';
 
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS ?? '12', 10);
 
-async function seedAdmin(prisma: PrismaClient) {
-  const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, BCRYPT_ROUNDS);
-  const email = ADMIN_EMAIL.toLowerCase();
-
-  const existing = await prisma.users.findFirst({
-    where: { email, deleted_at: null },
+/** Find by email including soft-deleted rows (email unique still applies). */
+async function findUserByEmail(prisma: PrismaClient, email: string) {
+  return prisma.users.findFirst({
+    where: { email },
   });
+}
+
+async function upsertSeedUser(
+  prisma: PrismaClient,
+  data: {
+    email: string;
+    fullName: string;
+    mobile: string;
+    password: string;
+    role: user_role;
+  },
+): Promise<users> {
+  const email = data.email.toLowerCase();
+  const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
+  const existing = await findUserByEmail(prisma, email);
+
+  const isStaff =
+    data.role === user_role.ADMIN || data.role === user_role.SUPER_ADMIN;
 
   if (existing) {
-    await prisma.users.update({
+    return prisma.users.update({
       where: { id: existing.id },
       data: {
-        full_name: ADMIN_FULL_NAME,
-        role: ADMIN_ROLE,
+        full_name: data.fullName,
+        role: data.role,
         status: user_status.ACTIVE,
         email_verified: true,
         mobile_verified: true,
         password_hash: passwordHash,
-        mobile: ADMIN_MOBILE,
+        mobile: data.mobile,
+        deleted_at: null,
+        // Staff rbac_role_id is assigned after seedRbac via assignSuperAdminRole
+        ...(!isStaff ? { rbac_role_id: null } : {}),
       },
     });
-    console.log(`Admin user updated: ${email}`);
-    return;
   }
 
-  await prisma.users.create({
+  return prisma.users.create({
     data: {
-      full_name: ADMIN_FULL_NAME,
+      full_name: data.fullName,
       email,
-      mobile: ADMIN_MOBILE,
+      mobile: data.mobile,
       password_hash: passwordHash,
-      role: ADMIN_ROLE,
+      role: data.role,
       status: user_status.ACTIVE,
       email_verified: true,
       mobile_verified: true,
     },
   });
+}
 
-  console.log(`Admin user created: ${email}`);
+async function seedAdmin(prisma: PrismaClient) {
+  const email = ADMIN_EMAIL.toLowerCase();
+  const existing = await findUserByEmail(prisma, email);
+  await upsertSeedUser(prisma, {
+    email: ADMIN_EMAIL,
+    fullName: ADMIN_FULL_NAME,
+    mobile: ADMIN_MOBILE,
+    password: ADMIN_PASSWORD,
+    role: ADMIN_ROLE,
+  });
+  console.log(`Admin user ${existing ? 'updated' : 'created'}: ${email}`);
 }
 
 async function seedSeller(prisma: PrismaClient) {
-  const passwordHash = await bcrypt.hash(SELLER_PASSWORD, BCRYPT_ROUNDS);
   const email = SELLER_EMAIL.toLowerCase();
-
-  let user = await prisma.users.findFirst({
-    where: { email, deleted_at: null },
+  const existing = await findUserByEmail(prisma, email);
+  const user = await upsertSeedUser(prisma, {
+    email: SELLER_EMAIL,
+    fullName: SELLER_FULL_NAME,
+    mobile: SELLER_MOBILE,
+    password: SELLER_PASSWORD,
+    role: user_role.SELLER,
   });
-
-  if (user) {
-    user = await prisma.users.update({
-      where: { id: user.id },
-      data: {
-        full_name: SELLER_FULL_NAME,
-        role: user_role.SELLER,
-        status: user_status.ACTIVE,
-        email_verified: true,
-        mobile_verified: true,
-        password_hash: passwordHash,
-        mobile: SELLER_MOBILE,
-      },
-    });
-    console.log(`Seller user updated: ${email}`);
-  } else {
-    user = await prisma.users.create({
-      data: {
-        full_name: SELLER_FULL_NAME,
-        email,
-        mobile: SELLER_MOBILE,
-        password_hash: passwordHash,
-        role: user_role.SELLER,
-        status: user_status.ACTIVE,
-        email_verified: true,
-        mobile_verified: true,
-      },
-    });
-    console.log(`Seller user created: ${email}`);
-  }
+  console.log(`Seller user ${existing ? 'updated' : 'created'}: ${email}`);
 
   const existingProfile = await prisma.seller_profiles.findFirst({
     where: { user_id: user.id },
@@ -136,44 +140,16 @@ async function seedSeller(prisma: PrismaClient) {
 }
 
 async function seedUser(prisma: PrismaClient) {
-  const passwordHash = await bcrypt.hash(USER_PASSWORD, BCRYPT_ROUNDS);
   const email = USER_EMAIL.toLowerCase();
-
-  const existing = await prisma.users.findFirst({
-    where: { email, deleted_at: null },
+  const existing = await findUserByEmail(prisma, email);
+  await upsertSeedUser(prisma, {
+    email: USER_EMAIL,
+    fullName: USER_FULL_NAME,
+    mobile: USER_MOBILE,
+    password: USER_PASSWORD,
+    role: user_role.USER,
   });
-
-  if (existing) {
-    await prisma.users.update({
-      where: { id: existing.id },
-      data: {
-        full_name: USER_FULL_NAME,
-        role: user_role.USER,
-        status: user_status.ACTIVE,
-        email_verified: true,
-        mobile_verified: true,
-        password_hash: passwordHash,
-        mobile: USER_MOBILE,
-      },
-    });
-    console.log(`User updated: ${email}`);
-    return;
-  }
-
-  await prisma.users.create({
-    data: {
-      full_name: USER_FULL_NAME,
-      email,
-      mobile: USER_MOBILE,
-      password_hash: passwordHash,
-      role: user_role.USER,
-      status: user_status.ACTIVE,
-      email_verified: true,
-      mobile_verified: true,
-    },
-  });
-
-  console.log(`User created: ${email}`);
+  console.log(`User ${existing ? 'updated' : 'created'}: ${email}`);
 }
 
 async function seedAppSettings(prisma: PrismaClient) {
@@ -218,27 +194,23 @@ async function main() {
     await seedSeller(prisma);
     await seedUser(prisma);
     await seedAppSettings(prisma);
+    await seedDemoData(prisma);
 
     console.log('\n--- Admin login ---');
     console.log(`  Email:    ${ADMIN_EMAIL}`);
     console.log(`  Password: ${ADMIN_PASSWORD}`);
     console.log(`  Mobile:   ${ADMIN_MOBILE}`);
     console.log('  POST /api/v1/auth/admin/login');
-    console.log('  POST /api/v1/auth/admin/send-otp');
 
-    console.log('\n--- Seller login ---');
+    console.log('\n--- Primary seller login ---');
     console.log(`  Email:    ${SELLER_EMAIL}`);
     console.log(`  Password: ${SELLER_PASSWORD}`);
-    console.log(`  Mobile:   ${SELLER_MOBILE}`);
-    console.log('  POST /api/v1/auth/seller/login');
-    console.log('  POST /api/v1/auth/seller/send-otp');
 
-    console.log('\n--- User login ---');
+    console.log('\n--- Primary user login ---');
     console.log(`  Email:    ${USER_EMAIL}`);
     console.log(`  Password: ${USER_PASSWORD}`);
-    console.log(`  Mobile:   ${USER_MOBILE}`);
-    console.log('  POST /api/v1/auth/user/login');
-    console.log('  POST /api/v1/auth/user/send-otp');
+
+    printDemoCredentials();
   } finally {
     await prisma.$disconnect();
     await pool.end();

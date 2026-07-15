@@ -653,7 +653,7 @@ model membership_plans {
   price             Decimal       @db.Decimal(10, 2)
   billing_cycle     billing_cycle @default(MONTHLY)
   duration_days     Int
-  role              user_role     @default(PREMIUM_USER)
+  role              user_role     @default(USER)
   features          Json          @default("[]")
   max_products      Int?
   commission_rate   Decimal?      @db.Decimal(5, 2)
@@ -1876,11 +1876,8 @@ enum permission_action {
 enum user_role {
   USER
   SELLER
-  PREMIUM_USER
-  PREMIUM_SELLER
   ADMIN
   SUPER_ADMIN
-  MODERATOR
 }
 
 enum user_status {

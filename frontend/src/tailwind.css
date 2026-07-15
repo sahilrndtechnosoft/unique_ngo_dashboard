@@ -222,6 +222,9 @@ hover:text-primary hover:before:!bg-primary ltr:before:mr-2 rtl:before:ml-2 dark
     .collapsible-vertical .main-logo > span {
         @apply transition-opacity duration-300 lg:opacity-0;
     }
+    .collapsible-vertical .main-logo img {
+        @apply !w-10 !h-10;
+    }
     .collapsible-vertical .sidebar:hover .collapse-icon,
     .collapsible-vertical.toggle-sidebar .collapse-icon,
     .collapsible-vertical .sidebar:hover .main-logo > span,

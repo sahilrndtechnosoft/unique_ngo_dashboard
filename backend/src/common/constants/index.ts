@@ -1,11 +1,9 @@
+/** Portal / account type (who can open which login surface). Staff permissions come from `rbac_role_id`. */
 export enum UserRole {
   USER = 'USER',
   SELLER = 'SELLER',
-  PREMIUM_USER = 'PREMIUM_USER',
-  PREMIUM_SELLER = 'PREMIUM_SELLER',
   ADMIN = 'ADMIN',
   SUPER_ADMIN = 'SUPER_ADMIN',
-  MODERATOR = 'MODERATOR',
 }
 
 export interface JwtPayload {

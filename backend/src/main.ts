@@ -48,6 +48,12 @@ async function bootstrap() {
     .addTag('Admin - Permissions', 'Permission catalog and user role assignment')
     .addTag('Admin - Settings', 'Company logo, details, and footer settings')
     .addTag('Admin - Banners', 'Homepage banner image management')
+    .addTag('Admin - Users', 'Admin user management CRUD')
+    .addTag('Admin - Sellers', 'Admin seller management CRUD')
+    .addTag('Admin - Categories', 'Product category management')
+    .addTag('Admin - Products', 'Admin product CRUD and approval')
+    .addTag('Seller - Products', 'Seller product listing and management')
+    .addTag('Categories', 'Public/active category listing')
     .addTag('Public - Settings', 'Public company settings and banners')
     .build();
 

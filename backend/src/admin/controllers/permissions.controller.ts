@@ -20,7 +20,7 @@ import { RolesService } from '../services/roles.service';
 @ApiBearerAuth()
 @Controller('admin')
 @UseGuards(RolesGuard, PermissionsGuard)
-@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.MODERATOR)
+@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
 export class PermissionsController {
   constructor(
     private readonly permissionsCatalogService: PermissionsCatalogService,

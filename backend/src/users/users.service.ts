@@ -276,7 +276,7 @@ export class UsersService {
   }
 
   private ensureSellerRole(role: UserRole): void {
-    if (role !== UserRole.SELLER && role !== UserRole.PREMIUM_SELLER) {
+    if (role !== UserRole.SELLER) {
       throw new ForbiddenException('Seller profile is only available for sellers');
     }
   }

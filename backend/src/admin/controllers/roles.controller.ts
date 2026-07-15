@@ -33,7 +33,7 @@ import { RolesService } from '../services/roles.service';
 @ApiBearerAuth()
 @Controller('admin/roles')
 @UseGuards(RolesGuard, PermissionsGuard)
-@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.MODERATOR)
+@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 

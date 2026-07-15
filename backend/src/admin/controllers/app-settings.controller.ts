@@ -42,7 +42,7 @@ import { AppSettingsService } from '../services/app-settings.service';
 @ApiBearerAuth()
 @Controller('admin/settings')
 @UseGuards(RolesGuard, PermissionsGuard)
-@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.MODERATOR)
+@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
 export class AppSettingsController {
   constructor(private readonly appSettingsService: AppSettingsService) {}
 

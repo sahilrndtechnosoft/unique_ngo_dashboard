@@ -1,1 +1,16 @@
 .cursor*
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+frontend/.env.production
+backend/uploads/
+*.log
+.DS_Store
+coverage/
+.idea/
+.vscode/

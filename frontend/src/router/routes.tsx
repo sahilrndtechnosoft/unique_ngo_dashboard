@@ -99,12 +99,47 @@ const QuillEditor = lazy(() => import('../pages/Forms/QuillEditor'));
 const MarkDownEditor = lazy(() => import('../pages/Forms/MarkDownEditor'));
 const DateRangePicker = lazy(() => import('../pages/Forms/DateRangePicker'));
 const Clipboard = lazy(() => import('../pages/Forms/Clipboard'));
+const AdminUsers = lazy(() => import('../pages/Admin/Users'));
+const AdminSellers = lazy(() => import('../pages/Admin/Sellers'));
+const AdminSellerDetail = lazy(() => import('../pages/Admin/SellerDetail'));
+const AdminCategories = lazy(() => import('../pages/Admin/Categories'));
+const AdminProducts = lazy(() => import('../pages/Admin/Products'));
+const AdminRoles = lazy(() => import('../pages/Admin/Roles'));
+const AdminSettings = lazy(() => import('../pages/Admin/Settings'));
 
 const routes = [
     // dashboard
     {
         path: '/',
         element: <Index />,
+    },
+    {
+        path: '/admin/users',
+        element: <AdminUsers />,
+    },
+    {
+        path: '/admin/sellers',
+        element: <AdminSellers />,
+    },
+    {
+        path: '/admin/sellers/:id',
+        element: <AdminSellerDetail />,
+    },
+    {
+        path: '/admin/categories',
+        element: <AdminCategories />,
+    },
+    {
+        path: '/admin/products',
+        element: <AdminProducts />,
+    },
+    {
+        path: '/admin/roles',
+        element: <AdminRoles />,
+    },
+    {
+        path: '/admin/settings',
+        element: <AdminSettings />,
     },
     // {
     //     path: '/index',

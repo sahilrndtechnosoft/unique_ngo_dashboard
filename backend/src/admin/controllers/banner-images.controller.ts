@@ -49,7 +49,7 @@ import { BannerImagesService } from '../services/banner-images.service';
 @ApiBearerAuth()
 @Controller('admin/banners')
 @UseGuards(RolesGuard, PermissionsGuard)
-@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.MODERATOR)
+@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
 export class BannerImagesController {
   constructor(private readonly bannerImagesService: BannerImagesService) {}
 
