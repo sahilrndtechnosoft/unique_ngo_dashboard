@@ -20,25 +20,119 @@ model area_postal_codes {
 }
 
 model auth_sessions {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id            String @db.Uuid
-  refresh_token_hash String    @unique
-  device_id          String?   @db.VarChar(255)
-  device_name        String?   @db.VarChar(255)
-  device_type        String?   @db.VarChar(100)
-  os                 String?   @db.VarChar(100)
-  app_version        String?   @db.VarChar(50)
-  ip_address         String?   @db.Inet
-  user_agent         String?
-  is_active          Boolean   @default(true)
-  expires_at         DateTime  @db.Timestamptz(6)
-  last_used_at       DateTime? @db.Timestamptz(6)
-  revoked_at         DateTime? @db.Timestamptz(6)
-  created_at         DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at         DateTime  @default(now()) @db.Timestamptz(6)
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                String    @db.Uuid
+  refresh_token_hash     String    @unique
+  device_id              String?   @db.VarChar(255)
+  device_name            String?   @db.VarChar(255)
+  device_type            String?   @db.VarChar(100)
+  os                     String?   @db.VarChar(100)
+  app_version            String?   @db.VarChar(50)
+  ip_address             String?   @db.Inet
+  user_agent             String?
+  is_active              Boolean   @default(true)
+  expires_at             DateTime  @db.Timestamptz(6)
+  last_used_at           DateTime? @db.Timestamptz(6)
+  revoked_at             DateTime? @db.Timestamptz(6)
+  revoked_by_ip          String?   @db.Inet
+  replaced_by_session_id String?   @db.Uuid
+  revoke_reason          String?   @db.VarChar(100)
+  created_at             DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime  @default(now()) @db.Timestamptz(6)
   @@index([is_active])
   @@index([created_at])
+  @@index([expires_at])
   @@index([user_id])
+  @@index([user_id, is_active])
+  @@index([replaced_by_session_id])
+}
+
+model roles {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String             @db.VarChar(100)
+  slug             String             @unique @db.VarChar(100)
+  description      String?
+  is_system        Boolean            @default(false)
+  is_active        Boolean            @default(true)
+  created_at       DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime           @default(now()) @db.Timestamptz(6)
+  role_permissions role_permissions[]
+  users            users[]
+  @@index([is_active])
+  @@index([is_system])
+  @@index([created_at])
+}
+
+model permissions {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  module           String             @db.VarChar(100)
+  action           permission_action
+  description      String?            @db.VarChar(255)
+  role_permissions role_permissions[]
+  @@unique([module, action])
+  @@index([module])
+}
+
+model role_permissions {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  role_id       String      @db.Uuid
+  permission_id String      @db.Uuid
+  created_at    DateTime    @default(now()) @db.Timestamptz(6)
+  permission    permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+  role          roles       @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  @@unique([role_id, permission_id])
+  @@index([role_id])
+  @@index([permission_id])
+}
+
+model app_settings {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key                String   @unique @default("default") @db.VarChar(50)
+  company_name       String?  @db.VarChar(255)
+  tagline            String?  @db.VarChar(500)
+  logo_url           String?
+  favicon_url        String?
+  email              String?  @db.VarChar(255)
+  phone              String?  @db.VarChar(50)
+  whatsapp           String?  @db.VarChar(50)
+  address_line1      String?
+  address_line2      String?
+  city               String?  @db.VarChar(100)
+  state              String?  @db.VarChar(100)
+  postal_code        String?  @db.VarChar(20)
+  country            String?  @default("India") @db.VarChar(100)
+  website_url        String?
+  facebook_url       String?
+  instagram_url      String?
+  twitter_url        String?
+  linkedin_url       String?
+  youtube_url        String?
+  footer_about       String?
+  footer_copyright   String?  @db.VarChar(500)
+  footer_extra_html  String?
+  support_hours      String?  @db.VarChar(255)
+  updated_by_id      String?  @db.Uuid
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model banner_images {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String?   @db.VarChar(255)
+  subtitle    String?   @db.VarChar(500)
+  image_url   String
+  link_url    String?
+  button_text String?   @db.VarChar(100)
+  sort_order  Int       @default(0)
+  is_active   Boolean   @default(true)
+  created_by_id String? @db.Uuid
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime  @default(now()) @db.Timestamptz(6)
+  deleted_at  DateTime? @db.Timestamptz(6)
+  @@index([is_active])
+  @@index([sort_order])
+  @@index([deleted_at])
+  @@index([created_at])
 }
 
 model blood_admin_notes {
@@ -559,7 +653,7 @@ model membership_plans {
   price             Decimal       @db.Decimal(10, 2)
   billing_cycle     billing_cycle @default(MONTHLY)
   duration_days     Int
-  role              user_role     @default(PREMIUM_USER)
+  role              user_role     @default(USER)
   features          Json          @default("[]")
   max_products      Int?
   commission_rate   Decimal?      @db.Decimal(5, 2)
@@ -1251,6 +1345,7 @@ model user_addresses {
 model users {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   role               user_role    @default(USER)
+  rbac_role_id       String?      @db.Uuid
   status             user_status  @default(PENDING_VERIFICATION)
   full_name          String       @db.VarChar(255)
   email              String?      @unique(map: "users_email_unique") @db.VarChar(255)
@@ -1272,7 +1367,9 @@ model users {
   created_at         DateTime     @default(now()) @db.Timestamptz(6)
   updated_at         DateTime     @default(now()) @db.Timestamptz(6)
   deleted_at         DateTime?    @db.Timestamptz(6)
+  rbac_role          roles?       @relation(fields: [rbac_role_id], references: [id])
   @@index([role])
+  @@index([rbac_role_id])
   @@index([status])
   @@index([created_at])
   @@index([deleted_at])
@@ -1769,14 +1866,18 @@ enum urgency_level {
   CRITICAL
 }
 
+enum permission_action {
+  VIEW
+  CREATE
+  EDIT
+  DELETE
+}
+
 enum user_role {
   USER
   SELLER
-  PREMIUM_USER
-  PREMIUM_SELLER
   ADMIN
   SUPER_ADMIN
-  MODERATOR
 }
 
 enum user_status {
