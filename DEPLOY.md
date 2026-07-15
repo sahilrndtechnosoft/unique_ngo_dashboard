@@ -1,7 +1,7 @@
 # Unique NGO Dashboard — VPS deployment
 
 Domain: **app.uniquemarketing.in**  
-App root: **/var/www/rndprojects/UNIQUE_NGO_DASHBOARD**  
+App root: **/var/www/rndprojects/unique_ngo_dashboard**  
 Nginx conf: **/etc/nginx/conf.d/app.uniquemarketing.in.conf**
 
 ## Ports
@@ -217,7 +217,26 @@ Browser → https://app.uniquemarketing.in
 
 ---
 
-## Firewall (if ufw)
+## Uploads 404 on live (common)
+
+If `/uploads/logo/*.jpeg` 404s but files exist under `backend/uploads/`, nginx likely matched a static-extension `location ~* \.(jpeg|png|...)$` under `frontend/dist` instead of proxying uploads.
+
+Fix: use `location ^~ /uploads/` with `alias` to `backend/uploads/` (see `deploy/nginx/app.uniquemarketing.in.conf`), then:
+
+```bash
+sudo cp /var/www/rndprojects/unique_ngo_dashboard/deploy/nginx/app.uniquemarketing.in.conf \
+  /etc/nginx/conf.d/app.uniquemarketing.in.conf
+# If certbot created a separate 443 block, copy the ^~ /uploads/ and ^~ /api/ blocks into it too
+sudo nginx -t && sudo systemctl reload nginx
+curl -I https://app.uniquemarketing.in/uploads/logo/YOUR_FILE.jpeg
+```
+
+Also ensure directory is readable:
+
+```bash
+chmod -R a+rX /var/www/rndprojects/unique_ngo_dashboard/backend/uploads
+```
+
 
 ```bash
 sudo ufw allow OpenSSH
