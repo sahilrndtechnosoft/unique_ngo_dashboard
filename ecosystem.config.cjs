@@ -12,7 +12,7 @@ module.exports = {
   apps: [
     {
       name: 'unique-ngo-api',
-      cwd: '/var/www/rndprojects/UNIQUE_NGO_DASHBOARD/backend',
+      cwd: '/var/www/rndprojects/unique_ngo_dashboard/backend',
       script: 'dist/src/main.js',
       instances: 1,
       exec_mode: 'fork',
