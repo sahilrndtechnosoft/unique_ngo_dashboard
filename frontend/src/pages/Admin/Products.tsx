@@ -241,7 +241,7 @@ export default function AdminProducts() {
         try {
             await adminApi.uploadProductImage(editingId, e.target.files[0], form.images.length === 0);
             showAlert('Image uploaded');
-            const updated = await adminApi.getProduct(editingId);
+            const updated = await adminApi.getProduct(editingId) as any;
             setForm((prev) => ({ ...prev, images: updated.images }));
             await load(meta.page, pageSize);
         } catch (err) {
@@ -260,7 +260,7 @@ export default function AdminProducts() {
         try {
             await adminApi.deleteProductImage(editingId, imageId);
             showAlert('Image deleted');
-            const updated = await adminApi.getProduct(editingId);
+            const updated = await adminApi.getProduct(editingId) as any;
             setForm((prev) => ({ ...prev, images: updated.images }));
             await load(meta.page, pageSize);
         } catch (err) {
