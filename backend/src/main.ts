@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import helmet from 'helmet';
 import { join } from 'path';
 import { AppModule } from './app.module';
 
@@ -14,6 +15,13 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api/v1');
 
+  app.use(
+    helmet({
+      // Uploaded images are served cross-origin from the frontend's own domain.
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -23,8 +31,9 @@ async function bootstrap() {
     }),
   );
 
+  const corsOrigins = configService.get<string[]>('app.corsOrigins');
   app.enableCors({
-    origin: true,
+    origin: corsOrigins && corsOrigins.length > 0 ? corsOrigins : true,
     credentials: true,
   });
 

@@ -10,11 +10,11 @@ function App({ children }: PropsWithChildren) {
 
     useEffect(() => {
         dispatch(toggleTheme(localStorage.getItem('theme') || themeConfig.theme));
-        dispatch(toggleMenu(localStorage.getItem('menu') || themeConfig.menu));
-        dispatch(toggleLayout(localStorage.getItem('layout') || themeConfig.layout));
-        dispatch(toggleRTL(localStorage.getItem('rtlClass') || themeConfig.rtlClass));
+        dispatch(toggleMenu(themeConfig.menu));
+        dispatch(toggleLayout(themeConfig.layout));
+        dispatch(toggleRTL(themeConfig.rtlClass));
         dispatch(toggleAnimation(localStorage.getItem('animation') || themeConfig.animation));
-        dispatch(toggleNavbar(localStorage.getItem('navbar') || themeConfig.navbar));
+        dispatch(toggleNavbar(themeConfig.navbar));
         dispatch(toggleLocale(localStorage.getItem('i18nextLng') || themeConfig.locale));
         dispatch(toggleSemidark(localStorage.getItem('semidark') || themeConfig.semidark));
     }, [dispatch, themeConfig.theme, themeConfig.menu, themeConfig.layout, themeConfig.rtlClass, themeConfig.animation, themeConfig.navbar, themeConfig.locale, themeConfig.semidark]);

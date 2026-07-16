@@ -3,9 +3,10 @@ import { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer
 import { randomUUID } from 'crypto';
 import { existsSync, mkdirSync, unlinkSync } from 'fs';
 import { diskStorage } from 'multer';
-import { extname, join, normalize } from 'path';
+import { join, normalize } from 'path';
 import {
   ALLOWED_IMAGE_MIME_TYPES,
+  IMAGE_MIME_TYPE_EXTENSIONS,
   MAX_PROFILE_PICTURE_SIZE,
 } from '../../common/constants';
 
@@ -32,7 +33,7 @@ export function createImageUploadOptions(subdir: string): MulterOptions {
         callback(null, uploadDir);
       },
       filename: (_req, file, callback) => {
-        const extension = extname(file.originalname).toLowerCase() || '.jpg';
+        const extension = IMAGE_MIME_TYPE_EXTENSIONS[file.mimetype] ?? '.jpg';
         callback(null, `${randomUUID()}${extension}`);
       },
     }),

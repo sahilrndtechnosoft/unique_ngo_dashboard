@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { CurrentUser, Public, ResponseMessage } from '../common/decorators';
 import { JwtPayload } from '../common/constants';
@@ -20,6 +21,7 @@ function createPortalAuthController(portal: AuthPortal, tag: string, path: strin
 
     @Post('send-otp')
     @HttpCode(HttpStatus.OK)
+    @Throttle({ default: { ttl: 60_000, limit: 5 } })
     @ResponseMessage('OTP sent successfully')
     @ApiOperation({ summary: `Send OTP for ${portal} login` })
     sendOtp(@Body() dto: SendOtpDto) {
@@ -28,6 +30,7 @@ function createPortalAuthController(portal: AuthPortal, tag: string, path: strin
 
     @Post('verify-otp')
     @HttpCode(HttpStatus.OK)
+    @Throttle({ default: { ttl: 60_000, limit: 10 } })
     @ResponseMessage('Login successful')
     @ApiOperation({ summary: `Verify OTP and login to ${portal} portal` })
     verifyOtp(@Body() dto: VerifyOtpDto, @Req() req: Request) {
@@ -41,6 +44,7 @@ function createPortalAuthController(portal: AuthPortal, tag: string, path: strin
 
     @Post('login')
     @HttpCode(HttpStatus.OK)
+    @Throttle({ default: { ttl: 60_000, limit: 10 } })
     @ResponseMessage('Login successful')
     @ApiOperation({ summary: `Email/password login to ${portal} portal` })
     login(@Body() dto: LoginDto, @Req() req: Request) {

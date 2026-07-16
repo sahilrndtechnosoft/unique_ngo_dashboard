@@ -3,11 +3,12 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { seller_profiles, users } from '../../generated/prisma/client';
 import { UserRole } from '../common/constants';
-import { hashValue } from '../common/utils/crypto.util';
+import { compareHash, hashValue } from '../common/utils/crypto.util';
 import { deleteUploadedFile } from '../common/utils/image-upload.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { toPublicSeller } from '../auth/mappers/user.mapper';
@@ -111,6 +112,13 @@ export class UsersService {
       updateData.profile_image_url = dto.profilePicture;
     }
     if (dto.password) {
+      if (
+        !dto.currentPassword ||
+        !user.password_hash ||
+        !(await compareHash(dto.currentPassword, user.password_hash))
+      ) {
+        throw new UnauthorizedException('Current password is incorrect');
+      }
       updateData.password_hash = await hashValue(
         dto.password,
         this.configService.get<number>('app.bcryptRounds')!,

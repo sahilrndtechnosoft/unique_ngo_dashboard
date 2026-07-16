@@ -42,8 +42,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       }
     } else if (exception instanceof Error) {
       this.logger.error(exception.message, exception.stack);
-      message = exception.message;
-      errors = [exception.message];
+      if (process.env.NODE_ENV !== 'production') {
+        message = exception.message;
+        errors = [exception.message];
+      } else {
+        errors = [message];
+      }
     }
 
     const errorResponse: ApiErrorResponse = {

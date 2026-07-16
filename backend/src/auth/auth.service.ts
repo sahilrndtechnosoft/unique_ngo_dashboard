@@ -4,7 +4,6 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   seller_status,
   user_role,
@@ -36,20 +35,16 @@ export interface AuthLoginResponse {
   sellerProfile?: PublicSellerProfile;
 }
 
-const DEV_ADMIN_TEST_MOBILE = '9999999999';
-
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly otpService: OtpService,
     private readonly tokenService: TokenService,
-    private readonly configService: ConfigService,
   ) {}
 
   async sendOtp(mobileNumber: string, portal: AuthPortal) {
     const mobile = normalizeMobile(mobileNumber);
-    const exposeOtp = this.configService.get<boolean>('app.exposeOtpInResponse')!;
 
     if (portal === AuthPortal.ADMIN) {
       const user = await this.prisma.users.findFirst({
@@ -61,18 +56,11 @@ export class AuthService {
       });
 
       if (!user) {
-        if (exposeOtp) {
-          return {
-            accountFound: false,
-            hint: `No admin account for mobile ${mobile}. Use seeded test mobile ${DEV_ADMIN_TEST_MOBILE}.`,
-          };
-        }
         return {};
       }
     }
 
-    const result = await this.otpService.sendOtp(mobile);
-    return exposeOtp ? { accountFound: true, ...result } : result;
+    return this.otpService.sendOtp(mobile);
   }
 
   async verifyOtp(

@@ -2,8 +2,9 @@ import { useState, useEffect, Fragment } from 'react';
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import Swal from 'sweetalert2';
 import { Dialog, DialogPanel, Transition, TransitionChild } from '@headlessui/react';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
+import DOMPurify from 'dompurify';
 import Dropdown from '../../components/Dropdown';
 import { useDispatch, useSelector } from 'react-redux';
 import { IRootState } from '../../store';
@@ -1206,7 +1207,7 @@ const Todolist = () => {
                                             )}
                                         </div>
                                         <div className="p-5">
-                                            <div className="text-base prose" dangerouslySetInnerHTML={{ __html: selectedTask.description }}></div>
+                                            <div className="text-base prose" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedTask.description) }}></div>
                                             <div className="flex justify-end items-center mt-8">
                                                 <button type="button" className="btn btn-outline-danger" onClick={() => setViewTaskModal(false)}>
                                                     Close

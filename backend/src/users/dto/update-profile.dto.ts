@@ -29,6 +29,11 @@ export class UpdateProfileDto {
   @MinLength(8, { message: 'Password must be at least 8 characters long' })
   password?: string;
 
+  @ApiPropertyOptional({ example: 'OldPassword123!' })
+  @IsOptional()
+  @IsString()
+  currentPassword?: string;
+
   @ApiPropertyOptional({ example: 'Short bio about me' })
   @IsOptional()
   @IsString()

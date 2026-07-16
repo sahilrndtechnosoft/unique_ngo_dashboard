@@ -67,38 +67,7 @@ const LoginBoxed = () => {
                 <div className="relative w-full max-w-[870px] rounded-md bg-[linear-gradient(45deg,#fff9f9_0%,rgba(255,255,255,0)_25%,rgba(255,255,255,0)_75%,_#fff9f9_100%)] p-2 dark:bg-[linear-gradient(52.22deg,#0E1726_0%,rgba(14,23,38,0)_18.66%,rgba(14,23,38,0)_51.04%,rgba(14,23,38,0)_80.07%,#0E1726_100%)]">
                     <div className="relative flex flex-col justify-center rounded-md bg-white/60 backdrop-blur-lg dark:bg-black/50 px-6 lg:min-h-[758px] py-20">
                         <div className="absolute top-6 end-6">
-                            <div className="dropdown">
-                                <Dropdown
-                                    offset={[0, 8]}
-                                    placement={`${isRtl ? 'bottom-start' : 'bottom-end'}`}
-                                    btnClassName="flex items-center gap-2.5 rounded-lg border border-white-dark/30 bg-white px-2 py-1.5 text-white-dark hover:border-primary hover:text-primary dark:bg-black"
-                                    button={
-                                        <>
-                                            <img src={`/assets/images/flags/${flag.toUpperCase()}.svg`} alt="image" className="h-5 w-5 rounded-full object-cover" />
-                                            <div className="text-base font-bold uppercase">{flag}</div>
-                                            <IconCaretDown />
-                                        </>
-                                    }
-                                >
-                                    <ul className="!px-2 text-dark dark:text-white-dark grid grid-cols-2 gap-2 font-semibold w-[280px]">
-                                        {themeConfig.languageList.map((item: { code: string; name: string }) => (
-                                            <li key={item.code}>
-                                                <button
-                                                    type="button"
-                                                    className={`flex w-full hover:text-primary rounded-lg ${flag === item.code ? 'bg-primary/10 text-primary' : ''}`}
-                                                    onClick={() => {
-                                                        i18next.changeLanguage(item.code);
-                                                        setLocale(item.code);
-                                                    }}
-                                                >
-                                                    <img src={`/assets/images/flags/${item.code.toUpperCase()}.svg`} alt="flag" className="w-5 h-5 object-cover rounded-full" />
-                                                    <span className="ltr:ml-3 rtl:mr-3">{item.name}</span>
-                                                </button>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </Dropdown>
-                            </div>
+
                         </div>
                         <div className="mx-auto w-full max-w-[440px]">
                             <div className="mb-10">
