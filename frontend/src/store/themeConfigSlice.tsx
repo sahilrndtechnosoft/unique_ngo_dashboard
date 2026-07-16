@@ -46,11 +46,11 @@ const defaultState = {
 
 const initialState = {
     theme: localStorage.getItem('theme') || themeConfig.theme,
-    menu: localStorage.getItem('menu') || themeConfig.menu,
-    layout: localStorage.getItem('layout') || themeConfig.layout,
-    rtlClass: localStorage.getItem('rtlClass') || themeConfig.rtlClass,
+    menu: themeConfig.menu,
+    layout: themeConfig.layout,
+    rtlClass: themeConfig.rtlClass,
     animation: localStorage.getItem('animation') || themeConfig.animation,
-    navbar: localStorage.getItem('navbar') || themeConfig.navbar,
+    navbar: themeConfig.navbar,
     locale: normalizeLocaleCode(localStorage.getItem('i18nextLng') || themeConfig.locale),
     isDarkMode: false,
     sidebar: localStorage.getItem('sidebar') || defaultState.sidebar,
@@ -104,17 +104,14 @@ const themeConfigSlice = createSlice({
         toggleMenu(state, { payload }) {
             payload = payload || state.menu; // vertical, collapsible-vertical, horizontal
             state.sidebar = false; // reset sidebar state
-            localStorage.setItem('menu', payload);
             state.menu = payload;
         },
         toggleLayout(state, { payload }) {
             payload = payload || state.layout; // full, boxed-layout
-            localStorage.setItem('layout', payload);
             state.layout = payload;
         },
         toggleRTL(state, { payload }) {
             payload = payload || state.rtlClass; // rtl, ltr
-            localStorage.setItem('rtlClass', payload);
             state.rtlClass = payload;
             document.querySelector('html')?.setAttribute('dir', state.rtlClass || 'ltr');
         },
@@ -126,7 +123,6 @@ const themeConfigSlice = createSlice({
         },
         toggleNavbar(state, { payload }) {
             payload = payload || state.navbar; // navbar-sticky, navbar-floating, navbar-static
-            localStorage.setItem('navbar', payload);
             state.navbar = payload;
         },
         toggleSemidark(state, { payload }) {

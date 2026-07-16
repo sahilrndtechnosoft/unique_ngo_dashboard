@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Disclosure } from '@headlessui/react';
 import Tippy from '@tippyjs/react';
 import 'tippy.js/dist/tippy.css';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
+import DOMPurify from 'dompurify';
 import Dropdown from '../../components/Dropdown';
 import Swal from 'sweetalert2';
 import PerfectScrollbar from 'react-perfect-scrollbar';
@@ -1940,7 +1941,7 @@ const Mailbox = () => {
 
                                 <div
                                     className="mt-8 prose dark:prose-p:text-white prose-p:text-sm md:prose-p:text-sm max-w-full prose-img:inline-block prose-img:m-0"
-                                    dangerouslySetInnerHTML={{ __html: selectedMail.description }}
+                                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedMail.description) }}
                                 ></div>
                                 <p className="mt-4">Best Regards,</p>
                                 <p>{selectedMail.firstName + ' ' + selectedMail.lastName}</p>
