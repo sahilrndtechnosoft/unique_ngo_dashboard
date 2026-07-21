@@ -13,6 +13,7 @@ import {
   users,
 } from '../../../generated/prisma/client';
 import { hashValue, normalizeMobile } from '../../common/utils/crypto.util';
+import { deleteUploadedFile } from '../../common/utils/image-upload.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateAdminSellerDto,
@@ -228,6 +229,26 @@ export class AdminSellersService {
     return this.toPublic(updatedProfile, updatedUser);
   }
 
+  async updateProfilePicture(sellerId: string, filePath: string) {
+    const profile = await this.findSellerOrThrow(sellerId);
+    const user = await this.prisma.users.findFirst({
+      where: { id: profile.user_id, deleted_at: null },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Seller user account not found');
+    }
+
+    deleteUploadedFile(user.profile_image_url);
+
+    const updatedUser = await this.prisma.users.update({
+      where: { id: user.id },
+      data: { profile_image_url: filePath, updated_at: new Date() },
+    });
+
+    return this.toPublic(profile, updatedUser);
+  }
+
   async deleteSeller(sellerId: string) {
     const profile = await this.findSellerOrThrow(sellerId);
 
@@ -296,6 +317,7 @@ export class AdminSellersService {
       fullName: user?.full_name ?? null,
       email: user?.email ?? null,
       mobile: user?.mobile ?? null,
+      profilePicture: user?.profile_image_url ?? null,
       businessName: profile.business_name,
       businessType: profile.business_type,
       description: profile.description,

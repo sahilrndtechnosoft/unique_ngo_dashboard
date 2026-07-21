@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { setPageTitle } from '../../store/themeConfigSlice';
 import { adminApi } from '../../services/admin.service';
-import { getErrorMessage } from '../../services/api';
+import { getErrorMessage, mediaUrl } from '../../services/api';
 import { useRowSelection } from '../../hooks/useRowSelection';
 import { AdminDataTable, AdminPageHeader, BulkActionsBar } from '../../components/Admin/AdminTable';
 import AdminFormModal from '../../components/Admin/AdminFormModal';
@@ -23,6 +23,7 @@ const emptyForm = {
     description: '',
     status: 'ACTIVE',
     rejectionReason: '',
+    profilePicture: '' as string | null,
 };
 
 export default function AdminSellers() {
@@ -39,6 +40,7 @@ export default function AdminSellers() {
     const [mode, setMode] = useState<Mode | null>(null);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState(emptyForm);
+    const [pendingImage, setPendingImage] = useState<File | null>(null);
 
     const ids = useMemo(() => items.map((item) => item.id), [items]);
     const selection = useRowSelection(ids);
@@ -85,6 +87,7 @@ export default function AdminSellers() {
     const openCreate = () => {
         setEditingId(null);
         setForm(emptyForm);
+        setPendingImage(null);
         setMode('create');
     };
 
@@ -100,7 +103,9 @@ export default function AdminSellers() {
             description: seller.description ?? '',
             status: seller.status,
             rejectionReason: seller.rejectionReason ?? '',
+            profilePicture: seller.profilePicture ?? null,
         });
+        setPendingImage(null);
         setMode('edit');
     };
 
@@ -109,8 +114,9 @@ export default function AdminSellers() {
         setBusy(true);
         setError('');
         try {
+            let id = editingId;
             if (mode === 'create') {
-                await adminApi.createSeller({
+                const created = (await adminApi.createSeller({
                     fullName: form.fullName,
                     email: form.email,
                     mobile: form.mobile,
@@ -119,7 +125,8 @@ export default function AdminSellers() {
                     businessType: form.businessType || undefined,
                     description: form.description || undefined,
                     status: form.status,
-                });
+                })) as any;
+                id = created?.id;
                 showAlert('Seller created successfully');
             } else if (editingId) {
                 const body: Record<string, unknown> = {
@@ -135,6 +142,9 @@ export default function AdminSellers() {
                 if (form.password) body.password = form.password;
                 await adminApi.updateSeller(editingId, body);
                 showAlert('Seller updated successfully');
+            }
+            if (id && pendingImage) {
+                await adminApi.uploadSellerImage(id, pendingImage);
             }
             setMode(null);
             selection.clear();
@@ -207,6 +217,16 @@ export default function AdminSellers() {
 
             <AdminDataTable
                 columns={[
+                    {
+                        key: 'image',
+                        label: 'Photo',
+                        render: (row) =>
+                            row.profilePicture ? (
+                                <img src={mediaUrl(row.profilePicture)} alt={row.fullName} className="h-10 w-10 rounded-full object-cover" />
+                            ) : (
+                                <span className="text-xs text-white-dark">—</span>
+                            ),
+                    },
                     {
                         key: 'businessName',
                         label: 'Business',
@@ -283,6 +303,19 @@ export default function AdminSellers() {
             >
                 <FormSection title="Account details" className="md:col-span-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <FormField label="Profile Picture" className="md:col-span-2">
+                            <div className="flex items-center gap-4">
+                                {form.profilePicture ? (
+                                    <img src={mediaUrl(form.profilePicture)} alt="" className="h-16 w-16 rounded-full object-cover" />
+                                ) : null}
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="form-input"
+                                    onChange={(e) => setPendingImage(e.target.files?.[0] ?? null)}
+                                />
+                            </div>
+                        </FormField>
                         <FormField label="Full Name" required>
                             <input className="form-input" required value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
                         </FormField>

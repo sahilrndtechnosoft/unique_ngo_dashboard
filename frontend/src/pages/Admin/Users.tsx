@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { setPageTitle } from '../../store/themeConfigSlice';
 import { adminApi } from '../../services/admin.service';
-import { getErrorMessage } from '../../services/api';
+import { getErrorMessage, mediaUrl } from '../../services/api';
 import { useRowSelection } from '../../hooks/useRowSelection';
 import { AdminDataTable, AdminPageHeader, BulkActionsBar } from '../../components/Admin/AdminTable';
 import AdminFormModal from '../../components/Admin/AdminFormModal';
@@ -23,6 +23,7 @@ const emptyForm = {
     role: 'USER',
     rbacRoleId: '',
     status: 'ACTIVE',
+    profilePicture: '' as string | null,
 };
 
 export default function AdminUsers() {
@@ -41,6 +42,7 @@ export default function AdminUsers() {
     const [mode, setMode] = useState<Mode | null>(null);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState(emptyForm);
+    const [pendingImage, setPendingImage] = useState<File | null>(null);
 
     const ids = useMemo(() => items.map((item) => item.id), [items]);
     const selection = useRowSelection(ids);
@@ -105,6 +107,7 @@ export default function AdminUsers() {
     const openCreate = () => {
         setEditingId(null);
         setForm(emptyForm);
+        setPendingImage(null);
         setMode('create');
     };
 
@@ -118,7 +121,9 @@ export default function AdminUsers() {
             role: user.role,
             rbacRoleId: user.rbacRole?.id ?? user.rbacRoleId ?? '',
             status: user.status,
+            profilePicture: user.profilePicture ?? null,
         });
+        setPendingImage(null);
         setMode('edit');
     };
 
@@ -149,6 +154,7 @@ export default function AdminUsers() {
             };
             if (form.mobile) body.mobile = form.mobile;
             if (form.password) body.password = form.password;
+            let id = editingId;
             if (mode === 'create') {
                 if (!form.password) {
                     setError('Password is required for new users');
@@ -156,11 +162,15 @@ export default function AdminUsers() {
                     return;
                 }
                 body.password = form.password;
-                await adminApi.createUser(body);
+                const created = (await adminApi.createUser(body)) as any;
+                id = created?.id;
                 showAlert('User created successfully');
             } else if (editingId) {
                 await adminApi.updateUser(editingId, body);
                 showAlert('User updated successfully');
+            }
+            if (id && pendingImage) {
+                await adminApi.uploadUserImage(id, pendingImage);
             }
             setMode(null);
             selection.clear();
@@ -265,6 +275,16 @@ export default function AdminUsers() {
             <AdminDataTable
                 columns={[
                     {
+                        key: 'image',
+                        label: 'Photo',
+                        render: (row) =>
+                            row.profilePicture ? (
+                                <img src={mediaUrl(row.profilePicture)} alt={row.fullName} className="h-10 w-10 rounded-full object-cover" />
+                            ) : (
+                                <span className="text-xs text-white-dark">—</span>
+                            ),
+                    },
+                    {
                         key: 'fullName',
                         label: 'Name',
                         sortable: true,
@@ -345,6 +365,21 @@ export default function AdminUsers() {
             >
                 <FormSection title="Account details" className="md:col-span-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <FormField label="Profile Picture" className="md:col-span-2">
+                            <div className="flex items-center gap-4">
+                                {form.profilePicture ? (
+                                    <img src={mediaUrl(form.profilePicture)} alt="" className="h-16 w-16 rounded-full object-cover" />
+                                ) : null}
+                                {!readOnly ? (
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="form-input"
+                                        onChange={(e) => setPendingImage(e.target.files?.[0] ?? null)}
+                                    />
+                                ) : null}
+                            </div>
+                        </FormField>
                         <FormField label="Full Name" required>
                             <input
                                 className="form-input"

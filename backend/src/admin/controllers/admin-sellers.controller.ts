@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -9,9 +10,18 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   AppModule,
   JwtPayload,
@@ -26,6 +36,10 @@ import {
 } from '../../common/decorators';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import {
+  buildUploadedFilePath,
+  createImageUploadOptions,
+} from '../../common/utils/image-upload.util';
 import {
   CreateAdminSellerDto,
   ListSellersQueryDto,
@@ -78,6 +92,34 @@ export class AdminSellersController {
     @CurrentUser() actor: JwtPayload,
   ) {
     return this.adminSellersService.updateSeller(id, dto, actor.sub);
+  }
+
+  @Post(':id/image')
+  @RequirePermissions(AppModule.SELLERS, PermissionAction.EDIT)
+  @ResponseMessage('Seller profile picture uploaded successfully')
+  @ApiOperation({ summary: 'Upload profile picture for a seller' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+      required: ['file'],
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', createImageUploadOptions('profile-pictures')),
+  )
+  async uploadImage(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Profile picture file is required');
+    }
+    return this.adminSellersService.updateProfilePicture(
+      id,
+      buildUploadedFilePath('profile-pictures', file.filename),
+    );
   }
 
   @Delete(':id')

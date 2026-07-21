@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Prisma, user_role, user_status, users } from '../../../generated/prisma/client';
 import { hashValue, normalizeMobile } from '../../common/utils/crypto.util';
+import { deleteUploadedFile } from '../../common/utils/image-upload.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateAdminUserDto,
@@ -176,6 +177,19 @@ export class AdminUsersService {
     const updated = await this.prisma.users.update({
       where: { id: userId },
       data,
+      include: { rbac_role: true },
+    });
+
+    return this.toPublic(updated);
+  }
+
+  async updateProfilePicture(userId: string, filePath: string) {
+    const user = await this.findUserOrThrow(userId);
+    deleteUploadedFile(user.profile_image_url);
+
+    const updated = await this.prisma.users.update({
+      where: { id: userId },
+      data: { profile_image_url: filePath, updated_at: new Date() },
       include: { rbac_role: true },
     });
 
