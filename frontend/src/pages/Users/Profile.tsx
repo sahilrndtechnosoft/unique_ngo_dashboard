@@ -1,395 +1,445 @@
-import { Link } from 'react-router-dom';
+import { FormEvent, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { IRootState } from '../../store';
-import Dropdown from '../../components/Dropdown';
 import { setPageTitle } from '../../store/themeConfigSlice';
-import { useEffect } from 'react';
-import IconPencilPaper from '../../components/Icon/IconPencilPaper';
-import IconCoffee from '../../components/Icon/IconCoffee';
-import IconCalendar from '../../components/Icon/IconCalendar';
-import IconMapPin from '../../components/Icon/IconMapPin';
-import IconMail from '../../components/Icon/IconMail';
-import IconPhone from '../../components/Icon/IconPhone';
-import IconTwitter from '../../components/Icon/IconTwitter';
-import IconDribbble from '../../components/Icon/IconDribbble';
-import IconGithub from '../../components/Icon/IconGithub';
-import IconShoppingBag from '../../components/Icon/IconShoppingBag';
-import IconTag from '../../components/Icon/IconTag';
-import IconCreditCard from '../../components/Icon/IconCreditCard';
-import IconClock from '../../components/Icon/IconClock';
-import IconHorizontalDots from '../../components/Icon/IconHorizontalDots';
+import { updateUser } from '../../store/authSlice';
+import { setBranding } from '../../store/settingsSlice';
+import { api, getErrorMessage, mediaUrl, unwrap } from '../../services/api';
+import { canAccess } from '../../config/admin-menu';
+import { FormField } from '../../components/Admin/FormPrimitives';
+import AdminRoles from '../Admin/Roles';
+import IconUser from '../../components/Icon/IconUser';
+import IconSettings from '../../components/Icon/IconSettings';
+import IconLockDots from '../../components/Icon/IconLockDots';
+import IconShieldRoles from '../../components/Icon/Menu/IconMenuUsers';
+
+type TabKey = 'profile' | 'app-settings' | 'roles';
+
+const emptyProfileForm = {
+    fullName: '',
+    email: '',
+    password: '',
+    currentPassword: '',
+};
+
+const emptyOrgForm = {
+    companyName: '',
+    email: '',
+    phone: '',
+    addressLine1: '',
+    footerAbout: '',
+    footerCopyright: '',
+    logoUrl: '',
+    faviconUrl: '',
+};
 
 const Profile = () => {
     const dispatch = useDispatch();
+    const { user, permissions, isSuperAdmin } = useSelector((state: IRootState) => state.auth);
+    const canManageOrgSettings = canAccess(isSuperAdmin, permissions, 'SETTINGS:VIEW');
+    const canManageRoles = canAccess(isSuperAdmin, permissions, 'ROLES:VIEW');
+
+    const [tab, setTab] = useState<TabKey>('profile');
+
+    const [profileForm, setProfileForm] = useState(emptyProfileForm);
+    const [mobile, setMobile] = useState('');
+    const [profilePicture, setProfilePicture] = useState<string | null>(null);
+    const [pendingAvatar, setPendingAvatar] = useState<File | null>(null);
+    const [profileLoading, setProfileLoading] = useState(false);
+    const [profileBusy, setProfileBusy] = useState(false);
+    const [profileError, setProfileError] = useState('');
+    const [profileMessage, setProfileMessage] = useState('');
+
+    const [orgForm, setOrgForm] = useState(emptyOrgForm);
+    const [banners, setBanners] = useState<any[]>([]);
+    const [orgLoading, setOrgLoading] = useState(false);
+    const [orgBusy, setOrgBusy] = useState(false);
+    const [orgError, setOrgError] = useState('');
+    const [orgMessage, setOrgMessage] = useState('');
+
     useEffect(() => {
-        dispatch(setPageTitle('Profile'));
-    });
-    const isRtl = useSelector((state: IRootState) => state.themeConfig.rtlClass) === 'rtl' ? true : false;
+        dispatch(setPageTitle('Account Settings'));
+        loadProfile();
+        if (canManageOrgSettings) loadOrgSettings();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const loadProfile = async () => {
+        setProfileLoading(true);
+        setProfileError('');
+        try {
+            const profile = await api.get('/users/me').then((r) => unwrap<any>(r));
+            setProfileForm({
+                fullName: profile.fullName ?? '',
+                email: profile.email ?? '',
+                password: '',
+                currentPassword: '',
+            });
+            setMobile(profile.mobile ?? '');
+            setProfilePicture(profile.profilePicture ?? null);
+        } catch (err) {
+            setProfileError(getErrorMessage(err));
+        } finally {
+            setProfileLoading(false);
+        }
+    };
+
+    const loadOrgSettings = async () => {
+        setOrgLoading(true);
+        setOrgError('');
+        try {
+            const [settings, bannerList] = await Promise.all([
+                api.get('/admin/settings').then((r) => unwrap<any>(r)),
+                api.get('/admin/banners').then((r) => unwrap<any[]>(r)),
+            ]);
+            setOrgForm({
+                companyName: settings.companyName ?? '',
+                email: settings.email ?? '',
+                phone: settings.phone ?? '',
+                addressLine1: settings.addressLine1 ?? '',
+                footerAbout: settings.footerAbout ?? '',
+                footerCopyright: settings.footerCopyright ?? '',
+                logoUrl: settings.logoUrl ?? '',
+                faviconUrl: settings.faviconUrl ?? '',
+            });
+            setBanners(Array.isArray(bannerList) ? bannerList : []);
+            dispatch(
+                setBranding({
+                    companyName: settings.companyName,
+                    logoUrl: settings.logoUrl ?? null,
+                    faviconUrl: settings.faviconUrl ?? null,
+                }),
+            );
+        } catch (err) {
+            setOrgError(getErrorMessage(err));
+        } finally {
+            setOrgLoading(false);
+        }
+    };
+
+    const submitProfile = async (event: FormEvent) => {
+        event.preventDefault();
+        setProfileBusy(true);
+        setProfileError('');
+        setProfileMessage('');
+        try {
+            const body: Record<string, unknown> = {
+                fullName: profileForm.fullName,
+                email: profileForm.email,
+            };
+            if (profileForm.password) {
+                body.password = profileForm.password;
+                body.currentPassword = profileForm.currentPassword;
+            }
+            const updated = await api.patch('/users/me', body).then((r) => unwrap<any>(r));
+
+            let nextProfilePicture = profilePicture;
+            if (pendingAvatar) {
+                const form = new FormData();
+                form.append('file', pendingAvatar);
+                const avatarResult = await api
+                    .post('/users/me/profile-picture', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+                    .then((r) => unwrap<{ profilePicture: string }>(r));
+                nextProfilePicture = avatarResult.profilePicture;
+                setProfilePicture(nextProfilePicture);
+                setPendingAvatar(null);
+            }
+
+            dispatch(
+                updateUser({
+                    fullName: updated.fullName,
+                    email: updated.email,
+                    profilePicture: nextProfilePicture,
+                }),
+            );
+            setProfileForm((prev) => ({ ...prev, password: '', currentPassword: '' }));
+            setProfileMessage('Profile updated successfully');
+        } catch (err) {
+            setProfileError(getErrorMessage(err));
+        } finally {
+            setProfileBusy(false);
+        }
+    };
+
+    const submitOrgSettings = async (event: FormEvent) => {
+        event.preventDefault();
+        setOrgBusy(true);
+        setOrgError('');
+        setOrgMessage('');
+        try {
+            await api.patch('/admin/settings', {
+                companyName: orgForm.companyName || undefined,
+                email: orgForm.email || undefined,
+                phone: orgForm.phone || undefined,
+                addressLine1: orgForm.addressLine1 || undefined,
+                footerAbout: orgForm.footerAbout || undefined,
+                footerCopyright: orgForm.footerCopyright || undefined,
+            });
+            setOrgMessage('Settings saved');
+            await loadOrgSettings();
+        } catch (err) {
+            setOrgError(getErrorMessage(err));
+        } finally {
+            setOrgBusy(false);
+        }
+    };
+
+    const uploadOrgAsset = async (kind: 'logo' | 'favicon', file?: File | null) => {
+        if (!file) return;
+        const body = new FormData();
+        body.append('file', file);
+        try {
+            await api.post(`/admin/settings/${kind}`, body, { headers: { 'Content-Type': 'multipart/form-data' } });
+            setOrgMessage(`${kind} updated`);
+            await loadOrgSettings();
+        } catch (err) {
+            setOrgError(getErrorMessage(err));
+        }
+    };
+
+    const uploadBanner = async (file?: File | null) => {
+        if (!file) return;
+        const body = new FormData();
+        body.append('file', file);
+        try {
+            await api.post('/admin/banners', body, { headers: { 'Content-Type': 'multipart/form-data' } });
+            await loadOrgSettings();
+        } catch (err) {
+            setOrgError(getErrorMessage(err));
+        }
+    };
+
+    const deleteBanner = async (id: string) => {
+        if (!confirm('Delete banner?')) return;
+        try {
+            await api.delete(`/admin/banners/${id}`);
+            await loadOrgSettings();
+        } catch (err) {
+            setOrgError(getErrorMessage(err));
+        }
+    };
+
     return (
         <div>
             <ul className="flex space-x-2 rtl:space-x-reverse">
                 <li>
-                    <Link to="#" className="text-primary hover:underline">
-                        Users
-                    </Link>
+                    <span className="text-primary">Dashboard</span>
                 </li>
                 <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-                    <span>Profile</span>
+                    <span>Account Settings</span>
                 </li>
             </ul>
-            <div className="pt-5">
-                <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-5 mb-5">
-                    <div className="panel">
-                        <div className="flex items-center justify-between mb-5">
-                            <h5 className="font-semibold text-lg dark:text-white-light">Profile</h5>
-                            <Link to="/users/user-account-settings" className="ltr:ml-auto rtl:mr-auto btn btn-primary p-2 rounded-full">
-                                <IconPencilPaper />
-                            </Link>
-                        </div>
-                        <div className="mb-5">
-                            <div className="flex flex-col justify-center items-center">
-                                <img src="/assets/images/profile-34.jpeg" alt="img" className="w-24 h-24 rounded-full object-cover  mb-5" />
-                                <p className="font-semibold text-primary text-xl">Jimmy Turner</p>
-                            </div>
-                            <ul className="mt-5 flex flex-col max-w-[160px] m-auto space-y-4 font-semibold text-white-dark">
-                                <li className="flex items-center gap-2">
-                                    <IconCoffee className="shrink-0" />
-                                    Web Developer
-                                </li>
-                                <li className="flex items-center gap-2">
-                                    <IconCalendar className="shrink-0" />
-                                    Jan 20, 1989
-                                </li>
-                                <li className="flex items-center gap-2">
-                                    <IconMapPin className="shrink-0" />
-                                    New York, USA
-                                </li>
-                                <li>
-                                    <button className="flex items-center gap-2">
-                                        <IconMail className="w-5 h-5 shrink-0" />
-                                        <span className="text-primary truncate">jimmy@gmail.com</span>
-                                    </button>
-                                </li>
-                                <li className="flex items-center gap-2">
-                                    <IconPhone />
-                                    <span className="whitespace-nowrap" dir="ltr">
-                                        +1 (530) 555-12121
-                                    </span>
-                                </li>
-                            </ul>
-                            <ul className="mt-7 flex items-center justify-center gap-2">
-                                <li>
-                                    <button className="btn btn-info flex items-center justify-center rounded-full w-10 h-10 p-0">
-                                        <IconTwitter className="w-5 h-5" />
-                                    </button>
-                                </li>
-                                <li>
-                                    <button className="btn btn-danger flex items-center justify-center rounded-full w-10 h-10 p-0">
-                                        <IconDribbble />
-                                    </button>
-                                </li>
-                                <li>
-                                    <button className="btn btn-dark flex items-center justify-center rounded-full w-10 h-10 p-0">
-                                        <IconGithub />
-                                    </button>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div className="panel lg:col-span-2 xl:col-span-3">
-                        <div className="mb-5">
-                            <h5 className="font-semibold text-lg dark:text-white-light">Task</h5>
-                        </div>
-                        <div className="mb-5">
-                            <div className="table-responsive text-[#515365] dark:text-white-light font-semibold">
-                                <table className="whitespace-nowrap">
-                                    <thead>
-                                        <tr>
-                                            <th>Projects</th>
-                                            <th>Progress</th>
-                                            <th>Task Done</th>
-                                            <th className="text-center">Time</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="dark:text-white-dark">
-                                        <tr>
-                                            <td>Figma Design</td>
-                                            <td>
-                                                <div className="h-1.5 bg-[#ebedf2] dark:bg-dark/40 rounded-full flex w-full">
-                                                    <div className="bg-danger rounded-full w-[29.56%]"></div>
-                                                </div>
-                                            </td>
-                                            <td className="text-danger">29.56%</td>
-                                            <td className="text-center">2 mins ago</td>
-                                        </tr>
-                                        <tr>
-                                            <td>Vue Migration</td>
-                                            <td>
-                                                <div className="h-1.5 bg-[#ebedf2] dark:bg-dark/40 rounded-full flex w-full">
-                                                    <div className="bg-info rounded-full w-1/2"></div>
-                                                </div>
-                                            </td>
-                                            <td className="text-success">50%</td>
-                                            <td className="text-center">4 hrs ago</td>
-                                        </tr>
-                                        <tr>
-                                            <td>Flutter App</td>
-                                            <td>
-                                                <div className="h-1.5 bg-[#ebedf2] dark:bg-dark/40 rounded-full flex w-full">
-                                                    <div className="bg-warning rounded-full  w-[39%]"></div>
-                                                </div>
-                                            </td>
-                                            <td className="text-danger">39%</td>
-                                            <td className="text-center">a min ago</td>
-                                        </tr>
-                                        <tr>
-                                            <td>API Integration</td>
-                                            <td>
-                                                <div className="h-1.5 bg-[#ebedf2] dark:bg-dark/40 rounded-full flex w-full">
-                                                    <div className="bg-success rounded-full  w-[78.03%]"></div>
-                                                </div>
-                                            </td>
-                                            <td className="text-success">78.03%</td>
-                                            <td className="text-center">2 weeks ago</td>
-                                        </tr>
 
-                                        <tr>
-                                            <td>Blog Update</td>
-                                            <td>
-                                                <div className="h-1.5 bg-[#ebedf2] dark:bg-dark/40 rounded-full flex w-full">
-                                                    <div className="bg-secondary  rounded-full  w-full"></div>
-                                                </div>
-                                            </td>
-                                            <td className="text-success">100%</td>
-                                            <td className="text-center">18 hrs ago</td>
-                                        </tr>
-                                        <tr>
-                                            <td>Landing Page</td>
-                                            <td>
-                                                <div className="h-1.5 bg-[#ebedf2] dark:bg-dark/40 rounded-full flex w-full">
-                                                    <div className="bg-danger rounded-full  w-[19.15%]"></div>
-                                                </div>
-                                            </td>
-                                            <td className="text-danger">19.15%</td>
-                                            <td className="text-center">5 days ago</td>
-                                        </tr>
-                                        <tr>
-                                            <td>Shopify Dev</td>
-                                            <td>
-                                                <div className="h-1.5 bg-[#ebedf2] dark:bg-dark/40 rounded-full flex w-full">
-                                                    <div className="bg-primary rounded-full w-[60.55%]"></div>
-                                                </div>
-                                            </td>
-                                            <td className="text-success">60.55%</td>
-                                            <td className="text-center">8 days ago</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="pt-5">
+                <h2 className="text-xl font-semibold dark:text-white-light mb-5">Account Settings</h2>
+
+                <ul className="sm:flex font-semibold border-b border-[#ebedf2] dark:border-[#191e3a] mb-5 whitespace-nowrap overflow-y-auto">
+                    <li className="inline-block">
+                        <button
+                            type="button"
+                            onClick={() => setTab('profile')}
+                            className={`flex gap-2 p-4 border-b-2 border-transparent hover:border-primary hover:text-primary ${tab === 'profile' ? '!border-primary text-primary' : ''}`}
+                        >
+                            <IconUser className="w-5 h-5" />
+                            My Profile
+                        </button>
+                    </li>
+                    {canManageOrgSettings ? (
+                        <li className="inline-block">
+                            <button
+                                type="button"
+                                onClick={() => setTab('app-settings')}
+                                className={`flex gap-2 p-4 border-b-2 border-transparent hover:border-primary hover:text-primary ${tab === 'app-settings' ? '!border-primary text-primary' : ''}`}
+                            >
+                                <IconSettings className="w-5 h-5" />
+                                App Settings &amp; Banners
+                            </button>
+                        </li>
+                    ) : null}
+                    {canManageRoles ? (
+                        <li className="inline-block">
+                            <button
+                                type="button"
+                                onClick={() => setTab('roles')}
+                                className={`flex gap-2 p-4 border-b-2 border-transparent hover:border-primary hover:text-primary ${tab === 'roles' ? '!border-primary text-primary' : ''}`}
+                            >
+                                <IconShieldRoles className="w-5 h-5" />
+                                Roles &amp; Permissions
+                            </button>
+                        </li>
+                    ) : null}
+                </ul>
+
+                {tab === 'profile' ? (
                     <div className="panel">
-                        <div className="mb-5">
-                            <h5 className="font-semibold text-lg dark:text-white-light">Summary</h5>
-                        </div>
-                        <div className="space-y-4">
-                            <div className="border border-[#ebedf2] rounded dark:bg-[#1b2e4b] dark:border-0">
-                                <div className="flex items-center justify-between p-4 py-2">
-                                    <div className="grid place-content-center w-9 h-9 rounded-md bg-secondary-light dark:bg-secondary text-secondary dark:text-secondary-light">
-                                        <IconShoppingBag />
-                                    </div>
-                                    <div className="ltr:ml-4 rtl:mr-4 flex items-start justify-between flex-auto font-semibold">
-                                        <h6 className="text-white-dark text-[13px] dark:text-white-dark">
-                                            Income
-                                            <span className="block text-base text-[#515365] dark:text-white-light">$92,600</span>
-                                        </h6>
-                                        <p className="ltr:ml-auto rtl:mr-auto text-secondary">90%</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="border border-[#ebedf2] rounded dark:bg-[#1b2e4b] dark:border-0">
-                                <div className="flex items-center justify-between p-4 py-2">
-                                    <div className="grid place-content-center w-9 h-9 rounded-md bg-info-light dark:bg-info text-info dark:text-info-light">
-                                        <IconTag />
-                                    </div>
-                                    <div className="ltr:ml-4 rtl:mr-4 flex items-start justify-between flex-auto font-semibold">
-                                        <h6 className="text-white-dark text-[13px] dark:text-white-dark">
-                                            Profit
-                                            <span className="block text-base text-[#515365] dark:text-white-light">$37,515</span>
-                                        </h6>
-                                        <p className="ltr:ml-auto rtl:mr-auto text-info">65%</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="border border-[#ebedf2] rounded dark:bg-[#1b2e4b] dark:border-0">
-                                <div className="flex items-center justify-between p-4 py-2">
-                                    <div className="grid place-content-center w-9 h-9 rounded-md bg-warning-light dark:bg-warning text-warning dark:text-warning-light">
-                                        <IconCreditCard />
-                                    </div>
-                                    <div className="ltr:ml-4 rtl:mr-4 flex items-start justify-between flex-auto font-semibold">
-                                        <h6 className="text-white-dark text-[13px] dark:text-white-dark">
-                                            Expenses
-                                            <span className="block text-base text-[#515365] dark:text-white-light">$55,085</span>
-                                        </h6>
-                                        <p className="ltr:ml-auto rtl:mr-auto text-warning">80%</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="panel">
-                        <div className="flex items-center justify-between mb-10">
-                            <h5 className="font-semibold text-lg dark:text-white-light">Pro Plan</h5>
-                            <button className="btn btn-primary">Renew Now</button>
-                        </div>
-                        <div className="group">
-                            <ul className="list-inside list-disc text-white-dark font-semibold mb-7 space-y-2">
-                                <li>10,000 Monthly Visitors</li>
-                                <li>Unlimited Reports</li>
-                                <li>2 Years Data Storage</li>
-                            </ul>
-                            <div className="flex items-center justify-between mb-4 font-semibold">
-                                <p className="flex items-center rounded-full bg-dark px-2 py-1 text-xs text-white-light font-semibold">
-                                    <IconClock className="w-3 h-3 ltr:mr-1 rtl:ml-1" />5 Days Left
-                                </p>
-                                <p className="text-info">$25 / month</p>
-                            </div>
-                            <div className="rounded-full h-2.5 p-0.5 bg-dark-light overflow-hidden mb-5 dark:bg-dark-light/10">
-                                <div className="bg-gradient-to-r from-[#f67062] to-[#fc5296] w-full h-full rounded-full relative" style={{ width: '65%' }}></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="panel">
-                        <div className="flex items-center justify-between mb-5">
-                            <h5 className="font-semibold text-lg dark:text-white-light">Payment History</h5>
-                        </div>
-                        <div>
-                            <div className="border-b border-[#ebedf2] dark:border-[#1b2e4b]">
-                                <div className="flex items-center justify-between py-2">
-                                    <h6 className="text-[#515365] font-semibold dark:text-white-dark">
-                                        March
-                                        <span className="block text-white-dark dark:text-white-light">Pro Membership</span>
-                                    </h6>
-                                    <div className="flex items-start justify-between ltr:ml-auto rtl:mr-auto">
-                                        <p className="font-semibold">90%</p>
-                                        <div className="dropdown ltr:ml-4 rtl:mr-4">
-                                            <Dropdown
-                                                offset={[0, 5]}
-                                                placement={`${isRtl ? 'bottom-start' : 'bottom-end'}`}
-                                                btnClassName="hover:text-primary"
-                                                button={<IconHorizontalDots className="opacity-80 hover:opacity-100" />}
-                                            >
-                                                <ul className="!min-w-[150px]">
-                                                    <li>
-                                                        <button type="button">View Invoice</button>
-                                                    </li>
-                                                    <li>
-                                                        <button type="button">Download Invoice</button>
-                                                    </li>
-                                                </ul>
-                                            </Dropdown>
+                        <h5 className="font-semibold text-lg dark:text-white-light mb-5">My Profile</h5>
+
+                        {profileError ? <div className="mb-4 rounded bg-danger-light p-3 text-danger">{profileError}</div> : null}
+                        {profileMessage ? <div className="mb-4 rounded bg-success-light p-3 text-success">{profileMessage}</div> : null}
+
+                        {profileLoading ? (
+                            <p>Loading...</p>
+                        ) : (
+                            <form onSubmit={submitProfile} className="flex flex-col sm:flex-row gap-8">
+                                <div className="flex flex-col items-center sm:w-40 shrink-0">
+                                    {pendingAvatar ? (
+                                        <img src={URL.createObjectURL(pendingAvatar)} alt="" className="w-28 h-28 rounded-full object-cover mb-4" />
+                                    ) : profilePicture ? (
+                                        <img src={mediaUrl(profilePicture)} alt={profileForm.fullName} className="w-28 h-28 rounded-full object-cover mb-4" />
+                                    ) : (
+                                        <div className="w-28 h-28 rounded-full mb-4 grid place-content-center bg-primary-light dark:bg-primary text-primary dark:text-primary-light">
+                                            <IconUser className="w-14 h-14" />
                                         </div>
+                                    )}
+                                    <label className="btn btn-outline-primary btn-sm cursor-pointer">
+                                        Change Photo
+                                        <input type="file" accept="image/*" className="hidden" onChange={(e) => setPendingAvatar(e.target.files?.[0] ?? null)} />
+                                    </label>
+                                </div>
+
+                                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <FormField label="Full Name" required>
+                                        <input
+                                            className="form-input"
+                                            required
+                                            value={profileForm.fullName}
+                                            onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })}
+                                        />
+                                    </FormField>
+                                    <FormField label="Email" required>
+                                        <input
+                                            className="form-input"
+                                            type="email"
+                                            required
+                                            value={profileForm.email}
+                                            onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                                        />
+                                    </FormField>
+                                    <FormField label="Mobile" hint="Contact an administrator to change your mobile number">
+                                        <input className="form-input" disabled value={mobile || '—'} />
+                                    </FormField>
+                                    <FormField label="Role">
+                                        <input className="form-input" disabled value={user?.role ?? ''} />
+                                    </FormField>
+
+                                    <div className="md:col-span-2 flex items-center gap-2 pt-2 pb-1 text-white-dark">
+                                        <IconLockDots className="w-4 h-4" />
+                                        <span className="text-sm font-semibold">Change Password</span>
+                                    </div>
+                                    <FormField label="New Password" hint="Leave blank to keep current password">
+                                        <input
+                                            className="form-input"
+                                            type="password"
+                                            value={profileForm.password}
+                                            onChange={(e) => setProfileForm({ ...profileForm, password: e.target.value })}
+                                        />
+                                    </FormField>
+                                    {profileForm.password ? (
+                                        <FormField label="Current Password" required>
+                                            <input
+                                                className="form-input"
+                                                type="password"
+                                                required
+                                                value={profileForm.currentPassword}
+                                                onChange={(e) => setProfileForm({ ...profileForm, currentPassword: e.target.value })}
+                                            />
+                                        </FormField>
+                                    ) : null}
+
+                                    <div className="md:col-span-2 flex justify-end">
+                                        <button type="submit" className="btn btn-primary" disabled={profileBusy}>
+                                            {profileBusy ? 'Saving...' : 'Save Profile'}
+                                        </button>
                                     </div>
                                 </div>
+                            </form>
+                        )}
+                    </div>
+                ) : null}
+
+                {tab === 'app-settings' && canManageOrgSettings ? (
+                    <div className="space-y-5">
+                        <div className="panel">
+                            <div className="mb-5">
+                                <h5 className="font-semibold text-lg dark:text-white-light">App Settings</h5>
+                                <p className="text-white-dark text-sm mt-1">Logo and favicon appear in the sidebar and browser tab</p>
                             </div>
-                            <div className="border-b border-[#ebedf2] dark:border-[#1b2e4b]">
-                                <div className="flex items-center justify-between py-2">
-                                    <h6 className="text-[#515365] font-semibold dark:text-white-dark">
-                                        February
-                                        <span className="block text-white-dark dark:text-white-light">Pro Membership</span>
-                                    </h6>
-                                    <div className="flex items-start justify-between ltr:ml-auto rtl:mr-auto">
-                                        <p className="font-semibold">90%</p>
-                                        <div className="dropdown ltr:ml-4 rtl:mr-4">
-                                            <Dropdown offset={[0, 5]} placement={`${isRtl ? 'bottom-start' : 'bottom-end'}`} button={<IconHorizontalDots className="opacity-80 hover:opacity-100" />}>
-                                                <ul className="!min-w-[150px]">
-                                                    <li>
-                                                        <button type="button">View Invoice</button>
-                                                    </li>
-                                                    <li>
-                                                        <button type="button">Download Invoice</button>
-                                                    </li>
-                                                </ul>
-                                            </Dropdown>
-                                        </div>
+                            {orgError ? <div className="mb-4 rounded bg-danger-light p-3 text-danger">{orgError}</div> : null}
+                            {orgMessage ? <div className="mb-4 rounded bg-success-light p-3 text-success">{orgMessage}</div> : null}
+
+                            {orgLoading ? (
+                                <p>Loading...</p>
+                            ) : (
+                                <form onSubmit={submitOrgSettings}>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <FormField label="Company Name">
+                                            <input className="form-input" value={orgForm.companyName} onChange={(e) => setOrgForm({ ...orgForm, companyName: e.target.value })} />
+                                        </FormField>
+                                        <FormField label="Email">
+                                            <input className="form-input" value={orgForm.email} onChange={(e) => setOrgForm({ ...orgForm, email: e.target.value })} />
+                                        </FormField>
+                                        <FormField label="Phone">
+                                            <input className="form-input" value={orgForm.phone} onChange={(e) => setOrgForm({ ...orgForm, phone: e.target.value })} />
+                                        </FormField>
+                                        <FormField label="Footer Copyright">
+                                            <input className="form-input" value={orgForm.footerCopyright} onChange={(e) => setOrgForm({ ...orgForm, footerCopyright: e.target.value })} />
+                                        </FormField>
+                                        <FormField label="Address" className="md:col-span-2">
+                                            <textarea
+                                                className="form-textarea min-h-[100px]"
+                                                value={orgForm.addressLine1}
+                                                onChange={(e) => setOrgForm({ ...orgForm, addressLine1: e.target.value })}
+                                            />
+                                        </FormField>
+                                        <FormField label="Footer About" className="md:col-span-2">
+                                            <input className="form-input" value={orgForm.footerAbout} onChange={(e) => setOrgForm({ ...orgForm, footerAbout: e.target.value })} />
+                                        </FormField>
+                                        <FormField label="Logo">
+                                            <div className="flex items-center gap-4">
+                                                {orgForm.logoUrl ? <img src={mediaUrl(orgForm.logoUrl)} alt="logo" className="h-12 object-contain" /> : null}
+                                                <input type="file" accept="image/*" className="form-input" onChange={(e) => uploadOrgAsset('logo', e.target.files?.[0])} />
+                                            </div>
+                                        </FormField>
+                                        <FormField label="Favicon">
+                                            <div className="flex items-center gap-4">
+                                                {orgForm.faviconUrl ? <img src={mediaUrl(orgForm.faviconUrl)} alt="favicon" className="h-8 object-contain" /> : null}
+                                                <input type="file" accept="image/*" className="form-input" onChange={(e) => uploadOrgAsset('favicon', e.target.files?.[0])} />
+                                            </div>
+                                        </FormField>
                                     </div>
-                                </div>
+                                    <div className="flex justify-end mt-6">
+                                        <button type="submit" className="btn btn-primary" disabled={orgBusy}>
+                                            {orgBusy ? 'Saving...' : 'Save Settings'}
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+                        </div>
+
+                        <div className="panel">
+                            <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+                                <h6 className="font-semibold text-lg">Banners</h6>
+                                <label className="btn btn-success cursor-pointer">
+                                    Add Banner
+                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => uploadBanner(e.target.files?.[0])} />
+                                </label>
                             </div>
-                            <div>
-                                <div className="flex items-center justify-between py-2">
-                                    <h6 className="text-[#515365] font-semibold dark:text-white-dark">
-                                        January
-                                        <span className="block text-white-dark dark:text-white-light">Pro Membership</span>
-                                    </h6>
-                                    <div className="flex items-start justify-between ltr:ml-auto rtl:mr-auto">
-                                        <p className="font-semibold">90%</p>
-                                        <div className="dropdown ltr:ml-4 rtl:mr-4">
-                                            <Dropdown offset={[0, 5]} placement={`${isRtl ? 'bottom-start' : 'bottom-end'}`} button={<IconHorizontalDots className="opacity-80 hover:opacity-100" />}>
-                                                <ul className="!min-w-[150px]">
-                                                    <li>
-                                                        <button type="button">View Invoice</button>
-                                                    </li>
-                                                    <li>
-                                                        <button type="button">Download Invoice</button>
-                                                    </li>
-                                                </ul>
-                                            </Dropdown>
-                                        </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {banners.map((banner) => (
+                                    <div key={banner.id} className="border border-[#ebedf2] dark:border-[#191e3a] rounded p-3">
+                                        <img src={mediaUrl(banner.imageUrl)} alt="" className="w-full h-32 object-cover rounded mb-2" />
+                                        <button type="button" className="btn btn-sm btn-outline-danger w-full" onClick={() => deleteBanner(banner.id)}>
+                                            Delete
+                                        </button>
                                     </div>
-                                </div>
+                                ))}
+                                {banners.length === 0 ? <p className="text-white-dark">No banners yet</p> : null}
                             </div>
                         </div>
                     </div>
-                    <div className="panel">
-                        <div className="flex items-center justify-between mb-5">
-                            <h5 className="font-semibold text-lg dark:text-white-light">Card Details</h5>
-                        </div>
-                        <div>
-                            <div className="border-b border-[#ebedf2] dark:border-[#1b2e4b]">
-                                <div className="flex items-center justify-between py-2">
-                                    <div className="flex-none">
-                                        <img src="/assets/images/card-americanexpress.svg" alt="img" />
-                                    </div>
-                                    <div className="flex items-center justify-between flex-auto ltr:ml-4 rtl:mr-4">
-                                        <h6 className="text-[#515365] font-semibold dark:text-white-dark">
-                                            American Express
-                                            <span className="block text-white-dark dark:text-white-light">Expires on 12/2025</span>
-                                        </h6>
-                                        <span className="badge bg-success ltr:ml-auto rtl:mr-auto">Primary</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="border-b border-[#ebedf2] dark:border-[#1b2e4b]">
-                                <div className="flex items-center justify-between py-2">
-                                    <div className="flex-none">
-                                        <img src="/assets/images/card-mastercard.svg" alt="img" />
-                                    </div>
-                                    <div className="flex items-center justify-between flex-auto ltr:ml-4 rtl:mr-4">
-                                        <h6 className="text-[#515365] font-semibold dark:text-white-dark">
-                                            Mastercard
-                                            <span className="block text-white-dark dark:text-white-light">Expires on 03/2025</span>
-                                        </h6>
-                                    </div>
-                                </div>
-                            </div>
-                            <div>
-                                <div className="flex items-center justify-between py-2">
-                                    <div className="flex-none">
-                                        <img src="/assets/images/card-visa.svg" alt="img" />
-                                    </div>
-                                    <div className="flex items-center justify-between flex-auto ltr:ml-4 rtl:mr-4">
-                                        <h6 className="text-[#515365] font-semibold dark:text-white-dark">
-                                            Visa
-                                            <span className="block text-white-dark dark:text-white-light">Expires on 10/2025</span>
-                                        </h6>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                ) : null}
+
+                {tab === 'roles' && canManageRoles ? <AdminRoles /> : null}
             </div>
         </div>
     );

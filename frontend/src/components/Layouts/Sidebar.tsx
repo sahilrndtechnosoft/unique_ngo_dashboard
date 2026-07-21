@@ -1,21 +1,16 @@
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import { useDispatch, useSelector } from 'react-redux';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { toggleSidebar } from '../../store/themeConfigSlice';
-import { clearAuth } from '../../store/authSlice';
 import { IRootState } from '../../store';
 import { useEffect } from 'react';
 import IconCaretsDown from '../Icon/IconCaretsDown';
 import IconMinus from '../Icon/IconMinus';
 import IconMenuDashboard from '../Icon/Menu/IconMenuDashboard';
 import IconMenuUsers from '../Icon/Menu/IconMenuUsers';
-import IconMenuForms from '../Icon/Menu/IconMenuForms';
 import IconMenuTables from '../Icon/Menu/IconMenuTables';
 import IconMenuDatatables from '../Icon/Menu/IconMenuDatatables';
-import IconMenuPages from '../Icon/Menu/IconMenuPages';
-import IconMenuAuthentication from '../Icon/Menu/IconMenuAuthentication';
-import { adminMenuItems, canAccess } from '../../config/admin-menu';
-import { logout } from '../../services/auth.service';
+import { adminMenuGroups, canAccess } from '../../config/admin-menu';
 import { mediaUrl } from '../../services/api';
 
 const menuIcons: Record<string, JSX.Element> = {
@@ -24,18 +19,15 @@ const menuIcons: Record<string, JSX.Element> = {
     '/admin/sellers': <IconMenuUsers className="group-hover:!text-primary shrink-0" />,
     '/admin/categories': <IconMenuTables className="group-hover:!text-primary shrink-0" />,
     '/admin/products': <IconMenuDatatables className="group-hover:!text-primary shrink-0" />,
-    '/admin/roles': <IconMenuForms className="group-hover:!text-primary shrink-0" />,
-    '/admin/settings': <IconMenuPages className="group-hover:!text-primary shrink-0" />,
 };
 
 const Sidebar = () => {
     const themeConfig = useSelector((state: IRootState) => state.themeConfig);
     const semidark = useSelector((state: IRootState) => state.themeConfig.semidark);
-    const { permissions, isSuperAdmin, refreshToken, user } = useSelector((state: IRootState) => state.auth);
+    const { permissions, isSuperAdmin } = useSelector((state: IRootState) => state.auth);
     const branding = useSelector((state: IRootState) => state.settings);
     const location = useLocation();
     const dispatch = useDispatch();
-    const navigate = useNavigate();
     const logoSrc = branding.logoUrl ? mediaUrl(branding.logoUrl) : '/assets/images/logo.svg';
     const brandName = branding.companyName || 'Unique NGO';
 
@@ -46,17 +38,12 @@ const Sidebar = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location]);
 
-    const visibleItems = adminMenuItems.filter((item) => canAccess(isSuperAdmin, permissions, item.permission));
-
-    const handleLogout = async () => {
-        try {
-            if (refreshToken) await logout(refreshToken);
-        } catch {
-            // ignore logout API errors
-        }
-        dispatch(clearAuth());
-        navigate('/auth/boxed-signin');
-    };
+    const visibleGroups = adminMenuGroups
+        .map((group) => ({
+            ...group,
+            items: group.items.filter((item) => canAccess(isSuperAdmin, permissions, item.permission)),
+        }))
+        .filter((group) => group.items.length > 0);
 
     return (
         <div className={semidark ? 'dark' : ''}>
@@ -79,30 +66,28 @@ const Sidebar = () => {
                     </div>
                     <PerfectScrollbar className="h-[calc(100vh-80px)] relative">
                         <ul className="relative font-semibold space-y-0.5 p-4 py-0">
-                            <h2 className="py-3 px-7 flex items-center uppercase font-extrabold bg-white-light/30 dark:bg-dark dark:bg-opacity-[0.08] -mx-4 mb-1">
-                                <IconMinus className="w-4 h-5 flex-none hidden" />
-                                <span>Admin</span>
-                            </h2>
-                            {visibleItems.map((item) => (
-                                <li className="nav-item" key={item.to}>
-                                    <NavLink to={item.to} end={item.to === '/'} className="group">
-                                        <div className="flex items-center">
-                                            {menuIcons[item.to] ?? <IconMenuDashboard className="group-hover:!text-primary shrink-0" />}
-                                            <span className="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">{item.label}</span>
-                                        </div>
-                                    </NavLink>
+                            {visibleGroups.map((group) => (
+                                <li key={group.label ?? 'root'}>
+                                    {group.label ? (
+                                        <h2 className="py-3 px-7 flex items-center uppercase font-extrabold bg-white-light/30 dark:bg-dark dark:bg-opacity-[0.08] -mx-4 mb-1">
+                                            <IconMinus className="w-4 h-5 flex-none hidden" />
+                                            <span>{group.label}</span>
+                                        </h2>
+                                    ) : null}
+                                    <ul>
+                                        {group.items.map((item) => (
+                                            <li className="nav-item" key={item.to}>
+                                                <NavLink to={item.to} end={item.to === '/'} className="group">
+                                                    <div className="flex items-center">
+                                                        {menuIcons[item.to] ?? <IconMenuDashboard className="group-hover:!text-primary shrink-0" />}
+                                                        <span className="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">{item.label}</span>
+                                                    </div>
+                                                </NavLink>
+                                            </li>
+                                        ))}
+                                    </ul>
                                 </li>
                             ))}
-                            <li className="nav-item mt-4">
-                                <button type="button" className="group w-full text-left" onClick={handleLogout}>
-                                    <div className="flex items-center">
-                                        <IconMenuAuthentication className="group-hover:!text-primary shrink-0" />
-                                        <span className="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">
-                                            Logout{user?.fullName ? ` (${user.fullName})` : ''}
-                                        </span>
-                                    </div>
-                                </button>
-                            </li>
                         </ul>
                     </PerfectScrollbar>
                 </div>

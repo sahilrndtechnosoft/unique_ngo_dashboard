@@ -14,6 +14,15 @@ export const adminApi = {
     updateUser: (id: string, body: Record<string, unknown>) =>
         api.patch(`/admin/users/${id}`, body).then((r) => unwrap(r)),
     deleteUser: (id: string) => api.delete(`/admin/users/${id}`).then((r) => unwrap(r)),
+    uploadUserImage: (id: string, file: File) => {
+        const form = new FormData();
+        form.append('file', file);
+        return api
+            .post(`/admin/users/${id}/image`, form, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            })
+            .then((r) => unwrap(r));
+    },
 
     listSellers: (params?: Record<string, unknown>) =>
         api.get('/admin/sellers', { params }).then((r) => unwrap<Paginated<any>>(r)),
@@ -23,6 +32,15 @@ export const adminApi = {
     updateSeller: (id: string, body: Record<string, unknown>) =>
         api.patch(`/admin/sellers/${id}`, body).then((r) => unwrap(r)),
     deleteSeller: (id: string) => api.delete(`/admin/sellers/${id}`).then((r) => unwrap(r)),
+    uploadSellerImage: (id: string, file: File) => {
+        const form = new FormData();
+        form.append('file', file);
+        return api
+            .post(`/admin/sellers/${id}/image`, form, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            })
+            .then((r) => unwrap(r));
+    },
 
     listCategories: (params?: Record<string, unknown>) =>
         api.get('/admin/categories', { params }).then((r) => unwrap<Paginated<any>>(r)),

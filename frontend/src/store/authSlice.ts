@@ -69,6 +69,11 @@ const authSlice = createSlice({
             localStorage.setItem(PERMS_KEY, JSON.stringify(action.payload.permissions));
             localStorage.setItem(SUPER_KEY, String(action.payload.isSuperAdmin));
         },
+        updateUser(state, action: PayloadAction<Partial<AuthUser>>) {
+            if (!state.user) return;
+            state.user = { ...state.user, ...action.payload };
+            localStorage.setItem(USER_KEY, JSON.stringify(state.user));
+        },
         clearAuth(state) {
             state.accessToken = null;
             state.refreshToken = null;
@@ -84,5 +89,5 @@ const authSlice = createSlice({
     },
 });
 
-export const { setCredentials, setPermissions, clearAuth } = authSlice.actions;
+export const { setCredentials, setPermissions, updateUser, clearAuth } = authSlice.actions;
 export default authSlice.reducer;

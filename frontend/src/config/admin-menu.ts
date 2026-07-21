@@ -6,14 +6,30 @@ export interface AdminMenuItem {
     permission?: PermissionKey;
 }
 
-export const adminMenuItems: AdminMenuItem[] = [
-    { label: 'Dashboard', to: '/' },
-    { label: 'Users', to: '/admin/users', permission: 'USERS:VIEW' },
-    { label: 'Sellers', to: '/admin/sellers', permission: 'SELLERS:VIEW' },
-    { label: 'Categories', to: '/admin/categories', permission: 'PRODUCTS:VIEW' },
-    { label: 'Products', to: '/admin/products', permission: 'PRODUCTS:VIEW' },
-    { label: 'Roles & Permissions', to: '/admin/roles', permission: 'ROLES:VIEW' },
-    { label: 'Settings', to: '/admin/settings', permission: 'SETTINGS:VIEW' },
+export interface AdminMenuGroup {
+    label: string | null;
+    items: AdminMenuItem[];
+}
+
+export const adminMenuGroups: AdminMenuGroup[] = [
+    {
+        label: null,
+        items: [{ label: 'Dashboard', to: '/' }],
+    },
+    {
+        label: 'User Management',
+        items: [
+            { label: 'Users', to: '/admin/users', permission: 'USERS:VIEW' },
+            { label: 'Sellers', to: '/admin/sellers', permission: 'SELLERS:VIEW' },
+        ],
+    },
+    {
+        label: 'Ecommerce',
+        items: [
+            { label: 'Categories', to: '/admin/categories', permission: 'PRODUCTS:VIEW' },
+            { label: 'Products', to: '/admin/products', permission: 'PRODUCTS:VIEW' },
+        ],
+    },
 ];
 
 export function canAccess(

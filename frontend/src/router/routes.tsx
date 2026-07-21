@@ -62,7 +62,6 @@ const RangeSearch = lazy(() => import('../pages/DataTables/RangeSearch'));
 const Export = lazy(() => import('../pages/DataTables/Export'));
 const ColumnChooser = lazy(() => import('../pages/DataTables/ColumnChooser'));
 const Profile = lazy(() => import('../pages/Users/Profile'));
-const AccountSetting = lazy(() => import('../pages/Users/AccountSetting'));
 const KnowledgeBase = lazy(() => import('../pages/Pages/KnowledgeBase'));
 const ContactUsBoxed = lazy(() => import('../pages/Pages/ContactUsBoxed'));
 const ContactUsCover = lazy(() => import('../pages/Pages/ContactUsCover'));
@@ -104,8 +103,6 @@ const AdminSellers = lazy(() => import('../pages/Admin/Sellers'));
 const AdminSellerDetail = lazy(() => import('../pages/Admin/SellerDetail'));
 const AdminCategories = lazy(() => import('../pages/Admin/Categories'));
 const AdminProducts = lazy(() => import('../pages/Admin/Products'));
-const AdminRoles = lazy(() => import('../pages/Admin/Roles'));
-const AdminSettings = lazy(() => import('../pages/Admin/Settings'));
 
 const routes = [
     // dashboard
@@ -132,14 +129,6 @@ const routes = [
     {
         path: '/admin/products',
         element: <AdminProducts />,
-    },
-    {
-        path: '/admin/roles',
-        element: <AdminRoles />,
-    },
-    {
-        path: '/admin/settings',
-        element: <AdminSettings />,
     },
     // {
     //     path: '/index',
@@ -411,10 +400,6 @@ const routes = [
     {
         path: '/users/profile',
         element: <Profile />,
-    },
-    {
-        path: '/users/user-account-settings',
-        element: <AccountSetting />,
     },
     // pages
     {
