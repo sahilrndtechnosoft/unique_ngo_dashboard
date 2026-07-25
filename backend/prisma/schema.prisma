@@ -124,6 +124,8 @@ model banner_images {
   image_url   String
   link_url    String?
   button_text String?   @db.VarChar(100)
+  placement   banner_placement @default(HOME)
+  slot        String    @default("TOP") @db.VarChar(50)
   sort_order  Int       @default(0)
   is_active   Boolean   @default(true)
   created_by_id String? @db.Uuid
@@ -134,6 +136,7 @@ model banner_images {
   @@index([sort_order])
   @@index([deleted_at])
   @@index([created_at])
+  @@index([placement, slot])
 }
 
 model blood_admin_notes {
@@ -1711,6 +1714,14 @@ enum post_status {
   HIDDEN
   REMOVED
   PENDING_REVIEW
+}
+
+enum banner_placement {
+  HOME
+  CATEGORY
+  PRODUCT
+  CHECKOUT
+  SIDEBAR
 }
 
 enum product_status {

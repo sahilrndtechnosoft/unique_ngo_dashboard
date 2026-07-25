@@ -1,6 +1,7 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public, ResponseMessage } from '../../common/decorators';
+import { ListBannersQueryDto } from '../dto/update-banner.dto';
 import { AppSettingsService } from '../services/app-settings.service';
 import { BannerImagesService } from '../services/banner-images.service';
 
@@ -32,8 +33,8 @@ export class PublicSettingsController {
 
   @Get('banners')
   @ResponseMessage('Active banners fetched successfully')
-  @ApiOperation({ summary: 'Get active banner images for homepage' })
-  getActiveBanners() {
-    return this.bannerImagesService.listBanners(true);
+  @ApiOperation({ summary: 'Get active banner images, optionally filtered by placement and slot' })
+  getActiveBanners(@Query() query: ListBannersQueryDto) {
+    return this.bannerImagesService.listBanners(true, query.placement, query.slot);
   }
 }
