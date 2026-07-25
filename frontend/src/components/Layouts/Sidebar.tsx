@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { NavLink, useLocation } from 'react-router-dom';
 import { toggleSidebar } from '../../store/themeConfigSlice';
 import { IRootState } from '../../store';
-import { useEffect } from 'react';
+import { Fragment, useEffect } from 'react';
 import IconCaretsDown from '../Icon/IconCaretsDown';
 import IconMinus from '../Icon/IconMinus';
 import IconMenuDashboard from '../Icon/Menu/IconMenuDashboard';
@@ -67,26 +67,24 @@ const Sidebar = () => {
                     <PerfectScrollbar className="h-[calc(100vh-80px)] relative">
                         <ul className="relative font-semibold space-y-0.5 p-4 py-0">
                             {visibleGroups.map((group) => (
-                                <li key={group.label ?? 'root'}>
+                                <Fragment key={group.label ?? 'root'}>
                                     {group.label ? (
                                         <h2 className="py-3 px-7 flex items-center uppercase font-extrabold bg-white-light/30 dark:bg-dark dark:bg-opacity-[0.08] -mx-4 mb-1">
                                             <IconMinus className="w-4 h-5 flex-none hidden" />
                                             <span>{group.label}</span>
                                         </h2>
                                     ) : null}
-                                    <ul>
-                                        {group.items.map((item) => (
-                                            <li className="nav-item" key={item.to}>
-                                                <NavLink to={item.to} end={item.to === '/'} className="group">
-                                                    <div className="flex items-center">
-                                                        {menuIcons[item.to] ?? <IconMenuDashboard className="group-hover:!text-primary shrink-0" />}
-                                                        <span className="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">{item.label}</span>
-                                                    </div>
-                                                </NavLink>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </li>
+                                    {group.items.map((item) => (
+                                        <li className="nav-item" key={item.to}>
+                                            <NavLink to={item.to} end={item.to === '/'} className="group">
+                                                <div className="flex items-center">
+                                                    {menuIcons[item.to] ?? <IconMenuDashboard className="group-hover:!text-primary shrink-0" />}
+                                                    <span className="ltr:pl-3 rtl:pr-3 text-black dark:text-[#506690] dark:group-hover:text-white-dark">{item.label}</span>
+                                                </div>
+                                            </NavLink>
+                                        </li>
+                                    ))}
+                                </Fragment>
                             ))}
                         </ul>
                     </PerfectScrollbar>
