@@ -21,6 +21,9 @@ import {
   UpdateProductDto,
 } from '../dto/product.dto';
 
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function slugify(value: string): string {
   return value
     .trim()
@@ -35,7 +38,7 @@ export class ProductsService {
 
   async listProducts(
     query: ListProductsQueryDto,
-    options?: { sellerId?: string },
+    options?: { sellerId?: string; forcedStatus?: product_status },
   ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
@@ -48,7 +51,11 @@ export class ProductsService {
         ? { seller_id: query.sellerId }
         : {}),
       ...(query.categoryId ? { category_id: query.categoryId } : {}),
-      ...(query.status ? { status: query.status } : {}),
+      ...(options?.forcedStatus
+        ? { status: options.forcedStatus }
+        : query.status
+          ? { status: query.status }
+          : {}),
       ...(query.search
         ? {
             OR: [
@@ -99,6 +106,28 @@ export class ProductsService {
     const product = await this.findProductOrThrow(productId, sellerId);
     const images = await this.prisma.product_images.findMany({
       where: { product_id: productId },
+      orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }],
+    });
+    return this.toPublic(product, images);
+  }
+
+  async getPublicProduct(idOrSlug: string) {
+    const isUuid = UUID_REGEX.test(idOrSlug);
+
+    const product = await this.prisma.products.findFirst({
+      where: {
+        deleted_at: null,
+        status: product_status.ACTIVE,
+        OR: isUuid ? [{ id: idOrSlug }, { slug: idOrSlug }] : [{ slug: idOrSlug }],
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    const images = await this.prisma.product_images.findMany({
+      where: { product_id: product.id },
       orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }],
     });
     return this.toPublic(product, images);
