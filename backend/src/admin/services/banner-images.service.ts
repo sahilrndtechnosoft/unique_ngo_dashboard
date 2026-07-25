@@ -1,5 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { banner_images } from '../../../generated/prisma/client';
+import {
+  banner_images,
+  banner_placement,
+} from '../../../generated/prisma/client';
 import { deleteUploadedFile } from '../../common/utils/image-upload.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
@@ -11,11 +14,17 @@ import {
 export class BannerImagesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listBanners(activeOnly = false) {
+  async listBanners(
+    activeOnly = false,
+    placement?: banner_placement,
+    slot?: string,
+  ) {
     const banners = await this.prisma.banner_images.findMany({
       where: {
         deleted_at: null,
         ...(activeOnly ? { is_active: true } : {}),
+        ...(placement ? { placement } : {}),
+        ...(slot ? { slot } : {}),
       },
       orderBy: [{ sort_order: 'asc' }, { created_at: 'desc' }],
     });
@@ -36,6 +45,8 @@ export class BannerImagesService {
         description: dto.description,
         link_url: dto.linkUrl,
         button_text: dto.buttonText,
+        placement: dto.placement ?? banner_placement.HOME,
+        slot: dto.slot ?? 'TOP',
         sort_order: dto.sortOrder ?? 0,
         is_active: dto.isActive ?? true,
         created_by_id: createdById,
@@ -56,6 +67,8 @@ export class BannerImagesService {
         ...(dto.description !== undefined && { description: dto.description }),
         ...(dto.linkUrl !== undefined && { link_url: dto.linkUrl }),
         ...(dto.buttonText !== undefined && { button_text: dto.buttonText }),
+        ...(dto.placement !== undefined && { placement: dto.placement }),
+        ...(dto.slot !== undefined && { slot: dto.slot }),
         ...(dto.sortOrder !== undefined && { sort_order: dto.sortOrder }),
         ...(dto.isActive !== undefined && { is_active: dto.isActive }),
         updated_at: new Date(),
@@ -115,6 +128,8 @@ export class BannerImagesService {
       imageUrl: banner.image_url,
       linkUrl: banner.link_url,
       buttonText: banner.button_text,
+      placement: banner.placement,
+      slot: banner.slot,
       sortOrder: banner.sort_order,
       isActive: banner.is_active,
       createdAt: banner.created_at,

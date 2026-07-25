@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -41,6 +42,7 @@ import {
 } from '../../common/utils/image-upload.util';
 import {
   CreateBannerDto,
+  ListBannersQueryDto,
   UpdateBannerDto,
 } from '../dto/update-banner.dto';
 import { BannerImagesService } from '../services/banner-images.service';
@@ -56,9 +58,9 @@ export class BannerImagesController {
   @Get()
   @RequirePermissions(AppModule.SETTINGS, PermissionAction.VIEW)
   @ResponseMessage('Banners fetched successfully')
-  @ApiOperation({ summary: 'List all banner images' })
-  listBanners() {
-    return this.bannerImagesService.listBanners(false);
+  @ApiOperation({ summary: 'List all banner images, optionally filtered by placement and slot' })
+  listBanners(@Query() query: ListBannersQueryDto) {
+    return this.bannerImagesService.listBanners(false, query.placement, query.slot);
   }
 
   @Post()
@@ -76,6 +78,11 @@ export class BannerImagesController {
         description: { type: 'string' },
         linkUrl: { type: 'string' },
         buttonText: { type: 'string' },
+        placement: {
+          type: 'string',
+          enum: ['HOME', 'CATEGORY', 'PRODUCT', 'CHECKOUT', 'SIDEBAR'],
+        },
+        slot: { type: 'string', example: 'TOP' },
         sortOrder: { type: 'integer' },
         isActive: { type: 'boolean' },
       },

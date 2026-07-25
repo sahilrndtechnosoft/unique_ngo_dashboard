@@ -1,12 +1,27 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
+  IsEnum,
   IsInt,
   IsOptional,
   IsString,
   MaxLength,
   Min,
 } from 'class-validator';
+import { banner_placement } from '../../../generated/prisma/client';
+
+export class ListBannersQueryDto {
+  @ApiPropertyOptional({ enum: banner_placement })
+  @IsOptional()
+  @IsEnum(banner_placement)
+  placement?: banner_placement;
+
+  @ApiPropertyOptional({ example: 'TOP', description: 'Position within the page, e.g. TOP, MIDDLE, BOTTOM' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  slot?: string;
+}
 
 export class CreateBannerDto {
   @ApiPropertyOptional({ example: 'Donate Blood, Save Lives' })
@@ -36,6 +51,17 @@ export class CreateBannerDto {
   @IsString()
   @MaxLength(100)
   buttonText?: string;
+
+  @ApiPropertyOptional({ enum: banner_placement, default: banner_placement.HOME })
+  @IsOptional()
+  @IsEnum(banner_placement)
+  placement?: banner_placement;
+
+  @ApiPropertyOptional({ example: 'TOP', description: 'Position within the page, e.g. TOP, MIDDLE, BOTTOM' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  slot?: string;
 
   @ApiPropertyOptional({ example: 0 })
   @IsOptional()
@@ -77,6 +103,17 @@ export class UpdateBannerDto {
   @IsString()
   @MaxLength(100)
   buttonText?: string;
+
+  @ApiPropertyOptional({ enum: banner_placement })
+  @IsOptional()
+  @IsEnum(banner_placement)
+  placement?: banner_placement;
+
+  @ApiPropertyOptional({ example: 'TOP', description: 'Position within the page, e.g. TOP, MIDDLE, BOTTOM' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  slot?: string;
 
   @ApiPropertyOptional({ example: 1 })
   @IsOptional()
