@@ -6,12 +6,16 @@ import { updateUser } from '../../store/authSlice';
 import { setBranding } from '../../store/settingsSlice';
 import { api, getErrorMessage, mediaUrl, unwrap } from '../../services/api';
 import { canAccess } from '../../config/admin-menu';
+import { confirmAction, showAlert } from '../../utils/alerts';
 import { FormField } from '../../components/Admin/FormPrimitives';
 import AdminRoles from '../Admin/Roles';
 import IconUser from '../../components/Icon/IconUser';
 import IconSettings from '../../components/Icon/IconSettings';
 import IconLockDots from '../../components/Icon/IconLockDots';
 import IconShieldRoles from '../../components/Icon/Menu/IconMenuUsers';
+import IconGallery from '../../components/Icon/IconGallery';
+import IconTrashLines from '../../components/Icon/IconTrashLines';
+import IconPlus from '../../components/Icon/IconPlus';
 
 type TabKey = 'profile' | 'app-settings' | 'roles';
 
@@ -51,15 +55,15 @@ const Profile = () => {
     const [profileLoading, setProfileLoading] = useState(false);
     const [profileBusy, setProfileBusy] = useState(false);
     const [profileError, setProfileError] = useState('');
-    const [profileMessage, setProfileMessage] = useState('');
 
     const [orgForm, setOrgForm] = useState(emptyOrgForm);
     const [banners, setBanners] = useState<any[]>([]);
     const [bannerForm, setBannerForm] = useState({ title: '', subtitle: '', description: '', placement: 'HOME', slot: 'TOP' });
+    const [bannerFile, setBannerFile] = useState<File | null>(null);
+    const [bannerBusy, setBannerBusy] = useState(false);
     const [orgLoading, setOrgLoading] = useState(false);
     const [orgBusy, setOrgBusy] = useState(false);
     const [orgError, setOrgError] = useState('');
-    const [orgMessage, setOrgMessage] = useState('');
 
     useEffect(() => {
         dispatch(setPageTitle('Account Settings'));
@@ -82,7 +86,9 @@ const Profile = () => {
             setMobile(profile.mobile ?? '');
             setProfilePicture(profile.profilePicture ?? null);
         } catch (err) {
-            setProfileError(getErrorMessage(err));
+            const message = getErrorMessage(err);
+            setProfileError(message);
+            showAlert(message, 'error');
         } finally {
             setProfileLoading(false);
         }
@@ -115,7 +121,9 @@ const Profile = () => {
                 }),
             );
         } catch (err) {
-            setOrgError(getErrorMessage(err));
+            const message = getErrorMessage(err);
+            setOrgError(message);
+            showAlert(message, 'error');
         } finally {
             setOrgLoading(false);
         }
@@ -125,7 +133,6 @@ const Profile = () => {
         event.preventDefault();
         setProfileBusy(true);
         setProfileError('');
-        setProfileMessage('');
         try {
             const body: Record<string, unknown> = {
                 fullName: profileForm.fullName,
@@ -157,9 +164,11 @@ const Profile = () => {
                 }),
             );
             setProfileForm((prev) => ({ ...prev, password: '', currentPassword: '' }));
-            setProfileMessage('Profile updated successfully');
+            showAlert('Profile updated successfully');
         } catch (err) {
-            setProfileError(getErrorMessage(err));
+            const message = getErrorMessage(err);
+            setProfileError(message);
+            showAlert(message, 'error');
         } finally {
             setProfileBusy(false);
         }
@@ -169,7 +178,6 @@ const Profile = () => {
         event.preventDefault();
         setOrgBusy(true);
         setOrgError('');
-        setOrgMessage('');
         try {
             await api.patch('/admin/settings', {
                 companyName: orgForm.companyName || undefined,
@@ -179,10 +187,12 @@ const Profile = () => {
                 footerAbout: orgForm.footerAbout || undefined,
                 footerCopyright: orgForm.footerCopyright || undefined,
             });
-            setOrgMessage('Settings saved');
+            showAlert('Settings saved successfully');
             await loadOrgSettings();
         } catch (err) {
-            setOrgError(getErrorMessage(err));
+            const message = getErrorMessage(err);
+            setOrgError(message);
+            showAlert(message, 'error');
         } finally {
             setOrgBusy(false);
         }
@@ -194,17 +204,19 @@ const Profile = () => {
         body.append('file', file);
         try {
             await api.post(`/admin/settings/${kind}`, body, { headers: { 'Content-Type': 'multipart/form-data' } });
-            setOrgMessage(`${kind} updated`);
+            showAlert(`${kind === 'logo' ? 'Logo' : 'Favicon'} updated successfully`);
             await loadOrgSettings();
         } catch (err) {
-            setOrgError(getErrorMessage(err));
+            showAlert(getErrorMessage(err), 'error');
         }
     };
 
-    const uploadBanner = async (file?: File | null) => {
-        if (!file) return;
+    const uploadBanner = async (event: FormEvent) => {
+        event.preventDefault();
+        if (!bannerFile) return;
+        setBannerBusy(true);
         const body = new FormData();
-        body.append('file', file);
+        body.append('file', bannerFile);
         if (bannerForm.title) body.append('title', bannerForm.title);
         if (bannerForm.subtitle) body.append('subtitle', bannerForm.subtitle);
         if (bannerForm.description) body.append('description', bannerForm.description);
@@ -213,19 +225,25 @@ const Profile = () => {
         try {
             await api.post('/admin/banners', body, { headers: { 'Content-Type': 'multipart/form-data' } });
             setBannerForm({ title: '', subtitle: '', description: '', placement: 'HOME', slot: 'TOP' });
+            setBannerFile(null);
+            showAlert('Banner added successfully');
             await loadOrgSettings();
         } catch (err) {
-            setOrgError(getErrorMessage(err));
+            showAlert(getErrorMessage(err), 'error');
+        } finally {
+            setBannerBusy(false);
         }
     };
 
     const deleteBanner = async (id: string) => {
-        if (!confirm('Delete banner?')) return;
+        const ok = await confirmAction('Delete banner?', 'This banner will be permanently removed.');
+        if (!ok) return;
         try {
             await api.delete(`/admin/banners/${id}`);
+            showAlert('Banner deleted successfully');
             await loadOrgSettings();
         } catch (err) {
-            setOrgError(getErrorMessage(err));
+            showAlert(getErrorMessage(err), 'error');
         }
     };
 
@@ -285,7 +303,6 @@ const Profile = () => {
                         <h5 className="font-semibold text-lg dark:text-white-light mb-5">My Profile</h5>
 
                         {profileError ? <div className="mb-4 rounded bg-danger-light p-3 text-danger">{profileError}</div> : null}
-                        {profileMessage ? <div className="mb-4 rounded bg-success-light p-3 text-success">{profileMessage}</div> : null}
 
                         {profileLoading ? (
                             <p>Loading...</p>
@@ -375,7 +392,6 @@ const Profile = () => {
                                 <p className="text-white-dark text-sm mt-1">Logo and favicon appear in the sidebar and browser tab</p>
                             </div>
                             {orgError ? <div className="mb-4 rounded bg-danger-light p-3 text-danger">{orgError}</div> : null}
-                            {orgMessage ? <div className="mb-4 rounded bg-success-light p-3 text-success">{orgMessage}</div> : null}
 
                             {orgLoading ? (
                                 <p>Loading...</p>
@@ -427,87 +443,144 @@ const Profile = () => {
                         </div>
 
                         <div className="panel">
-                            <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-                                <h6 className="font-semibold text-lg">Banners</h6>
+                            <div className="mb-5">
+                                <h5 className="font-semibold text-lg dark:text-white-light">Banners</h5>
+                                <p className="text-white-dark text-sm mt-1">Manage promotional banners shown across the site, grouped by page and position</p>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                                <FormField label="Title">
-                                    <input
-                                        type="text"
-                                        className="form-input"
-                                        value={bannerForm.title}
-                                        onChange={(e) => setBannerForm((prev) => ({ ...prev, title: e.target.value }))}
-                                    />
-                                </FormField>
-                                <FormField label="Subtitle">
-                                    <input
-                                        type="text"
-                                        className="form-input"
-                                        value={bannerForm.subtitle}
-                                        onChange={(e) => setBannerForm((prev) => ({ ...prev, subtitle: e.target.value }))}
-                                    />
-                                </FormField>
-                                <FormField label="Description">
-                                    <input
-                                        type="text"
-                                        className="form-input"
-                                        value={bannerForm.description}
-                                        onChange={(e) => setBannerForm((prev) => ({ ...prev, description: e.target.value }))}
-                                    />
-                                </FormField>
-                                <FormField label="Placement">
-                                    <select
-                                        className="form-select"
-                                        value={bannerForm.placement}
-                                        onChange={(e) => setBannerForm((prev) => ({ ...prev, placement: e.target.value }))}
-                                    >
-                                        {BANNER_PLACEMENTS.map((placement) => (
-                                            <option key={placement} value={placement}>
-                                                {placement}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </FormField>
-                                <FormField label="Slot" hint="Position within the page">
-                                    <select
-                                        className="form-select"
-                                        value={bannerForm.slot}
-                                        onChange={(e) => setBannerForm((prev) => ({ ...prev, slot: e.target.value }))}
-                                    >
-                                        {BANNER_SLOTS.map((slot) => (
-                                            <option key={slot} value={slot}>
-                                                {slot}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </FormField>
-                            </div>
-                            <div className="flex justify-end mb-4">
-                                <label className="btn btn-success cursor-pointer">
-                                    Add Banner
-                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => uploadBanner(e.target.files?.[0])} />
-                                </label>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                {banners.map((banner) => (
-                                    <div key={banner.id} className="border border-[#ebedf2] dark:border-[#191e3a] rounded p-3">
-                                        <img src={mediaUrl(banner.imageUrl)} alt="" className="w-full h-32 object-cover rounded mb-2" />
-                                        {banner.placement ? (
-                                            <span className="badge badge-outline-primary mb-1">
-                                                {banner.placement}
-                                                {banner.slot ? ` · ${banner.slot}` : ''}
-                                            </span>
+
+                            <form onSubmit={uploadBanner} className="rounded-lg border border-dashed border-[#ebedf2] dark:border-[#191e3a] p-4 sm:p-5 mb-6 bg-[#fafafa] dark:bg-[#1a2941]">
+                                <div className="flex flex-col lg:flex-row gap-5">
+                                    <div className="lg:w-56 shrink-0">
+                                        <label
+                                            className={`flex flex-col items-center justify-center gap-2 w-full h-40 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
+                                                bannerFile ? 'border-primary p-1' : 'border-[#bfc9d4] dark:border-[#253b5c] hover:border-primary text-white-dark hover:text-primary'
+                                            }`}
+                                        >
+                                            {bannerFile ? (
+                                                <img src={URL.createObjectURL(bannerFile)} alt="" className="w-full h-full object-cover rounded" />
+                                            ) : (
+                                                <>
+                                                    <IconGallery className="w-8 h-8" />
+                                                    <span className="text-xs font-medium text-center px-2">Click to select banner image</span>
+                                                </>
+                                            )}
+                                            <input type="file" accept="image/*" className="hidden" onChange={(e) => setBannerFile(e.target.files?.[0] ?? null)} />
+                                        </label>
+                                        {bannerFile ? (
+                                            <button
+                                                type="button"
+                                                className="text-xs text-danger mt-1.5 hover:underline"
+                                                onClick={() => setBannerFile(null)}
+                                            >
+                                                Remove selected image
+                                            </button>
                                         ) : null}
-                                        {banner.title ? <p className="font-semibold text-sm mb-0.5">{banner.title}</p> : null}
-                                        {banner.subtitle ? <p className="text-xs text-white-dark mb-0.5">{banner.subtitle}</p> : null}
-                                        {banner.description ? <p className="text-xs text-white-dark mb-2 line-clamp-2">{banner.description}</p> : null}
-                                        <button type="button" className="btn btn-sm btn-outline-danger w-full" onClick={() => deleteBanner(banner.id)}>
-                                            Delete
-                                        </button>
                                     </div>
-                                ))}
-                                {banners.length === 0 ? <p className="text-white-dark">No banners yet</p> : null}
+
+                                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <FormField label="Title">
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                value={bannerForm.title}
+                                                onChange={(e) => setBannerForm((prev) => ({ ...prev, title: e.target.value }))}
+                                            />
+                                        </FormField>
+                                        <FormField label="Subtitle">
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                value={bannerForm.subtitle}
+                                                onChange={(e) => setBannerForm((prev) => ({ ...prev, subtitle: e.target.value }))}
+                                            />
+                                        </FormField>
+                                        <FormField label="Description" className="md:col-span-2">
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                value={bannerForm.description}
+                                                onChange={(e) => setBannerForm((prev) => ({ ...prev, description: e.target.value }))}
+                                            />
+                                        </FormField>
+                                        <FormField label="Placement" hint="Which page the banner appears on">
+                                            <select
+                                                className="form-select"
+                                                value={bannerForm.placement}
+                                                onChange={(e) => setBannerForm((prev) => ({ ...prev, placement: e.target.value }))}
+                                            >
+                                                {BANNER_PLACEMENTS.map((placement) => (
+                                                    <option key={placement} value={placement}>
+                                                        {placement}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </FormField>
+                                        <FormField label="Slot" hint="Position within the page">
+                                            <select
+                                                className="form-select"
+                                                value={bannerForm.slot}
+                                                onChange={(e) => setBannerForm((prev) => ({ ...prev, slot: e.target.value }))}
+                                            >
+                                                {BANNER_SLOTS.map((slot) => (
+                                                    <option key={slot} value={slot}>
+                                                        {slot}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </FormField>
+
+                                        <div className="md:col-span-2 flex justify-end">
+                                            <button type="submit" className="btn btn-primary gap-2" disabled={!bannerFile || bannerBusy}>
+                                                <IconPlus className="w-4 h-4" />
+                                                {bannerBusy ? 'Uploading...' : 'Add Banner'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+
+                            <div className="flex items-center justify-between mb-4">
+                                <h6 className="font-semibold text-white-dark text-sm uppercase tracking-wide">
+                                    Existing Banners {banners.length ? `(${banners.length})` : ''}
+                                </h6>
                             </div>
+
+                            {banners.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center gap-2 py-10 text-white-dark border border-dashed border-[#ebedf2] dark:border-[#191e3a] rounded-lg">
+                                    <IconGallery className="w-8 h-8 opacity-50" />
+                                    <p className="text-sm">No banners yet — add one above</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                                    {banners.map((banner) => (
+                                        <div
+                                            key={banner.id}
+                                            className="group relative rounded-lg border border-[#ebedf2] dark:border-[#191e3a] overflow-hidden bg-white dark:bg-[#0e1726] shadow-sm hover:shadow-md transition-shadow"
+                                        >
+                                            <div className="relative">
+                                                <img src={mediaUrl(banner.imageUrl)} alt="" className="w-full aspect-video object-cover" />
+                                                <button
+                                                    type="button"
+                                                    title="Delete banner"
+                                                    className="absolute top-2 right-2 grid place-content-center w-8 h-8 rounded-full bg-white/90 dark:bg-[#0e1726]/90 text-danger opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                                                    onClick={() => deleteBanner(banner.id)}
+                                                >
+                                                    <IconTrashLines className="w-4 h-4" />
+                                                </button>
+                                                <div className="absolute bottom-2 left-2 flex gap-1.5">
+                                                    {banner.placement ? <span className="badge badge-outline-primary bg-white/90 dark:bg-[#0e1726]/90">{banner.placement}</span> : null}
+                                                    {banner.slot ? <span className="badge badge-outline-secondary bg-white/90 dark:bg-[#0e1726]/90">{banner.slot}</span> : null}
+                                                </div>
+                                            </div>
+                                            <div className="p-3">
+                                                {banner.title ? <p className="font-semibold text-sm truncate">{banner.title}</p> : <p className="text-sm text-white-dark italic">Untitled banner</p>}
+                                                {banner.subtitle ? <p className="text-xs text-white-dark truncate mt-0.5">{banner.subtitle}</p> : null}
+                                                {banner.description ? <p className="text-xs text-white-dark mt-1 line-clamp-2">{banner.description}</p> : null}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 ) : null}
