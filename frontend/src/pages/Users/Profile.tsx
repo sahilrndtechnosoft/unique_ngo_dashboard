@@ -52,6 +52,7 @@ const Profile = () => {
 
     const [orgForm, setOrgForm] = useState(emptyOrgForm);
     const [banners, setBanners] = useState<any[]>([]);
+    const [bannerForm, setBannerForm] = useState({ title: '', subtitle: '', description: '' });
     const [orgLoading, setOrgLoading] = useState(false);
     const [orgBusy, setOrgBusy] = useState(false);
     const [orgError, setOrgError] = useState('');
@@ -201,8 +202,12 @@ const Profile = () => {
         if (!file) return;
         const body = new FormData();
         body.append('file', file);
+        if (bannerForm.title) body.append('title', bannerForm.title);
+        if (bannerForm.subtitle) body.append('subtitle', bannerForm.subtitle);
+        if (bannerForm.description) body.append('description', bannerForm.description);
         try {
             await api.post('/admin/banners', body, { headers: { 'Content-Type': 'multipart/form-data' } });
+            setBannerForm({ title: '', subtitle: '', description: '' });
             await loadOrgSettings();
         } catch (err) {
             setOrgError(getErrorMessage(err));
@@ -419,6 +424,34 @@ const Profile = () => {
                         <div className="panel">
                             <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
                                 <h6 className="font-semibold text-lg">Banners</h6>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                <FormField label="Title">
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        value={bannerForm.title}
+                                        onChange={(e) => setBannerForm((prev) => ({ ...prev, title: e.target.value }))}
+                                    />
+                                </FormField>
+                                <FormField label="Subtitle">
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        value={bannerForm.subtitle}
+                                        onChange={(e) => setBannerForm((prev) => ({ ...prev, subtitle: e.target.value }))}
+                                    />
+                                </FormField>
+                                <FormField label="Description">
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        value={bannerForm.description}
+                                        onChange={(e) => setBannerForm((prev) => ({ ...prev, description: e.target.value }))}
+                                    />
+                                </FormField>
+                            </div>
+                            <div className="flex justify-end mb-4">
                                 <label className="btn btn-success cursor-pointer">
                                     Add Banner
                                     <input type="file" className="hidden" accept="image/*" onChange={(e) => uploadBanner(e.target.files?.[0])} />
@@ -428,6 +461,9 @@ const Profile = () => {
                                 {banners.map((banner) => (
                                     <div key={banner.id} className="border border-[#ebedf2] dark:border-[#191e3a] rounded p-3">
                                         <img src={mediaUrl(banner.imageUrl)} alt="" className="w-full h-32 object-cover rounded mb-2" />
+                                        {banner.title ? <p className="font-semibold text-sm mb-0.5">{banner.title}</p> : null}
+                                        {banner.subtitle ? <p className="text-xs text-white-dark mb-0.5">{banner.subtitle}</p> : null}
+                                        {banner.description ? <p className="text-xs text-white-dark mb-2 line-clamp-2">{banner.description}</p> : null}
                                         <button type="button" className="btn btn-sm btn-outline-danger w-full" onClick={() => deleteBanner(banner.id)}>
                                             Delete
                                         </button>
