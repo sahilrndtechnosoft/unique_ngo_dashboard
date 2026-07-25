@@ -12,6 +12,7 @@ import {
   product_status,
   products,
   seller_profiles,
+  users,
 } from '../../../generated/prisma/client';
 import { deleteUploadedFile } from '../../common/utils/image-upload.util';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -502,9 +503,12 @@ export class ProductsService {
         where: { id: product.seller_id },
       }),
     ]);
+    const user = seller
+      ? await this.prisma.users.findUnique({ where: { id: seller.user_id } })
+      : null;
     return {
       category: category ? this.toPublicCategory(category) : undefined,
-      seller: seller ? this.toPublicSeller(seller) : undefined,
+      seller: seller ? this.toPublicSeller(seller, user) : undefined,
     };
   }
 
@@ -523,8 +527,18 @@ export class ProductsService {
     const sellers = await this.prisma.seller_profiles.findMany({
       where: { id: { in: uniqueIds } },
     });
+    const usersById = new Map(
+      (
+        await this.prisma.users.findMany({
+          where: { id: { in: sellers.map((seller) => seller.user_id) } },
+        })
+      ).map((user) => [user.id, user]),
+    );
     return new Map(
-      sellers.map((seller) => [seller.id, this.toPublicSeller(seller)]),
+      sellers.map((seller) => [
+        seller.id,
+        this.toPublicSeller(seller, usersById.get(seller.user_id) ?? null),
+      ]),
     );
   }
 
@@ -540,9 +554,10 @@ export class ProductsService {
     };
   }
 
-  private toPublicSeller(seller: seller_profiles) {
+  private toPublicSeller(seller: seller_profiles, user?: users | null) {
     return {
       id: seller.id,
+      userId: seller.user_id,
       businessName: seller.business_name,
       businessType: seller.business_type,
       description: seller.description,
@@ -552,6 +567,36 @@ export class ProductsService {
       isPremium: seller.is_premium,
       rating: Number(seller.rating),
       totalReviews: seller.total_reviews,
+      user: user ? this.toPublicUser(user) : null,
+    };
+  }
+
+  private toPublicUser(user: users) {
+    const { password_hash: _passwordHash, ...safeUser } = user;
+    return {
+      id: safeUser.id,
+      role: safeUser.role,
+      rbacRoleId: safeUser.rbac_role_id,
+      status: safeUser.status,
+      fullName: safeUser.full_name,
+      email: safeUser.email,
+      mobile: safeUser.mobile,
+      mobileVerified: safeUser.mobile_verified,
+      emailVerified: safeUser.email_verified,
+      gender: safeUser.gender,
+      dateOfBirth: safeUser.date_of_birth,
+      profilePicture: safeUser.profile_image_url,
+      bloodGroup: safeUser.blood_group,
+      bio: safeUser.bio,
+      isAvailableDonor: safeUser.is_available_donor,
+      lastDonationDate: safeUser.last_donation_date,
+      referralCode: safeUser.referral_code,
+      referredById: safeUser.referred_by_id,
+      totalDonations: safeUser.total_donations,
+      totalPoints: safeUser.total_points,
+      createdAt: safeUser.created_at,
+      updatedAt: safeUser.updated_at,
+      deletedAt: safeUser.deleted_at,
     };
   }
 
