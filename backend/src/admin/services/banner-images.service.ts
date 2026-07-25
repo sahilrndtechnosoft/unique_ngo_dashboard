@@ -33,6 +33,7 @@ export class BannerImagesService {
         image_url: imagePath,
         title: dto.title,
         subtitle: dto.subtitle,
+        description: dto.description,
         link_url: dto.linkUrl,
         button_text: dto.buttonText,
         sort_order: dto.sortOrder ?? 0,
@@ -52,6 +53,7 @@ export class BannerImagesService {
       data: {
         ...(dto.title !== undefined && { title: dto.title }),
         ...(dto.subtitle !== undefined && { subtitle: dto.subtitle }),
+        ...(dto.description !== undefined && { description: dto.description }),
         ...(dto.linkUrl !== undefined && { link_url: dto.linkUrl }),
         ...(dto.buttonText !== undefined && { button_text: dto.buttonText }),
         ...(dto.sortOrder !== undefined && { sort_order: dto.sortOrder }),
@@ -109,6 +111,7 @@ export class BannerImagesService {
       id: banner.id,
       title: banner.title,
       subtitle: banner.subtitle,
+      description: banner.description,
       imageUrl: banner.image_url,
       linkUrl: banner.link_url,
       buttonText: banner.button_text,

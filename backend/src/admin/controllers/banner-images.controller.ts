@@ -73,6 +73,7 @@ export class BannerImagesController {
         file: { type: 'string', format: 'binary' },
         title: { type: 'string' },
         subtitle: { type: 'string' },
+        description: { type: 'string' },
         linkUrl: { type: 'string' },
         buttonText: { type: 'string' },
         sortOrder: { type: 'integer' },

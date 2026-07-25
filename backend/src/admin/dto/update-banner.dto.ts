@@ -21,6 +21,11 @@ export class CreateBannerDto {
   @MaxLength(500)
   subtitle?: string;
 
+  @ApiPropertyOptional({ example: 'Every drop counts. Join thousands of donors making a difference across the country.' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
   @ApiPropertyOptional({ example: 'https://unique-ngo.com/blood-drive' })
   @IsOptional()
   @IsString()
@@ -56,6 +61,11 @@ export class UpdateBannerDto {
   @IsString()
   @MaxLength(500)
   subtitle?: string;
+
+  @ApiPropertyOptional({ example: 'Every drop counts. Join thousands of donors making a difference across the country.' })
+  @IsOptional()
+  @IsString()
+  description?: string;
 
   @ApiPropertyOptional({ example: 'https://unique-ngo.com/blood-drive' })
   @IsOptional()

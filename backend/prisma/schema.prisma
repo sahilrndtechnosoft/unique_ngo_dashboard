@@ -120,6 +120,7 @@ model banner_images {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   title       String?   @db.VarChar(255)
   subtitle    String?   @db.VarChar(500)
+  description String?
   image_url   String
   link_url    String?
   button_text String?   @db.VarChar(100)
