@@ -585,7 +585,8 @@ hover:text-primary hover:before:!bg-primary ltr:before:mr-2 rtl:before:ml-2 dark
 
 .swal2-popup.swal2-toast .swal2-title,
 .swal2-container .swal2-popup.swal2-toast .swal2-html-container {
-    @apply text-white;
+    @apply text-white ltr:!pr-0 rtl:!pl-0;
+    width: auto;
 }
 .swal2-container .swal2-popup.swal2-toast.color-primary {
     @apply bg-primary;
