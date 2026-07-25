@@ -7,9 +7,11 @@ import {
 } from '@nestjs/common';
 import {
   Prisma,
+  product_categories,
   product_images,
   product_status,
   products,
+  seller_profiles,
 } from '../../../generated/prisma/client';
 import { deleteUploadedFile } from '../../common/utils/image-upload.util';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -78,10 +80,14 @@ export class ProductsService {
     ]);
 
     const productIds = rows.map((row) => row.id);
-    const images = await this.prisma.product_images.findMany({
-      where: { product_id: { in: productIds } },
-      orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }],
-    });
+    const [images, categoriesById, sellersById] = await Promise.all([
+      this.prisma.product_images.findMany({
+        where: { product_id: { in: productIds } },
+        orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }],
+      }),
+      this.getCategoriesById(rows.map((row) => row.category_id)),
+      this.getSellersById(rows.map((row) => row.seller_id)),
+    ]);
     const imagesByProduct = new Map<string, product_images[]>();
     for (const image of images) {
       const list = imagesByProduct.get(image.product_id) ?? [];
@@ -91,7 +97,10 @@ export class ProductsService {
 
     return {
       items: rows.map((row) =>
-        this.toPublic(row, imagesByProduct.get(row.id) ?? []),
+        this.toPublic(row, imagesByProduct.get(row.id) ?? [], {
+          category: categoriesById.get(row.category_id),
+          seller: sellersById.get(row.seller_id),
+        }),
       ),
       meta: {
         page,
@@ -104,11 +113,14 @@ export class ProductsService {
 
   async getProduct(productId: string, sellerId?: string) {
     const product = await this.findProductOrThrow(productId, sellerId);
-    const images = await this.prisma.product_images.findMany({
-      where: { product_id: productId },
-      orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }],
-    });
-    return this.toPublic(product, images);
+    const [images, relations] = await Promise.all([
+      this.prisma.product_images.findMany({
+        where: { product_id: productId },
+        orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }],
+      }),
+      this.getRelationsFor(product),
+    ]);
+    return this.toPublic(product, images, relations);
   }
 
   async getPublicProduct(idOrSlug: string) {
@@ -126,11 +138,14 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
-    const images = await this.prisma.product_images.findMany({
-      where: { product_id: product.id },
-      orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }],
-    });
-    return this.toPublic(product, images);
+    const [images, relations] = await Promise.all([
+      this.prisma.product_images.findMany({
+        where: { product_id: product.id },
+        orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }],
+      }),
+      this.getRelationsFor(product),
+    ]);
+    return this.toPublic(product, images, relations);
   }
 
   async createProduct(
@@ -192,7 +207,7 @@ export class ProductsService {
       },
     });
 
-    return this.toPublic(product, []);
+    return this.toPublic(product, [], await this.getRelationsFor(product));
   }
 
   async updateProduct(
@@ -258,12 +273,15 @@ export class ProductsService {
       },
     });
 
-    const images = await this.prisma.product_images.findMany({
-      where: { product_id: productId },
-      orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }],
-    });
+    const [images, relations] = await Promise.all([
+      this.prisma.product_images.findMany({
+        where: { product_id: productId },
+        orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }],
+      }),
+      this.getRelationsFor(updated),
+    ]);
 
-    return this.toPublic(updated, images);
+    return this.toPublic(updated, images, relations);
   }
 
   async approveProduct(productId: string, actorId: string) {
@@ -286,10 +304,13 @@ export class ProductsService {
       },
     });
 
-    const images = await this.prisma.product_images.findMany({
-      where: { product_id: productId },
-    });
-    return this.toPublic(updated, images);
+    const [images, relations] = await Promise.all([
+      this.prisma.product_images.findMany({
+        where: { product_id: productId },
+      }),
+      this.getRelationsFor(updated),
+    ]);
+    return this.toPublic(updated, images, relations);
   }
 
   async rejectProduct(
@@ -310,10 +331,13 @@ export class ProductsService {
       },
     });
 
-    const images = await this.prisma.product_images.findMany({
-      where: { product_id: productId },
-    });
-    return this.toPublic(updated, images);
+    const [images, relations] = await Promise.all([
+      this.prisma.product_images.findMany({
+        where: { product_id: productId },
+      }),
+      this.getRelationsFor(updated),
+    ]);
+    return this.toPublic(updated, images, relations);
   }
 
   async deleteProduct(productId: string, sellerId?: string) {
@@ -469,11 +493,82 @@ export class ProductsService {
     return slug;
   }
 
-  private toPublic(product: products, images: product_images[]) {
+  private async getRelationsFor(product: products) {
+    const [category, seller] = await Promise.all([
+      this.prisma.product_categories.findUnique({
+        where: { id: product.category_id },
+      }),
+      this.prisma.seller_profiles.findUnique({
+        where: { id: product.seller_id },
+      }),
+    ]);
+    return {
+      category: category ? this.toPublicCategory(category) : undefined,
+      seller: seller ? this.toPublicSeller(seller) : undefined,
+    };
+  }
+
+  private async getCategoriesById(categoryIds: string[]) {
+    const uniqueIds = [...new Set(categoryIds)];
+    const categories = await this.prisma.product_categories.findMany({
+      where: { id: { in: uniqueIds } },
+    });
+    return new Map(
+      categories.map((category) => [category.id, this.toPublicCategory(category)]),
+    );
+  }
+
+  private async getSellersById(sellerIds: string[]) {
+    const uniqueIds = [...new Set(sellerIds)];
+    const sellers = await this.prisma.seller_profiles.findMany({
+      where: { id: { in: uniqueIds } },
+    });
+    return new Map(
+      sellers.map((seller) => [seller.id, this.toPublicSeller(seller)]),
+    );
+  }
+
+  private toPublicCategory(category: product_categories) {
+    return {
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      description: category.description,
+      imageUrl: category.image_url,
+      iconUrl: category.icon_url,
+      parentId: category.parent_id,
+    };
+  }
+
+  private toPublicSeller(seller: seller_profiles) {
+    return {
+      id: seller.id,
+      businessName: seller.business_name,
+      businessType: seller.business_type,
+      description: seller.description,
+      logoUrl: seller.logo_url,
+      bannerUrl: seller.banner_url,
+      status: seller.status,
+      isPremium: seller.is_premium,
+      rating: Number(seller.rating),
+      totalReviews: seller.total_reviews,
+    };
+  }
+
+  private toPublic(
+    product: products,
+    images: product_images[],
+    relations?: {
+      category?: ReturnType<ProductsService['toPublicCategory']>;
+      seller?: ReturnType<ProductsService['toPublicSeller']>;
+    },
+  ) {
     return {
       id: product.id,
       sellerId: product.seller_id,
+      seller: relations?.seller ?? null,
       categoryId: product.category_id,
+      category: relations?.category ?? null,
       name: product.name,
       slug: product.slug,
       description: product.description,
