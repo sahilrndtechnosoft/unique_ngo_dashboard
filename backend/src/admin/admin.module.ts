@@ -12,6 +12,7 @@ import {
   AdminProductsController,
   SellerProductsController,
 } from './controllers/products.controller';
+import { PublicProductsController } from './controllers/public-products.controller';
 import { PublicSettingsController } from './controllers/public-settings.controller';
 import { RolesController } from './controllers/roles.controller';
 import { AdminSellersService } from './services/admin-sellers.service';
@@ -37,6 +38,7 @@ import { RolesService } from './services/roles.service';
     CategoriesController,
     AdminProductsController,
     SellerProductsController,
+    PublicProductsController,
   ],
   providers: [
     RolesService,
