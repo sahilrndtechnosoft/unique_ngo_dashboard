@@ -10,6 +10,7 @@ import IconMenuDashboard from '../Icon/Menu/IconMenuDashboard';
 import IconMenuUsers from '../Icon/Menu/IconMenuUsers';
 import IconMenuTables from '../Icon/Menu/IconMenuTables';
 import IconMenuDatatables from '../Icon/Menu/IconMenuDatatables';
+import IconMenuInvoice from '../Icon/Menu/IconMenuInvoice';
 import { adminMenuGroups, canAccess } from '../../config/admin-menu';
 import { mediaUrl } from '../../services/api';
 
@@ -19,6 +20,7 @@ const menuIcons: Record<string, JSX.Element> = {
     '/admin/sellers': <IconMenuUsers className="group-hover:!text-primary shrink-0" />,
     '/admin/categories': <IconMenuTables className="group-hover:!text-primary shrink-0" />,
     '/admin/products': <IconMenuDatatables className="group-hover:!text-primary shrink-0" />,
+    '/admin/orders': <IconMenuInvoice className="group-hover:!text-primary shrink-0" />,
 };
 
 const Sidebar = () => {
