@@ -103,6 +103,7 @@ const AdminSellers = lazy(() => import('../pages/Admin/Sellers'));
 const AdminSellerDetail = lazy(() => import('../pages/Admin/SellerDetail'));
 const AdminCategories = lazy(() => import('../pages/Admin/Categories'));
 const AdminProducts = lazy(() => import('../pages/Admin/Products'));
+const AdminOrders = lazy(() => import('../pages/Admin/Orders'));
 
 const routes = [
     // dashboard
@@ -129,6 +130,10 @@ const routes = [
     {
         path: '/admin/products',
         element: <AdminProducts />,
+    },
+    {
+        path: '/admin/orders',
+        element: <AdminOrders />,
     },
     // {
     //     path: '/index',

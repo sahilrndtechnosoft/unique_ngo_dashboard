@@ -28,6 +28,7 @@ export const adminMenuGroups: AdminMenuGroup[] = [
         items: [
             { label: 'Categories', to: '/admin/categories', permission: 'PRODUCTS:VIEW' },
             { label: 'Products', to: '/admin/products', permission: 'PRODUCTS:VIEW' },
+            { label: 'Orders', to: '/admin/orders', permission: 'ORDERS:VIEW' },
         ],
     },
 ];

@@ -84,6 +84,12 @@ export const adminApi = {
     deleteProductImage: (id: string, imageId: string) =>
         api.delete(`/admin/products/${id}/images/${imageId}`).then((r) => unwrap(r)),
 
+    listOrders: (params?: Record<string, unknown>) =>
+        api.get('/admin/orders', { params }).then((r) => unwrap<Paginated<any>>(r)),
+    getOrder: (id: string) => api.get(`/admin/orders/${id}`).then((r) => unwrap(r)),
+    updateOrderStatus: (id: string, body: { status: string; note?: string; location?: string }) =>
+        api.patch(`/admin/orders/${id}/status`, body).then((r) => unwrap(r)),
+
     listRoles: () => api.get('/admin/roles').then((r) => unwrap<any[]>(r)),
     getRole: (id: string) => api.get(`/admin/roles/${id}`).then((r) => unwrap(r)),
     createRole: (body: Record<string, unknown>) =>
