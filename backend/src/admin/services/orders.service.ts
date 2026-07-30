@@ -15,7 +15,7 @@ import { ListAdminOrdersQueryDto, UpdateOrderStatusDto } from '../dto/order.dto'
 export class AdminOrdersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listOrders(query: ListAdminOrdersQueryDto) {
+  async listOrders(query: ListAdminOrdersQueryDto, options?: { sellerId?: string }) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
@@ -38,7 +38,8 @@ export class AdminOrdersService {
 
     const where: Prisma.ordersWhereInput = {
       ...(query.status ? { status: query.status } : {}),
-      ...(query.sellerId ? { seller_id: query.sellerId } : {}),
+      ...(options?.sellerId ? { seller_id: options.sellerId } : {}),
+      ...(query.sellerId && !options?.sellerId ? { seller_id: query.sellerId } : {}),
       ...(query.search
         ? {
             OR: [
@@ -78,8 +79,8 @@ export class AdminOrdersService {
     };
   }
 
-  async getOrder(orderId: string) {
-    const order = await this.findOrderOrThrow(orderId);
+  async getOrder(orderId: string, sellerId?: string) {
+    const order = await this.findOrderOrThrow(orderId, sellerId);
 
     const [items, buyer, seller, address, shipment] = await Promise.all([
       this.prisma.order_items.findMany({ where: { order_id: orderId } }),
@@ -161,8 +162,10 @@ export class AdminOrdersService {
     return this.getOrder(orderId);
   }
 
-  private async findOrderOrThrow(orderId: string) {
-    const order = await this.prisma.orders.findUnique({ where: { id: orderId } });
+  private async findOrderOrThrow(orderId: string, sellerId?: string) {
+    const order = await this.prisma.orders.findFirst({
+      where: { id: orderId, ...(sellerId ? { seller_id: sellerId } : {}) },
+    });
     if (!order) {
       throw new NotFoundException('Order not found');
     }

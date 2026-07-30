@@ -7,7 +7,7 @@ import {
   AdminCategoriesController,
   CategoriesController,
 } from './controllers/categories.controller';
-import { AdminOrdersController } from './controllers/orders.controller';
+import { AdminOrdersController, SellerOrdersController } from './controllers/orders.controller';
 import { PermissionsController } from './controllers/permissions.controller';
 import {
   AdminProductsController,
@@ -42,6 +42,7 @@ import { RolesService } from './services/roles.service';
     SellerProductsController,
     PublicProductsController,
     AdminOrdersController,
+    SellerOrdersController,
   ],
   providers: [
     RolesService,
