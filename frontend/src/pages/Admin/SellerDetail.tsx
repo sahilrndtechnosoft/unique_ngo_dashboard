@@ -12,6 +12,17 @@ import IconArrowLeft from '../../components/Icon/IconArrowLeft';
 import IconPlus from '../../components/Icon/IconPlus';
 
 const STATUSES = ['DRAFT', 'PENDING_REVIEW', 'ACTIVE', 'INACTIVE', 'REJECTED', 'OUT_OF_STOCK', 'ARCHIVED'];
+const ORDER_STATUSES = [
+    'PENDING',
+    'CONFIRMED',
+    'PROCESSING',
+    'SHIPPED',
+    'OUT_FOR_DELIVERY',
+    'DELIVERED',
+    'CANCELLED',
+    'RETURNED',
+    'REFUNDED',
+];
 type Mode = 'create' | 'edit' | 'view';
 
 const emptyForm = {
@@ -48,6 +59,13 @@ export default function SellerDetail() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState(emptyForm);
     const [busy, setBusy] = useState(false);
+
+    const [orders, setOrders] = useState<any[]>([]);
+    const [ordersMeta, setOrdersMeta] = useState({ page: 1, total: 0, totalPages: 1 });
+    const [ordersPageSize, setOrdersPageSize] = useState(10);
+    const [ordersStatusFilter, setOrdersStatusFilter] = useState('');
+    const [ordersLoading, setOrdersLoading] = useState(false);
+    const [viewOrder, setViewOrder] = useState<any | null>(null);
 
     const loadSeller = async () => {
         if (!id) return;
@@ -97,9 +115,39 @@ export default function SellerDetail() {
         setCategories(data.items ?? []);
     };
 
+    const loadOrders = async (page = 1, size = ordersPageSize, status?: string) => {
+        if (!id) return;
+        const nextStatus = status ?? ordersStatusFilter;
+        setOrdersLoading(true);
+        try {
+            const data = await adminApi.listOrders({
+                sellerId: id,
+                page,
+                limit: size,
+                status: nextStatus || undefined,
+            });
+            setOrders(data.items ?? []);
+            setOrdersMeta(data.meta);
+        } catch (err) {
+            showAlert(getErrorMessage(err, 'Failed to load orders'), 'error');
+        } finally {
+            setOrdersLoading(false);
+        }
+    };
+
+    const openOrder = async (orderId: string) => {
+        try {
+            const order = await adminApi.getOrder(orderId);
+            setViewOrder(order);
+        } catch (err) {
+            showAlert(getErrorMessage(err), 'error');
+        }
+    };
+
     useEffect(() => {
         loadSeller();
         loadProducts(1, pageSize);
+        loadOrders(1, ordersPageSize);
         loadCategories().catch((err) => showAlert(getErrorMessage(err), 'error'));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
@@ -156,9 +204,9 @@ export default function SellerDetail() {
         status: form.status,
         tags: form.tags
             ? form.tags
-                  .split(',')
-                  .map((tag) => tag.trim())
-                  .filter(Boolean)
+                .split(',')
+                .map((tag) => tag.trim())
+                .filter(Boolean)
             : [],
     });
 
@@ -393,6 +441,149 @@ export default function SellerDetail() {
                 )}
                 emptyText="No products uploaded by this seller"
             />
+
+            <div className="mb-4 mt-8 flex flex-wrap items-center justify-between gap-3">
+                <h5 className="font-semibold text-lg">Orders</h5>
+                <div className="flex flex-wrap items-center gap-2">
+                    <select
+                        className="form-select w-44"
+                        value={ordersStatusFilter}
+                        onChange={(e) => setOrdersStatusFilter(e.target.value)}
+                    >
+                        <option value="">All statuses</option>
+                        {ORDER_STATUSES.map((status) => (
+                            <option key={status} value={status}>
+                                {status}
+                            </option>
+                        ))}
+                    </select>
+                    <button type="button" className="btn btn-primary" onClick={() => loadOrders(1, ordersPageSize)}>
+                        Filter
+                    </button>
+                    <button
+                        type="button"
+                        className="btn btn-outline-dark"
+                        onClick={() => {
+                            setOrdersStatusFilter('');
+                            loadOrders(1, ordersPageSize, '');
+                        }}
+                    >
+                        Clear
+                    </button>
+                </div>
+            </div>
+
+            <AdminDataTable
+                selectable={false}
+                columns={[
+                    {
+                        key: 'orderNumber',
+                        label: 'Order',
+                        render: (row) => (
+                            <div>
+                                <div className="font-semibold">{row.orderNumber}</div>
+                                <div className="text-xs text-white-dark">{new Date(row.createdAt).toLocaleString()}</div>
+                            </div>
+                        ),
+                    },
+                    {
+                        key: 'buyer',
+                        label: 'Buyer',
+                        render: (row) => row.buyer?.fullName ?? '—',
+                    },
+                    {
+                        key: 'itemCount',
+                        label: 'Items',
+                        render: (row) => row.itemCount,
+                    },
+                    {
+                        key: 'totalAmount',
+                        label: 'Total',
+                        render: (row) => `₹${row.totalAmount}`,
+                    },
+                    {
+                        key: 'status',
+                        label: 'Status',
+                        render: (row) => <StatusBadge status={row.status} />,
+                    },
+                ]}
+                rows={orders}
+                loading={ordersLoading}
+                page={ordersMeta.page}
+                totalPages={ordersMeta.totalPages}
+                total={ordersMeta.total}
+                pageSize={ordersPageSize}
+                onPageChange={(page) => loadOrders(page, ordersPageSize)}
+                onPageSizeChange={(size) => {
+                    setOrdersPageSize(size);
+                    loadOrders(1, size);
+                }}
+                actions={(row) => <RowActionsMenu actions={[{ label: 'View', onClick: () => openOrder(row.id) }]} />}
+                emptyText="No orders placed with this seller"
+            />
+
+            <AdminFormModal
+                open={viewOrder !== null}
+                title={`Order ${viewOrder?.orderNumber ?? ''}`}
+                onClose={() => setViewOrder(null)}
+                readOnly
+                size="lg"
+            >
+                {viewOrder ? (
+                    <>
+                        <FormSection title="Overview">
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                                <div>
+                                    <div className="text-white-dark">Buyer</div>
+                                    <div>{viewOrder.buyer?.fullName ?? '—'}</div>
+                                </div>
+                                <div>
+                                    <div className="text-white-dark">Status</div>
+                                    <StatusBadge status={viewOrder.status} />
+                                </div>
+                                <div>
+                                    <div className="text-white-dark">Payment</div>
+                                    <div>
+                                        {viewOrder.paymentMethod} · <StatusBadge status={viewOrder.paymentStatus} />
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-white-dark">Total</div>
+                                    <div>₹{viewOrder.totalAmount}</div>
+                                </div>
+                            </div>
+                        </FormSection>
+
+                        <FormSection title="Items" className="mt-5 md:col-span-2">
+                            <div className="overflow-x-auto">
+                                <table className="table-striped text-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th>Qty</th>
+                                            <th>Unit price</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {(viewOrder.items ?? []).map((item: any) => (
+                                            <tr key={item.id}>
+                                                <td>
+                                                    {item.productName}
+                                                    {item.variantName ? ` (${item.variantName})` : ''}
+                                                </td>
+                                                <td>{item.quantity}</td>
+                                                <td>₹{item.unitPrice}</td>
+                                                <td>₹{item.totalPrice}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </FormSection>
+                    </>
+                ) : null}
+            </AdminFormModal>
 
             <AdminFormModal
                 open={mode !== null}
