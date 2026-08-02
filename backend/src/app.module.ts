@@ -7,6 +7,7 @@ import appConfig from './config/app.config';
 import { AddressesModule } from './addresses/addresses.module';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
+import { BloodBankModule } from './blood-bank/blood-bank.module';
 import { CartModule } from './cart/cart.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -37,6 +38,7 @@ import { UsersModule } from './users/users.module';
     AddressesModule,
     CartModule,
     OrdersModule,
+    BloodBankModule,
   ],
   providers: [
     JwtStrategy,
