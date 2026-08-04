@@ -183,4 +183,13 @@ export const adminApi = {
         api.get(`/admin/donation-sheet-imports/${id}/candidates`).then((r) => unwrap<any[]>(r)),
     matchDonationSheetRecord: (id: string, donationId: string) =>
         api.patch(`/admin/donation-sheet-imports/${id}/match`, { donationId }).then((r) => unwrap(r)),
+
+    listBloodRequests: (params?: Record<string, unknown>) =>
+        api.get('/admin/blood-requests', { params }).then((r) => unwrap<Paginated<any>>(r)),
+    getBloodRequest: (id: string) => api.get(`/admin/blood-requests/${id}`).then((r) => unwrap(r)),
+    createBloodRequest: (body: Record<string, unknown>) =>
+        api.post('/admin/blood-requests', body).then((r) => unwrap(r)),
+    updateBloodRequest: (id: string, body: Record<string, unknown>) =>
+        api.patch(`/admin/blood-requests/${id}`, body).then((r) => unwrap(r)),
+    deleteBloodRequest: (id: string) => api.delete(`/admin/blood-requests/${id}`).then((r) => unwrap(r)),
 };

@@ -57,9 +57,26 @@ export class AppointmentsService {
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
+    let matchingDonorIds: string[] | undefined;
+    if (query.search) {
+      const donors = await this.prisma.users.findMany({
+        where: {
+          deleted_at: null,
+          OR: [
+            { full_name: { contains: query.search, mode: 'insensitive' } },
+            { email: { contains: query.search, mode: 'insensitive' } },
+            { mobile: { contains: query.search, mode: 'insensitive' } },
+          ],
+        },
+        select: { id: true },
+      });
+      matchingDonorIds = donors.map((donor) => donor.id);
+    }
+
     const where: Prisma.blood_donation_appointmentsWhereInput = {
       ...(options?.donorId ? { donor_id: options.donorId } : {}),
       ...(query.status ? { status: query.status } : {}),
+      ...(query.search ? { donor_id: options?.donorId ? options.donorId : { in: matchingDonorIds } } : {}),
     };
 
     const [total, rows] = await Promise.all([
@@ -72,17 +89,22 @@ export class AppointmentsService {
       }),
     ]);
 
-    const [hospitalsById, campaignsById] = await Promise.all([
+    const [hospitalsById, campaignsById, donorsById] = await Promise.all([
       this.getHospitalsById(rows.map((row) => row.hospital_id)),
       this.getCampaignsById(rows.map((row) => row.campaign_id)),
+      this.getDonorsById(rows.map((row) => row.donor_id)),
     ]);
 
     return {
       items: rows.map((row) =>
-        this.toPublic(row, {
-          hospital: hospitalsById.get(row.hospital_id ?? ''),
-          campaign: campaignsById.get(row.campaign_id ?? ''),
-        }),
+        this.toPublic(
+          row,
+          {
+            hospital: hospitalsById.get(row.hospital_id ?? ''),
+            campaign: campaignsById.get(row.campaign_id ?? ''),
+          },
+          donorsById.get(row.donor_id),
+        ),
       ),
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
     };
@@ -215,6 +237,15 @@ export class AppointmentsService {
       return new Map<string, blood_campaigns>();
     }
     const rows = await this.prisma.blood_campaigns.findMany({ where: { id: { in: uniqueIds } } });
+    return new Map(rows.map((row) => [row.id, row]));
+  }
+
+  private async getDonorsById(donorIds: string[]) {
+    const uniqueIds = [...new Set(donorIds)];
+    if (uniqueIds.length === 0) {
+      return new Map<string, users>();
+    }
+    const rows = await this.prisma.users.findMany({ where: { id: { in: uniqueIds } } });
     return new Map(rows.map((row) => [row.id, row]));
   }
 

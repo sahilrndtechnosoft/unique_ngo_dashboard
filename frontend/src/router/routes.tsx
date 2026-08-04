@@ -108,6 +108,8 @@ const AdminOrders = lazy(() => import('../pages/Admin/Orders'));
 const AdminHospitals = lazy(() => import('../pages/Admin/Hospitals'));
 const AdminCampaigns = lazy(() => import('../pages/Admin/Campaigns'));
 const AdminBloodDonations = lazy(() => import('../pages/Admin/BloodDonations'));
+const AdminAppointments = lazy(() => import('../pages/Admin/Appointments'));
+const AdminBloodRequests = lazy(() => import('../pages/Admin/BloodRequests'));
 const DonateBlood = lazy(() => import('../pages/Public/DonateBlood'));
 
 const routes = [
@@ -155,6 +157,14 @@ const routes = [
     {
         path: '/admin/blood-donations',
         element: <AdminBloodDonations />,
+    },
+    {
+        path: '/admin/appointments',
+        element: <AdminAppointments />,
+    },
+    {
+        path: '/admin/blood-requests',
+        element: <AdminBloodRequests />,
     },
     {
         path: '/donate',

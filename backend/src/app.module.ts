@@ -17,6 +17,7 @@ import { JwtStrategy } from './common/strategies/jwt.strategy';
 import { OrdersModule } from './orders/orders.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
+import { WishlistModule } from './wishlist/wishlist.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { UsersModule } from './users/users.module';
     CartModule,
     OrdersModule,
     BloodBankModule,
+    WishlistModule,
   ],
   providers: [
     JwtStrategy,

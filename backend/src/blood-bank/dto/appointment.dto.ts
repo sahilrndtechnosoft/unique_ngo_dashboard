@@ -28,6 +28,11 @@ export class ListAppointmentsQueryDto {
   @IsOptional()
   @IsUUID()
   userId?: string;
+
+  @ApiPropertyOptional({ description: 'Admin-only: search by donor name, email or mobile' })
+  @IsOptional()
+  @IsString()
+  search?: string;
 }
 
 export class CreateAppointmentDto {
