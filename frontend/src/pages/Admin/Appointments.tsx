@@ -32,7 +32,7 @@ export default function AdminAppointments() {
     const [items, setItems] = useState<any[]>([]);
     const [meta, setMeta] = useState({ page: 1, total: 0, totalPages: 1 });
     const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState('PENDING');
     const [pageSize, setPageSize] = useState(20);
     const [loading, setLoading] = useState(false);
     const [busy, setBusy] = useState(false);

@@ -85,7 +85,7 @@ export class AppointmentsService {
         where,
         skip,
         take: limit,
-        orderBy: { appointment_date: 'desc' },
+        orderBy: { created_at: 'desc' },
       }),
     ]);
 
