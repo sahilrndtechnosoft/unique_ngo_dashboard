@@ -419,6 +419,7 @@ const Profile = () => {
                                         <input
                                             className="form-input"
                                             type="password"
+                                            autoComplete="new-password"
                                             value={profileForm.password}
                                             onChange={(e) => setProfileForm({ ...profileForm, password: e.target.value })}
                                         />
@@ -428,6 +429,7 @@ const Profile = () => {
                                             <input
                                                 className="form-input"
                                                 type="password"
+                                                autoComplete="current-password"
                                                 required
                                                 value={profileForm.currentPassword}
                                                 onChange={(e) => setProfileForm({ ...profileForm, currentPassword: e.target.value })}

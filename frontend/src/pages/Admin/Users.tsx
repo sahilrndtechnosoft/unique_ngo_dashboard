@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { setPageTitle } from '../../store/themeConfigSlice';
 import { adminApi } from '../../services/admin.service';
 import { getErrorMessage, mediaUrl } from '../../services/api';
@@ -13,7 +14,7 @@ const ACCOUNT_TYPES = ['USER', 'SELLER', 'ADMIN', 'SUPER_ADMIN'] as const;
 const STATUSES = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'BANNED', 'PENDING_VERIFICATION'];
 const STAFF_ACCOUNT_TYPES = new Set(['ADMIN', 'SUPER_ADMIN']);
 
-type Mode = 'create' | 'edit' | 'view';
+type Mode = 'create' | 'edit';
 
 const emptyForm = {
     fullName: '',
@@ -28,6 +29,7 @@ const emptyForm = {
 
 export default function AdminUsers() {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
     const [items, setItems] = useState<any[]>([]);
     const [rbacRoles, setRbacRoles] = useState<any[]>([]);
     const [meta, setMeta] = useState({ page: 1, total: 0, totalPages: 1 });
@@ -127,11 +129,6 @@ export default function AdminUsers() {
         setMode('edit');
     };
 
-    const openView = (user: any) => {
-        openEdit(user);
-        setMode('view');
-    };
-
     const submit = async (event: FormEvent) => {
         event.preventDefault();
         setError('');
@@ -211,8 +208,6 @@ export default function AdminUsers() {
             showAlert(getErrorMessage(err), 'error');
         }
     };
-
-    const readOnly = mode === 'view';
 
     return (
         <div>
@@ -346,7 +341,7 @@ export default function AdminUsers() {
                 actions={(row) => (
                     <RowActionsMenu
                         actions={[
-                            { label: 'View', onClick: () => openView(row) },
+                            { label: 'View', onClick: () => navigate(`/admin/users/${row.id}`) },
                             { label: 'Edit', onClick: () => openEdit(row) },
                             { label: 'Delete', onClick: () => remove(row.id), danger: true },
                         ]}
@@ -356,10 +351,9 @@ export default function AdminUsers() {
 
             <AdminFormModal
                 open={mode !== null}
-                title={mode === 'create' ? 'Create User' : mode === 'edit' ? 'Edit User' : 'View User'}
+                title={mode === 'create' ? 'Create User' : 'Edit User'}
                 onClose={() => setMode(null)}
                 onSubmit={submit}
-                readOnly={readOnly}
                 busy={busy}
                 size="lg"
             >
@@ -370,21 +364,18 @@ export default function AdminUsers() {
                                 {form.profilePicture ? (
                                     <img src={mediaUrl(form.profilePicture)} alt="" className="h-16 w-16 rounded-full object-cover" />
                                 ) : null}
-                                {!readOnly ? (
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        className="form-input"
-                                        onChange={(e) => setPendingImage(e.target.files?.[0] ?? null)}
-                                    />
-                                ) : null}
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="form-input"
+                                    onChange={(e) => setPendingImage(e.target.files?.[0] ?? null)}
+                                />
                             </div>
                         </FormField>
                         <FormField label="Full Name" required>
                             <input
                                 className="form-input"
                                 required
-                                disabled={readOnly}
                                 value={form.fullName}
                                 onChange={(e) => setForm({ ...form, fullName: e.target.value })}
                             />
@@ -394,7 +385,6 @@ export default function AdminUsers() {
                                 className="form-input"
                                 type="email"
                                 required
-                                disabled={readOnly}
                                 value={form.email}
                                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                             />
@@ -402,7 +392,6 @@ export default function AdminUsers() {
                         <FormField label="Mobile">
                             <input
                                 className="form-input"
-                                disabled={readOnly}
                                 value={form.mobile}
                                 onChange={(e) => setForm({ ...form, mobile: e.target.value })}
                             />
@@ -415,7 +404,6 @@ export default function AdminUsers() {
                             <input
                                 className="form-input"
                                 type="password"
-                                disabled={readOnly}
                                 required={mode === 'create'}
                                 value={form.password}
                                 onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -424,7 +412,6 @@ export default function AdminUsers() {
                         <FormField label="Account type" required hint="">
                             <select
                                 className="form-select"
-                                disabled={readOnly}
                                 value={form.role}
                                 onChange={(e) => {
                                     const role = e.target.value;
@@ -445,7 +432,6 @@ export default function AdminUsers() {
                         <FormField label="Status" required>
                             <select
                                 className="form-select"
-                                disabled={readOnly}
                                 value={form.status}
                                 onChange={(e) => setForm({ ...form, status: e.target.value })}
                             >
@@ -465,7 +451,6 @@ export default function AdminUsers() {
                             >
                                 <select
                                     className="form-select"
-                                    disabled={readOnly}
                                     required
                                     value={form.rbacRoleId}
                                     onChange={(e) => setForm({ ...form, rbacRoleId: e.target.value })}

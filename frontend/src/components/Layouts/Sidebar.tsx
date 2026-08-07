@@ -21,6 +21,11 @@ const menuIcons: Record<string, JSX.Element> = {
     '/admin/categories': <IconMenuTables className="group-hover:!text-primary shrink-0" />,
     '/admin/products': <IconMenuDatatables className="group-hover:!text-primary shrink-0" />,
     '/admin/orders': <IconMenuInvoice className="group-hover:!text-primary shrink-0" />,
+    '/admin/hospitals': <IconMenuUsers className="group-hover:!text-primary shrink-0" />,
+    '/admin/campaigns': <IconMenuTables className="group-hover:!text-primary shrink-0" />,
+    '/admin/appointments': <IconMenuDatatables className="group-hover:!text-primary shrink-0" />,
+    '/admin/blood-donations': <IconMenuInvoice className="group-hover:!text-primary shrink-0" />,
+    '/admin/blood-requests': <IconMenuInvoice className="group-hover:!text-primary shrink-0" />,
 };
 
 const Sidebar = () => {

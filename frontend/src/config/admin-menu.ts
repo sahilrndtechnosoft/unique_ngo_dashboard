@@ -31,6 +31,16 @@ export const adminMenuGroups: AdminMenuGroup[] = [
             { label: 'Orders', to: '/admin/orders', permission: 'ORDERS:VIEW' },
         ],
     },
+    {
+        label: 'Blood Bank',
+        items: [
+            { label: 'Hospitals', to: '/admin/hospitals', permission: 'BLOOD_BANK:VIEW' },
+            { label: 'Campaigns', to: '/admin/campaigns', permission: 'BLOOD_BANK:VIEW' },
+            { label: 'Appointments', to: '/admin/appointments', permission: 'BLOOD_BANK:VIEW' },
+            { label: 'Donations', to: '/admin/blood-donations', permission: 'BLOOD_BANK:VIEW' },
+            { label: 'Blood Requests', to: '/admin/blood-requests', permission: 'BLOOD_BANK:VIEW' },
+        ],
+    },
 ];
 
 export function canAccess(

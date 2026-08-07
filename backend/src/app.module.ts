@@ -7,6 +7,7 @@ import appConfig from './config/app.config';
 import { AddressesModule } from './addresses/addresses.module';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
+import { BloodBankModule } from './blood-bank/blood-bank.module';
 import { CartModule } from './cart/cart.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -16,6 +17,7 @@ import { JwtStrategy } from './common/strategies/jwt.strategy';
 import { OrdersModule } from './orders/orders.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
+import { WishlistModule } from './wishlist/wishlist.module';
 
 @Module({
   imports: [
@@ -37,6 +39,8 @@ import { UsersModule } from './users/users.module';
     AddressesModule,
     CartModule,
     OrdersModule,
+    BloodBankModule,
+    WishlistModule,
   ],
   providers: [
     JwtStrategy,

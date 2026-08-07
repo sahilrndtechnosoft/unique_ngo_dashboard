@@ -99,11 +99,18 @@ const MarkDownEditor = lazy(() => import('../pages/Forms/MarkDownEditor'));
 const DateRangePicker = lazy(() => import('../pages/Forms/DateRangePicker'));
 const Clipboard = lazy(() => import('../pages/Forms/Clipboard'));
 const AdminUsers = lazy(() => import('../pages/Admin/Users'));
+const AdminUserDetail = lazy(() => import('../pages/Admin/UserDetail'));
 const AdminSellers = lazy(() => import('../pages/Admin/Sellers'));
 const AdminSellerDetail = lazy(() => import('../pages/Admin/SellerDetail'));
 const AdminCategories = lazy(() => import('../pages/Admin/Categories'));
 const AdminProducts = lazy(() => import('../pages/Admin/Products'));
 const AdminOrders = lazy(() => import('../pages/Admin/Orders'));
+const AdminHospitals = lazy(() => import('../pages/Admin/Hospitals'));
+const AdminCampaigns = lazy(() => import('../pages/Admin/Campaigns'));
+const AdminBloodDonations = lazy(() => import('../pages/Admin/BloodDonations'));
+const AdminAppointments = lazy(() => import('../pages/Admin/Appointments'));
+const AdminBloodRequests = lazy(() => import('../pages/Admin/BloodRequests'));
+const DonateBlood = lazy(() => import('../pages/Public/DonateBlood'));
 
 const routes = [
     // dashboard
@@ -114,6 +121,10 @@ const routes = [
     {
         path: '/admin/users',
         element: <AdminUsers />,
+    },
+    {
+        path: '/admin/users/:id',
+        element: <AdminUserDetail />,
     },
     {
         path: '/admin/sellers',
@@ -134,6 +145,31 @@ const routes = [
     {
         path: '/admin/orders',
         element: <AdminOrders />,
+    },
+    {
+        path: '/admin/hospitals',
+        element: <AdminHospitals />,
+    },
+    {
+        path: '/admin/campaigns',
+        element: <AdminCampaigns />,
+    },
+    {
+        path: '/admin/blood-donations',
+        element: <AdminBloodDonations />,
+    },
+    {
+        path: '/admin/appointments',
+        element: <AdminAppointments />,
+    },
+    {
+        path: '/admin/blood-requests',
+        element: <AdminBloodRequests />,
+    },
+    {
+        path: '/donate',
+        element: <DonateBlood />,
+        layout: 'blank',
     },
     // {
     //     path: '/index',
