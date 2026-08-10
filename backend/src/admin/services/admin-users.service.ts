@@ -110,6 +110,7 @@ export class AdminUsersService {
         email_verified: true,
         mobile_verified: !!mobile,
         rbac_role_id: rbacRoleId,
+        blood_group: dto.bloodGroup,
       },
       include: { rbac_role: true },
     });
@@ -159,6 +160,7 @@ export class AdminUsersService {
       }),
       ...(dto.role !== undefined && { role: dto.role }),
       ...(dto.status !== undefined && { status: dto.status }),
+      ...(dto.bloodGroup !== undefined && { blood_group: dto.bloodGroup }),
       ...(rbacRoleId !== undefined && {
         rbac_role: rbacRoleId
           ? { connect: { id: rbacRoleId } }
@@ -309,6 +311,7 @@ export class AdminUsersService {
       mobile: user.mobile,
       role: user.role,
       status: user.status,
+      bloodGroup: user.blood_group,
       emailVerified: user.email_verified,
       mobileVerified: user.mobile_verified,
       profilePicture: user.profile_image_url,

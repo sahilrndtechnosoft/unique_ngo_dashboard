@@ -170,6 +170,7 @@ export default function UserDetail() {
             { label: 'Account type', value: user.role },
             { label: 'RBAC role', value: user.rbacRole?.name || '—' },
             { label: 'Status', value: user.status },
+            { label: 'Blood Group', value: user.bloodGroup ? user.bloodGroup.replace('_', ' ') : '—' },
         ];
     }, [user]);
 

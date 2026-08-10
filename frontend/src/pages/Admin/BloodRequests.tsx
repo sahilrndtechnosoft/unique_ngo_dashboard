@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { setPageTitle } from '../../store/themeConfigSlice';
 import { adminApi } from '../../services/admin.service';
-import { getErrorMessage } from '../../services/api';
+import { getErrorMessage, mediaUrl } from '../../services/api';
 import { useRowSelection } from '../../hooks/useRowSelection';
 import { AdminDataTable, AdminPageHeader, BulkActionsBar } from '../../components/Admin/AdminTable';
 import AdminFormModal from '../../components/Admin/AdminFormModal';
@@ -33,6 +33,7 @@ const emptyForm = {
     isEmergency: false,
     status: 'OPEN',
     adminNote: '',
+    proofImageUrl: '' as string | null,
 };
 
 export default function AdminBloodRequests() {
@@ -111,6 +112,7 @@ export default function AdminBloodRequests() {
             isEmergency: request.isEmergency,
             status: request.status,
             adminNote: request.adminNote ?? '',
+            proofImageUrl: request.proofImageUrl ?? null,
         });
     };
 
@@ -416,6 +418,15 @@ export default function AdminBloodRequests() {
                 {mode !== 'create' ? (
                     <FormSection title="Status & Review" className="md:col-span-2">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <FormField label="Supporting Proof" className="md:col-span-2" hint="Document uploaded by the user showing blood is required">
+                                {form.proofImageUrl ? (
+                                    <a href={mediaUrl(form.proofImageUrl)} target="_blank" rel="noreferrer">
+                                        <img src={mediaUrl(form.proofImageUrl)} alt="Proof of blood requirement" className="h-32 rounded border border-[#ebedf2] dark:border-[#191e3a] object-cover" />
+                                    </a>
+                                ) : (
+                                    <p className="text-sm text-white-dark italic">No proof uploaded</p>
+                                )}
+                            </FormField>
                             <FormField label="Status" required>
                                 <select className="form-select" required disabled={readOnly} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
                                     {REQUEST_STATUSES.map((status) => (

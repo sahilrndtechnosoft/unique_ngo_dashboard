@@ -13,6 +13,7 @@ import { confirmAction, showAlert } from '../../utils/alerts';
 const ACCOUNT_TYPES = ['USER', 'SELLER', 'ADMIN', 'SUPER_ADMIN'] as const;
 const STATUSES = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'BANNED', 'PENDING_VERIFICATION'];
 const STAFF_ACCOUNT_TYPES = new Set(['ADMIN', 'SUPER_ADMIN']);
+const BLOOD_GROUPS = ['A_POSITIVE', 'A_NEGATIVE', 'B_POSITIVE', 'B_NEGATIVE', 'AB_POSITIVE', 'AB_NEGATIVE', 'O_POSITIVE', 'O_NEGATIVE'];
 
 type Mode = 'create' | 'edit';
 
@@ -24,6 +25,7 @@ const emptyForm = {
     role: 'USER',
     rbacRoleId: '',
     status: 'ACTIVE',
+    bloodGroup: '',
     profilePicture: '' as string | null,
 };
 
@@ -123,6 +125,7 @@ export default function AdminUsers() {
             role: user.role,
             rbacRoleId: user.rbacRole?.id ?? user.rbacRoleId ?? '',
             status: user.status,
+            bloodGroup: user.bloodGroup ?? '',
             profilePicture: user.profilePicture ?? null,
         });
         setPendingImage(null);
@@ -148,6 +151,7 @@ export default function AdminUsers() {
                 role: form.role,
                 status: form.status,
                 rbacRoleId: STAFF_ACCOUNT_TYPES.has(form.role) ? form.rbacRoleId : null,
+                bloodGroup: form.bloodGroup || null,
             };
             if (form.mobile) body.mobile = form.mobile;
             if (form.password) body.password = form.password;
@@ -315,6 +319,13 @@ export default function AdminUsers() {
                         render: (row) => row.rbacRole?.name || '—',
                     },
                     {
+                        key: 'bloodGroup',
+                        label: 'Blood Group',
+                        sortable: true,
+                        sortValue: (row) => row.bloodGroup,
+                        render: (row) => (row.bloodGroup ? row.bloodGroup.replace('_', ' ') : '—'),
+                    },
+                    {
                         key: 'status',
                         label: 'Status',
                         sortable: true,
@@ -438,6 +449,20 @@ export default function AdminUsers() {
                                 {STATUSES.map((status) => (
                                     <option key={status} value={status}>
                                         {status}
+                                    </option>
+                                ))}
+                            </select>
+                        </FormField>
+                        <FormField label="Blood Group">
+                            <select
+                                className="form-select"
+                                value={form.bloodGroup}
+                                onChange={(e) => setForm({ ...form, bloodGroup: e.target.value })}
+                            >
+                                <option value="">Unknown</option>
+                                {BLOOD_GROUPS.map((group) => (
+                                    <option key={group} value={group}>
+                                        {group.replace('_', ' ')}
                                     </option>
                                 ))}
                             </select>

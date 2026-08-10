@@ -90,6 +90,16 @@ model role_permissions {
   @@index([permission_id])
 }
 
+model blood_bank_settings {
+  id                          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key                         String   @unique @default("default") @db.VarChar(50)
+  donation_eligibility_months Int      @default(3)
+  tattoo_eligibility_months   Int      @default(6)
+  updated_by_id               String?  @db.Uuid
+  created_at                  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at                  DateTime @default(now()) @db.Timestamptz(6)
+}
+
 model app_settings {
   id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   key               String   @unique @default("default") @db.VarChar(50)
@@ -321,6 +331,10 @@ model blood_donation_appointments {
   notes            String?
   cancel_reason    String?
   donation_id      String?            @db.Uuid
+  for_self         Boolean            @default(true)
+  beneficiary_name     String?        @db.VarChar(255)
+  beneficiary_mobile   String?        @db.VarChar(20)
+  beneficiary_relation String?        @db.VarChar(100)
   created_at       DateTime           @default(now()) @db.Timestamptz(6)
   updated_at       DateTime           @default(now()) @db.Timestamptz(6)
 
@@ -373,6 +387,7 @@ model blood_requests {
   status           blood_request_status @default(OPEN)
   notes            String?
   is_emergency     Boolean              @default(false)
+  proof_image_url  String?
   admin_note       String?
   verified_by_id   String?              @db.Uuid
   expires_at       DateTime?            @db.Timestamptz(6)
@@ -510,6 +525,23 @@ model device_tokens {
 
   @@unique([user_id, device_id, platform], map: "device_tokens_unique")
   @@index([is_active])
+  @@index([created_at])
+}
+
+model notifications {
+  id         String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String               @db.Uuid
+  type       notification_type
+  channel    notification_channel
+  title      String
+  body       String
+  data       Json?
+  is_read    Boolean              @default(false)
+  sent_at    DateTime?            @db.Timestamptz(6)
+  created_at DateTime             @default(now()) @db.Timestamptz(6)
+
+  @@index([user_id])
+  @@index([is_read])
   @@index([created_at])
 }
 

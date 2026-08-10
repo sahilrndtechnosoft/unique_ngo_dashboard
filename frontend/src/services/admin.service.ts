@@ -192,4 +192,16 @@ export const adminApi = {
     updateBloodRequest: (id: string, body: Record<string, unknown>) =>
         api.patch(`/admin/blood-requests/${id}`, body).then((r) => unwrap(r)),
     deleteBloodRequest: (id: string) => api.delete(`/admin/blood-requests/${id}`).then((r) => unwrap(r)),
+
+    broadcastNotification: (body: { bloodGroups: string[]; title: string; body: string }) =>
+        api.post('/admin/notifications/broadcast', body).then((r) => unwrap<{ matchedUsers: number; targeted: number; delivered: number }>(r)),
+
+    listCoupons: (params?: Record<string, unknown>) =>
+        api.get('/admin/coupons', { params }).then((r) => unwrap<Paginated<any>>(r)),
+    getCoupon: (id: string) => api.get(`/admin/coupons/${id}`).then((r) => unwrap(r)),
+    getCouponUsages: (id: string) => api.get(`/admin/coupons/${id}/usages`).then((r) => unwrap<any[]>(r)),
+    createCoupon: (body: Record<string, unknown>) => api.post('/admin/coupons', body).then((r) => unwrap(r)),
+    updateCoupon: (id: string, body: Record<string, unknown>) =>
+        api.patch(`/admin/coupons/${id}`, body).then((r) => unwrap(r)),
+    deleteCoupon: (id: string) => api.delete(`/admin/coupons/${id}`).then((r) => unwrap(r)),
 };

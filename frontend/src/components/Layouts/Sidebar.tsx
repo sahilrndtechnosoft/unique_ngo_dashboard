@@ -11,6 +11,7 @@ import IconMenuUsers from '../Icon/Menu/IconMenuUsers';
 import IconMenuTables from '../Icon/Menu/IconMenuTables';
 import IconMenuDatatables from '../Icon/Menu/IconMenuDatatables';
 import IconMenuInvoice from '../Icon/Menu/IconMenuInvoice';
+import IconMenuNotes from '../Icon/Menu/IconMenuNotes';
 import { adminMenuGroups, canAccess } from '../../config/admin-menu';
 import { mediaUrl } from '../../services/api';
 
@@ -21,11 +22,13 @@ const menuIcons: Record<string, JSX.Element> = {
     '/admin/categories': <IconMenuTables className="group-hover:!text-primary shrink-0" />,
     '/admin/products': <IconMenuDatatables className="group-hover:!text-primary shrink-0" />,
     '/admin/orders': <IconMenuInvoice className="group-hover:!text-primary shrink-0" />,
+    '/admin/coupons': <IconMenuTables className="group-hover:!text-primary shrink-0" />,
     '/admin/hospitals': <IconMenuUsers className="group-hover:!text-primary shrink-0" />,
     '/admin/campaigns': <IconMenuTables className="group-hover:!text-primary shrink-0" />,
     '/admin/appointments': <IconMenuDatatables className="group-hover:!text-primary shrink-0" />,
     '/admin/blood-donations': <IconMenuInvoice className="group-hover:!text-primary shrink-0" />,
     '/admin/blood-requests': <IconMenuInvoice className="group-hover:!text-primary shrink-0" />,
+    '/admin/notifications': <IconMenuNotes className="group-hover:!text-primary shrink-0" />,
 };
 
 const Sidebar = () => {
