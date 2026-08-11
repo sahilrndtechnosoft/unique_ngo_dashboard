@@ -11,7 +11,7 @@ import { FormField, FormSection, RowActionsMenu, StatusBadge } from '../../compo
 import { confirmAction, promptReason, showAlert } from '../../utils/alerts';
 
 const STATUSES = ['DRAFT', 'PENDING_REVIEW', 'ACTIVE', 'INACTIVE', 'REJECTED', 'OUT_OF_STOCK', 'ARCHIVED'];
-type Mode = 'create' | 'edit' | 'view';
+type Mode = 'create' | 'edit';
 
 const emptyForm = {
     images: [] as any[],
@@ -28,6 +28,10 @@ const emptyForm = {
     stockQuantity: 0,
     status: 'ACTIVE',
     tags: '',
+    isFeatured: false,
+    allowCod: true,
+    isReturnable: true,
+    returnDays: 7,
 };
 
 export default function AdminProducts() {
@@ -120,6 +124,10 @@ export default function AdminProducts() {
             stockQuantity: product.stockQuantity,
             status: product.status,
             tags: (product.tags ?? []).join(', '),
+            isFeatured: product.isFeatured ?? false,
+            allowCod: product.allowCod ?? true,
+            isReturnable: product.isReturnable ?? true,
+            returnDays: product.returnDays ?? 7,
         });
     };
 
@@ -141,6 +149,10 @@ export default function AdminProducts() {
                   .map((tag) => tag.trim())
                   .filter(Boolean)
             : [],
+        isFeatured: form.isFeatured,
+        allowCod: form.allowCod,
+        isReturnable: form.isReturnable,
+        returnDays: Number(form.returnDays),
     });
 
     const submit = async (event: FormEvent) => {
@@ -273,8 +285,6 @@ export default function AdminProducts() {
     };
 
 
-    const readOnly = mode === 'view';
-
     return (
         <div>
             <AdminPageHeader
@@ -397,24 +407,23 @@ export default function AdminProducts() {
 
             <AdminFormModal
                 open={mode !== null}
-                title={mode === 'create' ? 'Create Product' : mode === 'edit' ? 'Edit Product' : 'View Product'}
+                title={mode === 'create' ? 'Create Product' : 'Edit Product'}
                 onClose={() => setMode(null)}
                 onSubmit={submit}
-                readOnly={readOnly}
                 busy={busy}
                 size="xl"
             >
                 <FormSection title="Product details" className="md:col-span-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <FormField label="Name" required>
-                            <input className="form-input" required disabled={readOnly} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                            <input className="form-input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                         </FormField>
                         <FormField label="Slug">
-                            <input className="form-input" disabled={readOnly} value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
+                            <input className="form-input" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
                         </FormField>
                         {mode === 'create' ? (
                             <FormField label="Seller" required>
-                                <select className="form-select" required disabled={readOnly} value={form.sellerId} onChange={(e) => setForm({ ...form, sellerId: e.target.value })}>
+                                <select className="form-select" required value={form.sellerId} onChange={(e) => setForm({ ...form, sellerId: e.target.value })}>
                                     <option value="">Select seller</option>
                                     {sellers.map((seller) => (
                                         <option key={seller.id} value={seller.id}>
@@ -425,7 +434,7 @@ export default function AdminProducts() {
                             </FormField>
                         ) : null}
                         <FormField label="Category" required>
-                            <select className="form-select" required disabled={readOnly} value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}>
+                            <select className="form-select" required value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}>
                                 <option value="">Select category</option>
                                 {categories.map((category) => (
                                     <option key={category.id} value={category.id}>
@@ -440,7 +449,7 @@ export default function AdminProducts() {
                                 type="number"
                                 step="0.01"
                                 required
-                                disabled={readOnly}
+                               
                                 value={form.price}
                                 onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
                             />
@@ -450,7 +459,7 @@ export default function AdminProducts() {
                                 className="form-input"
                                 type="number"
                                 step="0.01"
-                                disabled={readOnly}
+                               
                                 value={form.compareAtPrice}
                                 onChange={(e) => setForm({ ...form, compareAtPrice: e.target.value })}
                             />
@@ -459,13 +468,13 @@ export default function AdminProducts() {
                             <input
                                 className="form-input"
                                 type="number"
-                                disabled={readOnly}
+                               
                                 value={form.stockQuantity}
                                 onChange={(e) => setForm({ ...form, stockQuantity: Number(e.target.value) })}
                             />
                         </FormField>
                         <FormField label="Status" required>
-                            <select className="form-select" disabled={readOnly} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                            <select className="form-select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
                                 {STATUSES.map((status) => (
                                     <option key={status} value={status}>
                                         {status}
@@ -474,18 +483,49 @@ export default function AdminProducts() {
                             </select>
                         </FormField>
                         <FormField label="Brand">
-                            <input className="form-input" disabled={readOnly} value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} />
+                            <input className="form-input" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} />
                         </FormField>
                         <FormField label="SKU">
-                            <input className="form-input" disabled={readOnly} value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} />
+                            <input className="form-input" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} />
                         </FormField>
                         <FormField label="Tags" hint="Comma separated">
-                            <input className="form-input" disabled={readOnly} value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
+                            <input className="form-input" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
+                        </FormField>
+                        <FormField label="Return Window (days)">
+                            <input
+                                className="form-input"
+                                type="number"
+                                min={0}
+                                disabled={!form.isReturnable}
+                                value={form.returnDays}
+                                onChange={(e) => setForm({ ...form, returnDays: Number(e.target.value) })}
+                            />
+                        </FormField>
+                        <FormField label="Flags" className="md:col-span-2">
+                            <div className="flex flex-wrap items-center gap-5 h-[38px]">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" className="form-checkbox" checked={form.isFeatured} onChange={(e) => setForm({ ...form, isFeatured: e.target.checked })} />
+                                    Featured
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" className="form-checkbox" checked={form.allowCod} onChange={(e) => setForm({ ...form, allowCod: e.target.checked })} />
+                                    Allow Cash on Delivery
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="form-checkbox"
+                                        checked={form.isReturnable}
+                                        onChange={(e) => setForm({ ...form, isReturnable: e.target.checked })}
+                                    />
+                                    Returnable
+                                </label>
+                            </div>
                         </FormField>
                         <FormField label="Short description" className="md:col-span-2">
                             <input
                                 className="form-input"
-                                disabled={readOnly}
+                               
                                 value={form.shortDescription}
                                 onChange={(e) => setForm({ ...form, shortDescription: e.target.value })}
                             />
@@ -494,7 +534,7 @@ export default function AdminProducts() {
                             <textarea
                                 className="form-textarea min-h-[120px]"
                                 required
-                                disabled={readOnly}
+                               
                                 value={form.description}
                                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                             />
@@ -508,28 +548,24 @@ export default function AdminProducts() {
                             {form.images.map((img: any) => (
                                 <div key={img.id} className="relative group border rounded p-1">
                                     <img src={mediaUrl(img.url)} alt={img.altText || 'Product image'} className="w-full h-32 object-cover rounded" />
-                                    {!readOnly && (
-                                        <button
-                                            type="button"
-                                            className="absolute top-2 right-2 bg-danger text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
-                                            onClick={() => handleDeleteImage(img.id)}
-                                        >
-                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                            </svg>
-                                        </button>
-                                    )}
+                                    <button
+                                        type="button"
+                                        className="absolute top-2 right-2 bg-danger text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
+                                        onClick={() => handleDeleteImage(img.id)}
+                                    >
+                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
                                     {img.isPrimary && (
                                         <span className="absolute bottom-2 left-2 bg-primary text-white text-xs px-2 py-1 rounded">Primary</span>
                                     )}
                                 </div>
                             ))}
                         </div>
-                        {!readOnly && (
-                            <FormField label="Upload Image">
-                                <input type="file" accept="image/*" className="form-input" onChange={handleImageUpload} disabled={busy} />
-                            </FormField>
-                        )}
+                        <FormField label="Upload Image">
+                            <input type="file" accept="image/*" className="form-input" onChange={handleImageUpload} disabled={busy} />
+                        </FormField>
                     </FormSection>
                 )}
             </AdminFormModal>

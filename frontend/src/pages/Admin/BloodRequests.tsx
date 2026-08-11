@@ -36,6 +36,7 @@ const emptyForm = {
     isEmergency: false,
     status: 'OPEN',
     adminNote: '',
+    expiresAt: '',
     proofImageUrl: '' as string | null,
 };
 
@@ -135,6 +136,7 @@ export default function AdminBloodRequests() {
             isEmergency: request.isEmergency,
             status: request.status,
             adminNote: request.adminNote ?? '',
+            expiresAt: request.expiresAt ? request.expiresAt.slice(0, 10) : '',
             proofImageUrl: request.proofImageUrl ?? null,
         });
     };
@@ -187,6 +189,7 @@ export default function AdminBloodRequests() {
                     isEmergency: form.isEmergency,
                     status: form.status,
                     adminNote: form.adminNote || undefined,
+                    expiresAt: form.expiresAt || undefined,
                     forSelf: form.forSelf,
                     patientRelation: form.forSelf ? undefined : form.patientRelation || undefined,
                 });
@@ -542,6 +545,9 @@ export default function AdminBloodRequests() {
                                         </option>
                                     ))}
                                 </select>
+                            </FormField>
+                            <FormField label="Expires On" hint="Leave blank to keep open indefinitely">
+                                <input className="form-input" type="date" disabled={readOnly} value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} />
                             </FormField>
                             <FormField label="Admin Note" className="md:col-span-2">
                                 <textarea className="form-textarea" disabled={readOnly} value={form.adminNote} onChange={(e) => setForm({ ...form, adminNote: e.target.value })} />

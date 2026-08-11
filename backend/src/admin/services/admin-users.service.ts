@@ -111,6 +111,10 @@ export class AdminUsersService {
         mobile_verified: !!mobile,
         rbac_role_id: rbacRoleId,
         blood_group: dto.bloodGroup,
+        gender: dto.gender,
+        date_of_birth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
+        bio: dto.bio,
+        is_available_donor: dto.isAvailableDonor ?? false,
       },
       include: { rbac_role: true },
     });
@@ -161,6 +165,10 @@ export class AdminUsersService {
       ...(dto.role !== undefined && { role: dto.role }),
       ...(dto.status !== undefined && { status: dto.status }),
       ...(dto.bloodGroup !== undefined && { blood_group: dto.bloodGroup }),
+      ...(dto.gender !== undefined && { gender: dto.gender }),
+      ...(dto.dateOfBirth !== undefined && { date_of_birth: new Date(dto.dateOfBirth) }),
+      ...(dto.bio !== undefined && { bio: dto.bio }),
+      ...(dto.isAvailableDonor !== undefined && { is_available_donor: dto.isAvailableDonor }),
       ...(rbacRoleId !== undefined && {
         rbac_role: rbacRoleId
           ? { connect: { id: rbacRoleId } }
@@ -312,6 +320,10 @@ export class AdminUsersService {
       role: user.role,
       status: user.status,
       bloodGroup: user.blood_group,
+      gender: user.gender,
+      dateOfBirth: user.date_of_birth,
+      bio: user.bio,
+      isAvailableDonor: user.is_available_donor,
       emailVerified: user.email_verified,
       mobileVerified: user.mobile_verified,
       profilePicture: user.profile_image_url,

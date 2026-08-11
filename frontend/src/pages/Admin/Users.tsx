@@ -14,6 +14,7 @@ const ACCOUNT_TYPES = ['USER', 'SELLER', 'ADMIN', 'SUPER_ADMIN'] as const;
 const STATUSES = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'BANNED', 'PENDING_VERIFICATION'];
 const STAFF_ACCOUNT_TYPES = new Set(['ADMIN', 'SUPER_ADMIN']);
 const BLOOD_GROUPS = ['A_POSITIVE', 'A_NEGATIVE', 'B_POSITIVE', 'B_NEGATIVE', 'AB_POSITIVE', 'AB_NEGATIVE', 'O_POSITIVE', 'O_NEGATIVE'];
+const GENDERS = ['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY'];
 
 type Mode = 'create' | 'edit';
 
@@ -26,6 +27,10 @@ const emptyForm = {
     rbacRoleId: '',
     status: 'ACTIVE',
     bloodGroup: '',
+    gender: '',
+    dateOfBirth: '',
+    bio: '',
+    isAvailableDonor: false,
     profilePicture: '' as string | null,
 };
 
@@ -42,7 +47,6 @@ export default function AdminUsers() {
     const [pageSize, setPageSize] = useState(20);
     const [loading, setLoading] = useState(false);
     const [busy, setBusy] = useState(false);
-    const [error, setError] = useState('');
     const [mode, setMode] = useState<Mode | null>(null);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState(emptyForm);
@@ -71,7 +75,6 @@ export default function AdminUsers() {
         const nextRbacRoleId = filters?.rbacRoleId ?? rbacRoleFilter;
         const nextStatus = filters?.status ?? statusFilter;
         setLoading(true);
-        setError('');
         try {
             const data = await adminApi.listUsers({
                 page,
@@ -84,7 +87,7 @@ export default function AdminUsers() {
             setItems(data.items);
             setMeta(data.meta);
         } catch (err) {
-            setError(getErrorMessage(err));
+            showAlert(getErrorMessage(err), 'error');
         } finally {
             setLoading(false);
         }
@@ -126,6 +129,10 @@ export default function AdminUsers() {
             rbacRoleId: user.rbacRole?.id ?? user.rbacRoleId ?? '',
             status: user.status,
             bloodGroup: user.bloodGroup ?? '',
+            gender: user.gender ?? '',
+            dateOfBirth: user.dateOfBirth ? user.dateOfBirth.slice(0, 10) : '',
+            bio: user.bio ?? '',
+            isAvailableDonor: user.isAvailableDonor ?? false,
             profilePicture: user.profilePicture ?? null,
         });
         setPendingImage(null);
@@ -134,12 +141,9 @@ export default function AdminUsers() {
 
     const submit = async (event: FormEvent) => {
         event.preventDefault();
-        setError('');
 
         if (STAFF_ACCOUNT_TYPES.has(form.role) && !form.rbacRoleId) {
-            const message = 'RBAC role is required for Admin and Super Admin';
-            setError(message);
-            showAlert(message, 'error');
+            showAlert('RBAC role is required for Admin and Super Admin', 'error');
             return;
         }
 
@@ -147,18 +151,21 @@ export default function AdminUsers() {
         try {
             const body: Record<string, unknown> = {
                 fullName: form.fullName,
-                email: form.email,
                 role: form.role,
                 status: form.status,
                 rbacRoleId: STAFF_ACCOUNT_TYPES.has(form.role) ? form.rbacRoleId : null,
                 bloodGroup: form.bloodGroup || null,
+                gender: form.gender || undefined,
+                dateOfBirth: form.dateOfBirth || undefined,
+                bio: form.bio || undefined,
+                isAvailableDonor: form.isAvailableDonor,
             };
+            if (form.email) body.email = form.email;
             if (form.mobile) body.mobile = form.mobile;
             if (form.password) body.password = form.password;
             let id = editingId;
             if (mode === 'create') {
                 if (!form.password) {
-                    setError('Password is required for new users');
                     showAlert('Password is required for new users', 'error');
                     return;
                 }
@@ -177,9 +184,7 @@ export default function AdminUsers() {
             selection.clear();
             await load(meta.page, pageSize);
         } catch (err) {
-            const message = getErrorMessage(err);
-            setError(message);
-            showAlert(message, 'error');
+            showAlert(getErrorMessage(err), 'error');
         } finally {
             setBusy(false);
         }
@@ -266,8 +271,6 @@ export default function AdminUsers() {
                     </>
                 }
             />
-
-            {error ? <div className="mb-4 rounded bg-danger-light p-3 text-danger">{error}</div> : null}
 
             <BulkActionsBar count={selection.selectedIds.length} onClear={selection.clear} onBulkDelete={bulkDelete} />
 
@@ -391,11 +394,11 @@ export default function AdminUsers() {
                                 onChange={(e) => setForm({ ...form, fullName: e.target.value })}
                             />
                         </FormField>
-                        <FormField label="Email" required>
+                        <FormField label="Email" required={mode === 'create'} hint={mode === 'edit' && !form.email ? 'This user signed up with mobile only — leave blank to keep it that way' : undefined}>
                             <input
                                 className="form-input"
                                 type="email"
-                                required
+                                required={mode === 'create'}
                                 value={form.email}
                                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                             />
@@ -466,6 +469,33 @@ export default function AdminUsers() {
                                     </option>
                                 ))}
                             </select>
+                        </FormField>
+                        <FormField label="Gender">
+                            <select className="form-select" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}>
+                                <option value="">Unspecified</option>
+                                {GENDERS.map((gender) => (
+                                    <option key={gender} value={gender}>
+                                        {gender.replace(/_/g, ' ')}
+                                    </option>
+                                ))}
+                            </select>
+                        </FormField>
+                        <FormField label="Date of Birth">
+                            <input className="form-input" type="date" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} />
+                        </FormField>
+                        <FormField label="Available Donor">
+                            <label className="flex items-center gap-2 cursor-pointer h-[38px]">
+                                <input
+                                    type="checkbox"
+                                    className="form-checkbox"
+                                    checked={form.isAvailableDonor}
+                                    onChange={(e) => setForm({ ...form, isAvailableDonor: e.target.checked })}
+                                />
+                                Listed as an available blood donor
+                            </label>
+                        </FormField>
+                        <FormField label="Bio" className="md:col-span-2">
+                            <textarea className="form-textarea" value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
                         </FormField>
                         {isStaffAccount ? (
                             <FormField

@@ -10,7 +10,7 @@ import AdminFormModal from '../../components/Admin/AdminFormModal';
 import { FormField, FormSection, RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
 import { confirmAction, showAlert } from '../../utils/alerts';
 
-type Mode = 'create' | 'edit' | 'view';
+type Mode = 'create' | 'edit';
 
 const emptyForm = {
     name: '',
@@ -22,6 +22,8 @@ const emptyForm = {
     contactName: '',
     contactMobile: '',
     contactEmail: '',
+    latitude: '',
+    longitude: '',
     sheetUrl: '',
     isActive: true,
 };
@@ -87,6 +89,8 @@ export default function AdminHospitals() {
             contactName: hospital.contactName ?? '',
             contactMobile: hospital.contactMobile ?? '',
             contactEmail: hospital.contactEmail ?? '',
+            latitude: hospital.latitude != null ? String(hospital.latitude) : '',
+            longitude: hospital.longitude != null ? String(hospital.longitude) : '',
             sheetUrl: hospital.sheetUrl ?? '',
             isActive: hospital.isActive,
         });
@@ -107,6 +111,8 @@ export default function AdminHospitals() {
                 contactName: form.contactName || undefined,
                 contactMobile: form.contactMobile || undefined,
                 contactEmail: form.contactEmail || undefined,
+                latitude: form.latitude ? Number(form.latitude) : undefined,
+                longitude: form.longitude ? Number(form.longitude) : undefined,
                 sheetUrl: form.sheetUrl || undefined,
                 isActive: form.isActive,
             };
@@ -154,7 +160,6 @@ export default function AdminHospitals() {
         }
     };
 
-    const readOnly = mode === 'view';
 
     return (
         <div>
@@ -236,31 +241,30 @@ export default function AdminHospitals() {
 
             <AdminFormModal
                 open={mode !== null}
-                title={mode === 'create' ? 'Add Hospital' : mode === 'edit' ? 'Edit Hospital' : 'View Hospital'}
+                title={mode === 'create' ? 'Add Hospital' : 'Edit Hospital'}
                 onClose={() => setMode(null)}
                 onSubmit={submit}
-                readOnly={readOnly}
                 busy={busy}
             >
                 <FormSection title="Hospital details" className="md:col-span-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <FormField label="Name" required>
-                            <input className="form-input" required disabled={readOnly} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                            <input className="form-input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                         </FormField>
                         <FormField label="Registration No.">
-                            <input className="form-input" disabled={readOnly} value={form.registrationNo} onChange={(e) => setForm({ ...form, registrationNo: e.target.value })} />
+                            <input className="form-input" value={form.registrationNo} onChange={(e) => setForm({ ...form, registrationNo: e.target.value })} />
                         </FormField>
                         <FormField label="Address" className="md:col-span-2" required>
-                            <textarea className="form-textarea" required disabled={readOnly} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+                            <textarea className="form-textarea" required value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
                         </FormField>
                         <FormField label="City" required>
-                            <input className="form-input" required disabled={readOnly} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+                            <input className="form-input" required value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
                         </FormField>
                         <FormField label="State" required>
-                            <input className="form-input" required disabled={readOnly} value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+                            <input className="form-input" required value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
                         </FormField>
                         <FormField label="Postal Code">
-                            <input className="form-input" disabled={readOnly} value={form.postalCode} onChange={(e) => setForm({ ...form, postalCode: e.target.value })} />
+                            <input className="form-input" value={form.postalCode} onChange={(e) => setForm({ ...form, postalCode: e.target.value })} />
                         </FormField>
                         <FormField label="Active">
                             <div className="flex items-center h-[38px]">
@@ -268,7 +272,7 @@ export default function AdminHospitals() {
                                     <input
                                         type="checkbox"
                                         className="form-checkbox"
-                                        disabled={readOnly}
+                                       
                                         checked={form.isActive}
                                         onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
                                     />
@@ -277,16 +281,34 @@ export default function AdminHospitals() {
                             </div>
                         </FormField>
                         <FormField label="Contact Name">
-                            <input className="form-input" disabled={readOnly} value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })} />
+                            <input className="form-input" value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })} />
                         </FormField>
                         <FormField label="Contact Mobile">
-                            <input className="form-input" disabled={readOnly} value={form.contactMobile} onChange={(e) => setForm({ ...form, contactMobile: e.target.value })} />
+                            <input className="form-input" value={form.contactMobile} onChange={(e) => setForm({ ...form, contactMobile: e.target.value })} />
                         </FormField>
                         <FormField label="Contact Email">
-                            <input className="form-input" type="email" disabled={readOnly} value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} />
+                            <input className="form-input" type="email" value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} />
+                        </FormField>
+                        <FormField label="Latitude" hint="Used for map/distance features">
+                            <input
+                                className="form-input"
+                                type="number"
+                                step="any"
+                                value={form.latitude}
+                                onChange={(e) => setForm({ ...form, latitude: e.target.value })}
+                            />
+                        </FormField>
+                        <FormField label="Longitude">
+                            <input
+                                className="form-input"
+                                type="number"
+                                step="any"
+                                value={form.longitude}
+                                onChange={(e) => setForm({ ...form, longitude: e.target.value })}
+                            />
                         </FormField>
                         <FormField label="Connected Sheet URL" className="md:col-span-2" hint="Google Sheet link the hospital logs donations in, used for reconciliation">
-                            <input className="form-input" disabled={readOnly} value={form.sheetUrl} onChange={(e) => setForm({ ...form, sheetUrl: e.target.value })} />
+                            <input className="form-input" value={form.sheetUrl} onChange={(e) => setForm({ ...form, sheetUrl: e.target.value })} />
                         </FormField>
                     </div>
                 </FormSection>

@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsBoolean,
+  IsDateString,
   IsEmail,
   IsEnum,
   IsInt,
@@ -8,14 +10,14 @@ import {
   IsUUID,
   Matches,
   Max,
+  MaxLength,
   Min,
   MinLength,
-  MaxLength,
   ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { INDIAN_MOBILE_REGEX } from '../../common/constants';
-import { blood_group, user_role, user_status } from '../../../generated/prisma/client';
+import { blood_group, gender, user_role, user_status } from '../../../generated/prisma/client';
 
 const STAFF_ACCOUNT_TYPES: user_role[] = [
   user_role.ADMIN,
@@ -108,6 +110,26 @@ export class CreateAdminUserDto {
   @IsOptional()
   @IsEnum(blood_group)
   bloodGroup?: blood_group;
+
+  @ApiPropertyOptional({ enum: gender })
+  @IsOptional()
+  @IsEnum(gender)
+  gender?: gender;
+
+  @ApiPropertyOptional({ example: '1990-01-01' })
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  bio?: string;
+
+  @ApiPropertyOptional({ description: 'Whether this user is currently listed as an available blood donor' })
+  @IsOptional()
+  @IsBoolean()
+  isAvailableDonor?: boolean;
 }
 
 export class UpdateAdminUserDto {
@@ -163,4 +185,24 @@ export class UpdateAdminUserDto {
   @ValidateIf((_, value) => value !== null)
   @IsEnum(blood_group)
   bloodGroup?: blood_group | null;
+
+  @ApiPropertyOptional({ enum: gender })
+  @IsOptional()
+  @IsEnum(gender)
+  gender?: gender;
+
+  @ApiPropertyOptional({ example: '1990-01-01' })
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  bio?: string;
+
+  @ApiPropertyOptional({ description: 'Whether this user is currently listed as an available blood donor' })
+  @IsOptional()
+  @IsBoolean()
+  isAvailableDonor?: boolean;
 }

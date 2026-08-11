@@ -16,6 +16,7 @@ const BLOOD_GROUPS = ['A_POSITIVE', 'A_NEGATIVE', 'B_POSITIVE', 'B_NEGATIVE', 'A
 
 const emptyForm = {
     userId: '',
+    donorLabel: '',
     donationType: 'hospital' as 'hospital' | 'camp',
     hospitalId: '',
     campaignId: '',
@@ -46,9 +47,24 @@ export default function AdminAppointments() {
     const [form, setForm] = useState(emptyForm);
     const [hospitals, setHospitals] = useState<any[]>([]);
     const [campaigns, setCampaigns] = useState<any[]>([]);
+    const [donorSearch, setDonorSearch] = useState('');
+    const [donorResults, setDonorResults] = useState<any[]>([]);
 
     const ids = useMemo(() => items.map((item) => item.id), [items]);
     const selection = useRowSelection(ids);
+
+    const searchDonors = async () => {
+        if (!donorSearch.trim()) {
+            setDonorResults([]);
+            return;
+        }
+        try {
+            const data = await adminApi.listUsers({ search: donorSearch, limit: 10 });
+            setDonorResults(data.items);
+        } catch (err) {
+            showAlert(getErrorMessage(err), 'error');
+        }
+    };
 
     const load = async (page = 1, size = pageSize, filters?: { search?: string; status?: string }) => {
         const nextSearch = filters?.search ?? search;
@@ -88,6 +104,8 @@ export default function AdminAppointments() {
     const openCreate = () => {
         setEditingId(null);
         setForm(emptyForm);
+        setDonorSearch('');
+        setDonorResults([]);
         setMode('create');
     };
 
@@ -95,6 +113,7 @@ export default function AdminAppointments() {
         setEditingId(appointment.id);
         setForm({
             userId: appointment.donorId,
+            donorLabel: appointment.donor?.fullName ?? appointment.donorId,
             donationType: appointment.campaignId ? 'camp' : 'hospital',
             hospitalId: appointment.hospitalId ?? '',
             campaignId: appointment.campaignId ?? '',
@@ -114,6 +133,10 @@ export default function AdminAppointments() {
 
     const submit = async (event: FormEvent) => {
         event.preventDefault();
+        if (mode === 'create' && !form.userId) {
+            showAlert('Select a donor first', 'error');
+            return;
+        }
         setBusy(true);
         setError('');
         try {
@@ -293,8 +316,55 @@ export default function AdminAppointments() {
                 <FormSection title="Appointment details" className="md:col-span-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         {mode === 'create' ? (
-                            <FormField label="Donor User ID" required className="md:col-span-2" hint="UUID of the donor this appointment is booked for">
-                                <input className="form-input" required value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })} />
+                            <FormField label="Donor" required className="md:col-span-2" hint="Search by name, email or mobile">
+                                {form.userId ? (
+                                    <div className="flex items-center justify-between rounded border border-[#ebedf2] p-2 dark:border-[#191e3a]">
+                                        <span>{form.donorLabel}</span>
+                                        <button type="button" className="btn btn-outline-dark btn-sm" onClick={() => setForm({ ...form, userId: '', donorLabel: '' })}>
+                                            Change
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                className="form-input"
+                                                value={donorSearch}
+                                                onChange={(e) => setDonorSearch(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        searchDonors();
+                                                    }
+                                                }}
+                                            />
+                                            <button type="button" className="btn btn-primary btn-sm" onClick={searchDonors}>
+                                                Search
+                                            </button>
+                                        </div>
+                                        {donorResults.length > 0 ? (
+                                            <ul className="mt-2 max-h-40 overflow-y-auto rounded border border-[#ebedf2] dark:border-[#191e3a]">
+                                                {donorResults.map((donor) => (
+                                                    <li key={donor.id}>
+                                                        <button
+                                                            type="button"
+                                                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-[#191e3a]"
+                                                            onClick={() =>
+                                                                setForm({
+                                                                    ...form,
+                                                                    userId: donor.id,
+                                                                    donorLabel: `${donor.fullName} (${donor.email ?? donor.mobile ?? ''})`,
+                                                                })
+                                                            }
+                                                        >
+                                                            {donor.fullName} — {donor.email ?? donor.mobile ?? ''}
+                                                        </button>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : null}
+                                    </div>
+                                )}
                             </FormField>
                         ) : null}
                         <FormField label="Donated At">
