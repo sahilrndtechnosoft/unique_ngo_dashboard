@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { setPageTitle } from '../../store/themeConfigSlice';
 import { adminApi } from '../../services/admin.service';
 import { getErrorMessage, mediaUrl } from '../../services/api';
@@ -31,6 +32,7 @@ const emptyForm = {
 
 export default function AdminProducts() {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
     const [items, setItems] = useState<any[]>([]);
     const [categories, setCategories] = useState<any[]>([]);
     const [sellers, setSellers] = useState<any[]>([]);
@@ -369,13 +371,7 @@ export default function AdminProducts() {
                 actions={(row) => (
                     <RowActionsMenu
                         actions={[
-                            {
-                                label: 'View',
-                                onClick: () => {
-                                    fillForm(row);
-                                    setMode('view');
-                                },
-                            },
+                            { label: 'View', onClick: () => navigate(`/admin/products/${row.id}`) },
                             {
                                 label: 'Edit',
                                 onClick: () => {

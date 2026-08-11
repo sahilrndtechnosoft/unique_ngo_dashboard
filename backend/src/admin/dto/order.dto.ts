@@ -32,6 +32,16 @@ export class ListAdminOrdersQueryDto {
   @IsOptional()
   @IsUUID()
   sellerId?: string;
+
+  @ApiPropertyOptional({ description: 'Filter to orders placed by a specific buyer' })
+  @IsOptional()
+  @IsUUID()
+  buyerId?: string;
+
+  @ApiPropertyOptional({ description: 'Filter to orders that contain a specific product' })
+  @IsOptional()
+  @IsUUID()
+  productId?: string;
 }
 
 export class UpdateOrderStatusDto {

@@ -44,6 +44,7 @@ export const adminApi = {
 
     listCategories: (params?: Record<string, unknown>) =>
         api.get('/admin/categories', { params }).then((r) => unwrap<Paginated<any>>(r)),
+    getCategory: (id: string) => api.get(`/admin/categories/${id}`).then((r) => unwrap(r)),
     createCategory: (body: Record<string, unknown>) =>
         api.post('/admin/categories', body).then((r) => unwrap(r)),
     updateCategory: (id: string, body: Record<string, unknown>) =>
@@ -193,8 +194,12 @@ export const adminApi = {
         api.patch(`/admin/blood-requests/${id}`, body).then((r) => unwrap(r)),
     deleteBloodRequest: (id: string) => api.delete(`/admin/blood-requests/${id}`).then((r) => unwrap(r)),
 
-    broadcastNotification: (body: { bloodGroups: string[]; title: string; body: string }) =>
+    broadcastNotification: (body: { target: string; bloodGroups?: string[]; userIds?: string[]; title: string; body: string }) =>
         api.post('/admin/notifications/broadcast', body).then((r) => unwrap<{ matchedUsers: number; targeted: number; delivered: number }>(r)),
+    listNotifications: (params?: Record<string, unknown>) =>
+        api.get('/admin/notifications', { params }).then((r) => unwrap<Paginated<any>>(r)),
+    getNotification: (id: string) => api.get(`/admin/notifications/${id}`).then((r) => unwrap(r)),
+    deleteNotification: (id: string) => api.delete(`/admin/notifications/${id}`).then((r) => unwrap(r)),
 
     listCoupons: (params?: Record<string, unknown>) =>
         api.get('/admin/coupons', { params }).then((r) => unwrap<Paginated<any>>(r)),

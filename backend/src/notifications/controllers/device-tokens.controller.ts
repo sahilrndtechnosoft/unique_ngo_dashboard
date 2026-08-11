@@ -34,4 +34,17 @@ export class DeviceTokensController {
   listMyNotifications(@CurrentUser() user: JwtPayload, @Query() query: ListNotificationsQueryDto) {
     return this.notificationsService.listMyNotifications(user.sub, query);
   }
+
+  @Get(':id')
+  @ResponseMessage('Notification fetched successfully')
+  getMyNotification(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.notificationsService.getMyNotification(user.sub, id);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  @ResponseMessage('Notification deleted successfully')
+  deleteMyNotification(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.notificationsService.deleteMyNotification(user.sub, id);
+  }
 }

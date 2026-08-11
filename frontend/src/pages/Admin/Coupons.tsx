@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { setPageTitle } from '../../store/themeConfigSlice';
 import { adminApi } from '../../services/admin.service';
 import { getErrorMessage } from '../../services/api';
@@ -9,7 +10,7 @@ import AdminFormModal from '../../components/Admin/AdminFormModal';
 import { FormField, FormSection, RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
 import { confirmAction, showAlert } from '../../utils/alerts';
 
-type Mode = 'create' | 'edit' | 'view';
+type Mode = 'create' | 'edit';
 
 const DISCOUNT_TYPES = ['PERCENTAGE', 'FLAT'];
 
@@ -30,6 +31,7 @@ const emptyForm = {
 
 export default function AdminCoupons() {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
     const [items, setItems] = useState<any[]>([]);
     const [meta, setMeta] = useState({ page: 1, total: 0, totalPages: 1 });
     const [search, setSearch] = useState('');
@@ -41,7 +43,6 @@ export default function AdminCoupons() {
     const [mode, setMode] = useState<Mode | null>(null);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState(emptyForm);
-    const [usages, setUsages] = useState<any[]>([]);
 
     const ids = useMemo(() => items.map((item) => item.id), [items]);
     const selection = useRowSelection(ids);
@@ -82,7 +83,6 @@ export default function AdminCoupons() {
     const openCreate = () => {
         setEditingId(null);
         setForm(emptyForm);
-        setUsages([]);
         setMode('create');
     };
 
@@ -102,17 +102,6 @@ export default function AdminCoupons() {
             expiresAt: coupon.expiresAt ? coupon.expiresAt.slice(0, 10) : '',
             isActive: coupon.isActive,
         });
-    };
-
-    const openView = async (coupon: any) => {
-        fillForm(coupon);
-        setMode('view');
-        try {
-            const data = await adminApi.getCouponUsages(coupon.id);
-            setUsages(data);
-        } catch {
-            setUsages([]);
-        }
     };
 
     const submit = async (event: FormEvent) => {
@@ -186,8 +175,6 @@ export default function AdminCoupons() {
             showAlert(getErrorMessage(err), 'error');
         }
     };
-
-    const readOnly = mode === 'view';
 
     return (
         <div>
@@ -277,7 +264,7 @@ export default function AdminCoupons() {
                 actions={(row) => (
                     <RowActionsMenu
                         actions={[
-                            { label: 'View', onClick: () => openView(row) },
+                            { label: 'View', onClick: () => navigate(`/admin/coupons/${row.id}`) },
                             {
                                 label: 'Edit',
                                 onClick: () => {
@@ -294,10 +281,9 @@ export default function AdminCoupons() {
 
             <AdminFormModal
                 open={mode !== null}
-                title={mode === 'create' ? 'Add Coupon' : mode === 'edit' ? 'Edit Coupon' : 'View Coupon'}
+                title={mode === 'create' ? 'Add Coupon' : 'Edit Coupon'}
                 onClose={() => setMode(null)}
                 onSubmit={submit}
-                readOnly={readOnly}
                 busy={busy}
                 size="xl"
             >
@@ -307,19 +293,19 @@ export default function AdminCoupons() {
                             <input
                                 className="form-input"
                                 required
-                                disabled={readOnly || mode === 'edit'}
+                                disabled={mode === 'edit'}
                                 value={form.code}
                                 onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
                             />
                         </FormField>
                         <FormField label="Applicable To">
-                            <input className="form-input" disabled={readOnly} value={form.applicableTo} onChange={(e) => setForm({ ...form, applicableTo: e.target.value })} />
+                            <input className="form-input" value={form.applicableTo} onChange={(e) => setForm({ ...form, applicableTo: e.target.value })} />
                         </FormField>
                         <FormField label="Description" className="md:col-span-2">
-                            <textarea className="form-textarea" disabled={readOnly} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                            <textarea className="form-textarea" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
                         </FormField>
                         <FormField label="Discount Type" required>
-                            <select className="form-select" required disabled={readOnly} value={form.discountType} onChange={(e) => setForm({ ...form, discountType: e.target.value })}>
+                            <select className="form-select" required value={form.discountType} onChange={(e) => setForm({ ...form, discountType: e.target.value })}>
                                 {DISCOUNT_TYPES.map((type) => (
                                     <option key={type} value={type}>
                                         {type}
@@ -333,7 +319,7 @@ export default function AdminCoupons() {
                                 type="number"
                                 min={0}
                                 required
-                                disabled={readOnly}
+                               
                                 value={form.discountValue}
                                 onChange={(e) => setForm({ ...form, discountValue: e.target.value })}
                             />
@@ -343,7 +329,7 @@ export default function AdminCoupons() {
                                 className="form-input"
                                 type="number"
                                 min={0}
-                                disabled={readOnly}
+                               
                                 value={form.minOrderValue}
                                 onChange={(e) => setForm({ ...form, minOrderValue: e.target.value })}
                             />
@@ -353,7 +339,7 @@ export default function AdminCoupons() {
                                 className="form-input"
                                 type="number"
                                 min={0}
-                                disabled={readOnly}
+                               
                                 value={form.maxDiscount}
                                 onChange={(e) => setForm({ ...form, maxDiscount: e.target.value })}
                             />
@@ -363,7 +349,7 @@ export default function AdminCoupons() {
                                 className="form-input"
                                 type="number"
                                 min={1}
-                                disabled={readOnly}
+                               
                                 value={form.usageLimit}
                                 onChange={(e) => setForm({ ...form, usageLimit: e.target.value })}
                             />
@@ -374,45 +360,27 @@ export default function AdminCoupons() {
                                 type="number"
                                 min={1}
                                 required
-                                disabled={readOnly}
+                               
                                 value={form.perUserLimit}
                                 onChange={(e) => setForm({ ...form, perUserLimit: e.target.value })}
                             />
                         </FormField>
                         <FormField label="Starts At">
-                            <input className="form-input" type="date" disabled={readOnly} value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} />
+                            <input className="form-input" type="date" value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} />
                         </FormField>
                         <FormField label="Expires At">
-                            <input className="form-input" type="date" disabled={readOnly} value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} />
+                            <input className="form-input" type="date" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} />
                         </FormField>
                         {mode !== 'create' ? (
                             <FormField label="Active">
                                 <label className="flex items-center gap-2 cursor-pointer h-[38px]">
-                                    <input type="checkbox" className="form-checkbox" disabled={readOnly} checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />
+                                    <input type="checkbox" className="form-checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />
                                     Coupon is active
                                 </label>
                             </FormField>
                         ) : null}
                     </div>
                 </FormSection>
-
-                {mode === 'view' ? (
-                    <FormSection title={`Usage History (${usages.length})`} className="md:col-span-2">
-                        {usages.length === 0 ? (
-                            <p className="text-sm text-white-dark italic">Not used by any customer yet</p>
-                        ) : (
-                            <div className="space-y-2">
-                                {usages.map((usage) => (
-                                    <div key={usage.id} className="flex items-center justify-between text-sm border-b border-[#ebedf2] dark:border-[#191e3a] pb-2">
-                                        <span>{usage.user?.fullName ?? usage.user?.email ?? 'Unknown user'}</span>
-                                        <span className="text-white-dark">₹{usage.discount}</span>
-                                        <span className="text-white-dark">{new Date(usage.usedAt).toLocaleDateString()}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </FormSection>
-                ) : null}
             </AdminFormModal>
         </div>
     );

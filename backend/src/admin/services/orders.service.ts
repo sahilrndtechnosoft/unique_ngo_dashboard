@@ -20,6 +20,15 @@ export class AdminOrdersService {
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
+    let matchingOrderIdsForProduct: string[] | undefined;
+    if (query.productId) {
+      const items = await this.prisma.order_items.findMany({
+        where: { product_id: query.productId },
+        select: { order_id: true },
+      });
+      matchingOrderIdsForProduct = [...new Set(items.map((item) => item.order_id))];
+    }
+
     let matchingBuyerIds: string[] | undefined;
     if (query.search) {
       const buyers = await this.prisma.users.findMany({
@@ -40,6 +49,8 @@ export class AdminOrdersService {
       ...(query.status ? { status: query.status } : {}),
       ...(options?.sellerId ? { seller_id: options.sellerId } : {}),
       ...(query.sellerId && !options?.sellerId ? { seller_id: query.sellerId } : {}),
+      ...(query.buyerId ? { buyer_id: query.buyerId } : {}),
+      ...(query.productId ? { id: { in: matchingOrderIdsForProduct } } : {}),
       ...(query.search
         ? {
             OR: [

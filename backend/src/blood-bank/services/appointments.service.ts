@@ -108,6 +108,8 @@ export class AppointmentsService {
     const where: Prisma.blood_donation_appointmentsWhereInput = {
       ...(options?.donorId ? { donor_id: options.donorId } : {}),
       ...(query.status ? { status: query.status } : {}),
+      ...(query.hospitalId ? { hospital_id: query.hospitalId } : {}),
+      ...(query.campaignId ? { campaign_id: query.campaignId } : {}),
       ...(query.search ? { donor_id: options?.donorId ? options.donorId : { in: matchingDonorIds } } : {}),
     };
 

@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { setPageTitle } from '../../store/themeConfigSlice';
 import { adminApi } from '../../services/admin.service';
 import { getErrorMessage } from '../../services/api';
 import { useRowSelection } from '../../hooks/useRowSelection';
 import { AdminDataTable, AdminPageHeader } from '../../components/Admin/AdminTable';
-import AdminFormModal from '../../components/Admin/AdminFormModal';
-import { FormField, FormSection, RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
+import { RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
 import { showAlert } from '../../utils/alerts';
 
 const STATUSES = [
@@ -23,16 +23,14 @@ const STATUSES = [
 
 export default function AdminOrders() {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
     const [items, setItems] = useState<any[]>([]);
     const [meta, setMeta] = useState({ page: 1, total: 0, totalPages: 1 });
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [pageSize, setPageSize] = useState(20);
     const [loading, setLoading] = useState(false);
-    const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
-    const [selectedOrder, setSelectedOrder] = useState<any>(null);
-    const [statusForm, setStatusForm] = useState({ status: '', note: '', location: '' });
 
     const ids = useMemo(() => items.map((item) => item.id), [items]);
     const selection = useRowSelection(ids);
@@ -69,40 +67,6 @@ export default function AdminOrders() {
         load();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    const viewOrder = async (id: string) => {
-        setBusy(true);
-        try {
-            const order = (await adminApi.getOrder(id)) as any;
-            setSelectedOrder(order);
-            setStatusForm({ status: order.status, note: '', location: '' });
-        } catch (err) {
-            showAlert(getErrorMessage(err), 'error');
-        } finally {
-            setBusy(false);
-        }
-    };
-
-    const closeView = () => setSelectedOrder(null);
-
-    const updateStatus = async () => {
-        if (!selectedOrder) return;
-        setBusy(true);
-        try {
-            const updated = await adminApi.updateOrderStatus(selectedOrder.id, {
-                status: statusForm.status,
-                note: statusForm.note || undefined,
-                location: statusForm.location || undefined,
-            });
-            setSelectedOrder(updated);
-            showAlert('Order status updated successfully');
-            await load(meta.page, pageSize);
-        } catch (err) {
-            showAlert(getErrorMessage(err), 'error');
-        } finally {
-            setBusy(false);
-        }
-    };
 
     return (
         <div>
@@ -207,134 +171,9 @@ export default function AdminOrders() {
                     load(1, size);
                 }}
                 actions={(row) => (
-                    <RowActionsMenu actions={[{ label: 'View', onClick: () => viewOrder(row.id) }]} />
+                    <RowActionsMenu actions={[{ label: 'View', onClick: () => navigate(`/admin/orders/${row.id}`) }]} />
                 )}
             />
-
-            <AdminFormModal open={selectedOrder !== null} title={`Order ${selectedOrder?.orderNumber ?? ''}`} onClose={closeView} readOnly size="xl">
-                {selectedOrder ? (
-                    <>
-                        <FormSection title="Overview">
-                            <div className="grid grid-cols-2 gap-3 text-sm">
-                                <div>
-                                    <div className="text-white-dark">Buyer</div>
-                                    <div>{selectedOrder.buyer?.fullName ?? '—'}</div>
-                                </div>
-                                <div>
-                                    <div className="text-white-dark">Seller</div>
-                                    <div>{selectedOrder.seller?.businessName ?? '—'}</div>
-                                </div>
-                                <div>
-                                    <div className="text-white-dark">Payment</div>
-                                    <div>
-                                        {selectedOrder.paymentMethod} · <StatusBadge status={selectedOrder.paymentStatus} />
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="text-white-dark">Total</div>
-                                    <div>₹{selectedOrder.totalAmount}</div>
-                                </div>
-                            </div>
-                        </FormSection>
-
-                        <FormSection title="Update status" className="mt-5">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <FormField label="Status">
-                                    <select
-                                        className="form-select"
-                                        value={statusForm.status}
-                                        onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value })}
-                                    >
-                                        {STATUSES.map((status) => (
-                                            <option key={status} value={status}>
-                                                {status}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </FormField>
-                                <FormField label="Location" hint="Optional, shown to buyer">
-                                    <input
-                                        className="form-input"
-                                        value={statusForm.location}
-                                        onChange={(e) => setStatusForm({ ...statusForm, location: e.target.value })}
-                                    />
-                                </FormField>
-                                <FormField label="Note" hint="Optional, shown to buyer">
-                                    <input
-                                        className="form-input"
-                                        value={statusForm.note}
-                                        onChange={(e) => setStatusForm({ ...statusForm, note: e.target.value })}
-                                    />
-                                </FormField>
-                            </div>
-                            <button type="button" className="btn btn-primary btn-sm mt-3" disabled={busy} onClick={updateStatus}>
-                                {busy ? 'Updating...' : 'Update status'}
-                            </button>
-                        </FormSection>
-
-                        <FormSection title="Items" className="mt-5 md:col-span-2">
-                            <div className="overflow-x-auto">
-                                <table className="table-striped text-sm">
-                                    <thead>
-                                        <tr>
-                                            <th>Product</th>
-                                            <th>Qty</th>
-                                            <th>Unit price</th>
-                                            <th>Total</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {(selectedOrder.items ?? []).map((item: any) => (
-                                            <tr key={item.id}>
-                                                <td>
-                                                    {item.productName}
-                                                    {item.variantName ? ` (${item.variantName})` : ''}
-                                                </td>
-                                                <td>{item.quantity}</td>
-                                                <td>₹{item.unitPrice}</td>
-                                                <td>₹{item.totalPrice}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </FormSection>
-
-                        {selectedOrder.shippingAddress ? (
-                            <FormSection title="Shipping address" className="mt-5">
-                                <div className="text-sm">
-                                    <div>{selectedOrder.shippingAddress.fullName}</div>
-                                    <div>{selectedOrder.shippingAddress.mobile}</div>
-                                    <div>
-                                        {selectedOrder.shippingAddress.addressLine1}
-                                        {selectedOrder.shippingAddress.addressLine2 ? `, ${selectedOrder.shippingAddress.addressLine2}` : ''}
-                                    </div>
-                                    <div>
-                                        {selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state} {selectedOrder.shippingAddress.postalCode}
-                                    </div>
-                                </div>
-                            </FormSection>
-                        ) : null}
-
-                        {selectedOrder.tracking?.events?.length ? (
-                            <FormSection title="Tracking history" className="mt-5 md:col-span-2">
-                                <ul className="space-y-2 text-sm">
-                                    {selectedOrder.tracking.events.map((event: any, index: number) => (
-                                        <li key={index} className="flex items-center justify-between border-b border-[#ebedf2] pb-2 dark:border-[#191e3a]">
-                                            <div>
-                                                <StatusBadge status={event.status} />
-                                                {event.location ? <span className="ml-2 text-white-dark">{event.location}</span> : null}
-                                                {event.description ? <span className="ml-2">{event.description}</span> : null}
-                                            </div>
-                                            <span className="text-xs text-white-dark">{new Date(event.occurredAt).toLocaleString()}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </FormSection>
-                        ) : null}
-                    </>
-                ) : null}
-            </AdminFormModal>
         </div>
     );
 }

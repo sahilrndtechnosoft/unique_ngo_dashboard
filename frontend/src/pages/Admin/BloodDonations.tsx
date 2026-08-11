@@ -40,6 +40,10 @@ const emptyDonationForm = {
     city: '',
     state: '',
     notes: '',
+    forSelf: true,
+    beneficiaryName: '',
+    beneficiaryMobile: '',
+    beneficiaryRelation: '',
 };
 
 export default function AdminBloodDonations() {
@@ -348,6 +352,10 @@ export default function AdminBloodDonations() {
             city: row.city ?? '',
             state: row.state ?? '',
             notes: row.notes ?? '',
+            forSelf: row.forSelf ?? true,
+            beneficiaryName: row.beneficiary?.name ?? '',
+            beneficiaryMobile: row.beneficiary?.mobile ?? '',
+            beneficiaryRelation: row.beneficiary?.relation ?? '',
         });
         setPendingFile(null);
         setCrudMode('edit');
@@ -385,6 +393,10 @@ export default function AdminBloodDonations() {
                 notes: donationForm.notes || undefined,
                 hospitalId: donationForm.donationType === 'hospital' ? donationForm.hospitalId || undefined : undefined,
                 campaignId: donationForm.donationType === 'camp' ? donationForm.campaignId || undefined : undefined,
+                forSelf: donationForm.forSelf,
+                beneficiaryName: donationForm.forSelf ? undefined : donationForm.beneficiaryName || undefined,
+                beneficiaryMobile: donationForm.forSelf ? undefined : donationForm.beneficiaryMobile || undefined,
+                beneficiaryRelation: donationForm.forSelf ? undefined : donationForm.beneficiaryRelation || undefined,
             };
             if (crudMode === 'create') {
                 await adminApi.createDonation({ ...body, userId: donationForm.userId }, pendingFile);
@@ -891,6 +903,47 @@ export default function AdminBloodDonations() {
                                     </div>
                                 )}
                             </FormField>
+                        ) : null}
+                        <FormField label="Who donated?" className="md:col-span-2">
+                            <div className="flex items-center gap-4 h-[38px]">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" checked={donationForm.forSelf} onChange={() => setDonationForm({ ...donationForm, forSelf: true })} />
+                                    The donor themselves
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" checked={!donationForm.forSelf} onChange={() => setDonationForm({ ...donationForm, forSelf: false })} />
+                                    A family member
+                                </label>
+                            </div>
+                        </FormField>
+                        {!donationForm.forSelf ? (
+                            <>
+                                <FormField label="Beneficiary Name" required>
+                                    <input
+                                        className="form-input"
+                                        required
+                                        value={donationForm.beneficiaryName}
+                                        onChange={(e) => setDonationForm({ ...donationForm, beneficiaryName: e.target.value })}
+                                    />
+                                </FormField>
+                                <FormField label="Beneficiary Mobile" required>
+                                    <input
+                                        className="form-input"
+                                        required
+                                        value={donationForm.beneficiaryMobile}
+                                        onChange={(e) => setDonationForm({ ...donationForm, beneficiaryMobile: e.target.value })}
+                                    />
+                                </FormField>
+                                <FormField label="Relation to Account Holder" required>
+                                    <input
+                                        className="form-input"
+                                        required
+                                        placeholder="e.g. Spouse, Parent, Friend"
+                                        value={donationForm.beneficiaryRelation}
+                                        onChange={(e) => setDonationForm({ ...donationForm, beneficiaryRelation: e.target.value })}
+                                    />
+                                </FormField>
+                            </>
                         ) : null}
                         <FormField label="Donated At">
                             <div className="flex items-center gap-4 h-[38px]">

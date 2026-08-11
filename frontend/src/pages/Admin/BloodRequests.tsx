@@ -17,6 +17,9 @@ const REQUEST_STATUSES = ['OPEN', 'PARTIALLY_FULFILLED', 'FULFILLED', 'CANCELLED
 
 const emptyForm = {
     userId: '',
+    requesterLabel: '',
+    forSelf: true,
+    patientRelation: '',
     patientName: '',
     bloodGroup: '',
     unitsRequired: '1',
@@ -49,9 +52,24 @@ export default function AdminBloodRequests() {
     const [mode, setMode] = useState<Mode | null>(null);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState(emptyForm);
+    const [requesterSearch, setRequesterSearch] = useState('');
+    const [requesterResults, setRequesterResults] = useState<any[]>([]);
 
     const ids = useMemo(() => items.map((item) => item.id), [items]);
     const selection = useRowSelection(ids);
+
+    const searchRequesters = async () => {
+        if (!requesterSearch.trim()) {
+            setRequesterResults([]);
+            return;
+        }
+        try {
+            const data = await adminApi.listUsers({ search: requesterSearch, limit: 10 });
+            setRequesterResults(data.items);
+        } catch (err) {
+            showAlert(getErrorMessage(err), 'error');
+        }
+    };
 
     const load = async (page = 1, size = pageSize, filters?: { search?: string; status?: string }) => {
         const nextSearch = filters?.search ?? search;
@@ -89,6 +107,8 @@ export default function AdminBloodRequests() {
     const openCreate = () => {
         setEditingId(null);
         setForm(emptyForm);
+        setRequesterSearch('');
+        setRequesterResults([]);
         setMode('create');
     };
 
@@ -96,6 +116,9 @@ export default function AdminBloodRequests() {
         setEditingId(request.id);
         setForm({
             userId: request.requesterId,
+            requesterLabel: request.requester ? `${request.requester.fullName} (${request.requester.email ?? request.requester.mobile ?? ''})` : request.requesterId,
+            forSelf: request.forSelf ?? true,
+            patientRelation: request.patientRelation ?? '',
             patientName: request.patientName,
             bloodGroup: request.bloodGroup,
             unitsRequired: String(request.unitsRequired),
@@ -122,6 +145,11 @@ export default function AdminBloodRequests() {
         setError('');
         try {
             if (mode === 'create') {
+                if (!form.userId) {
+                    showAlert('Select a requesting user first', 'error');
+                    setBusy(false);
+                    return;
+                }
                 await adminApi.createBloodRequest({
                     userId: form.userId,
                     patientName: form.patientName,
@@ -137,6 +165,8 @@ export default function AdminBloodRequests() {
                     requiredByDate: form.requiredByDate,
                     notes: form.notes || undefined,
                     isEmergency: form.isEmergency,
+                    forSelf: form.forSelf,
+                    patientRelation: form.forSelf ? undefined : form.patientRelation || undefined,
                 });
                 showAlert('Blood request created successfully');
             } else if (editingId) {
@@ -157,6 +187,8 @@ export default function AdminBloodRequests() {
                     isEmergency: form.isEmergency,
                     status: form.status,
                     adminNote: form.adminNote || undefined,
+                    forSelf: form.forSelf,
+                    patientRelation: form.forSelf ? undefined : form.patientRelation || undefined,
                 });
                 showAlert('Blood request updated successfully');
             }
@@ -341,11 +373,86 @@ export default function AdminBloodRequests() {
                 <FormSection title="Patient & Requester" className="md:col-span-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         {mode === 'create' ? (
-                            <FormField label="Requesting User ID" required hint="UUID of the user this request is raised for">
-                                <input className="form-input" required value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })} />
+                            <FormField label="Requesting User" required className="md:col-span-2" hint="Search by name, email or mobile">
+                                {form.userId ? (
+                                    <div className="flex items-center justify-between rounded border border-[#ebedf2] p-2 dark:border-[#191e3a]">
+                                        <span>{form.requesterLabel}</span>
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline-dark btn-sm"
+                                            onClick={() => setForm({ ...form, userId: '', requesterLabel: '' })}
+                                        >
+                                            Change
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                className="form-input"
+                                                value={requesterSearch}
+                                                onChange={(e) => setRequesterSearch(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        searchRequesters();
+                                                    }
+                                                }}
+                                            />
+                                            <button type="button" className="btn btn-primary btn-sm" onClick={searchRequesters}>
+                                                Search
+                                            </button>
+                                        </div>
+                                        {requesterResults.length > 0 ? (
+                                            <ul className="mt-2 max-h-40 overflow-y-auto rounded border border-[#ebedf2] dark:border-[#191e3a]">
+                                                {requesterResults.map((user) => (
+                                                    <li key={user.id}>
+                                                        <button
+                                                            type="button"
+                                                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-[#191e3a]"
+                                                            onClick={() =>
+                                                                setForm({
+                                                                    ...form,
+                                                                    userId: user.id,
+                                                                    requesterLabel: `${user.fullName} (${user.email ?? user.mobile ?? ''})`,
+                                                                })
+                                                            }
+                                                        >
+                                                            {user.fullName} — {user.email ?? user.mobile ?? ''}
+                                                        </button>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : null}
+                                    </div>
+                                )}
                             </FormField>
                         ) : null}
-                        <FormField label="Patient Name" required>
+                        <FormField label="Who is this for?" className="md:col-span-2">
+                            <div className="flex items-center gap-4 h-[38px]">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" disabled={readOnly} checked={form.forSelf} onChange={() => setForm({ ...form, forSelf: true })} />
+                                    The requester themselves
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" disabled={readOnly} checked={!form.forSelf} onChange={() => setForm({ ...form, forSelf: false })} />
+                                    A family member
+                                </label>
+                            </div>
+                        </FormField>
+                        {!form.forSelf ? (
+                            <FormField label="Relation to Requester" required>
+                                <input
+                                    className="form-input"
+                                    required
+                                    disabled={readOnly}
+                                    placeholder="e.g. Spouse, Parent, Child"
+                                    value={form.patientRelation}
+                                    onChange={(e) => setForm({ ...form, patientRelation: e.target.value })}
+                                />
+                            </FormField>
+                        ) : null}
+                        <FormField label={form.forSelf ? 'Patient Name' : "Family Member's Name"} required>
                             <input className="form-input" required disabled={readOnly} value={form.patientName} onChange={(e) => setForm({ ...form, patientName: e.target.value })} />
                         </FormField>
                         <FormField label="Blood Group" required>

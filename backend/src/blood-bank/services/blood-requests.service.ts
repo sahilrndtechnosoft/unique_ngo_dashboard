@@ -45,6 +45,8 @@ export class BloodRequestsService {
         notes: dto.notes,
         is_emergency: dto.isEmergency ?? false,
         proof_image_url: proofImageUrl,
+        for_self: dto.forSelf ?? true,
+        patient_relation: dto.forSelf === false ? dto.patientRelation : null,
       },
     });
 
@@ -154,6 +156,8 @@ export class BloodRequestsService {
         ...(dto.isEmergency !== undefined && { is_emergency: dto.isEmergency }),
         ...(dto.adminNote !== undefined && { admin_note: dto.adminNote }),
         ...(dto.expiresAt !== undefined && { expires_at: new Date(dto.expiresAt) }),
+        ...(dto.forSelf !== undefined && { for_self: dto.forSelf }),
+        ...(dto.patientRelation !== undefined && { patient_relation: dto.patientRelation }),
         ...(dto.status !== undefined && { status: dto.status, verified_by_id: request.verified_by_id ?? adminId }),
         updated_at: new Date(),
       },
@@ -256,6 +260,8 @@ export class BloodRequestsService {
       notes: request.notes,
       isEmergency: request.is_emergency,
       proofImageUrl: request.proof_image_url,
+      forSelf: request.for_self,
+      patientRelation: request.patient_relation,
       adminNote: request.admin_note,
       verifiedById: request.verified_by_id,
       expiresAt: request.expires_at,

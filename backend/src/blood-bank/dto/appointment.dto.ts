@@ -33,6 +33,16 @@ export class ListAppointmentsQueryDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({ description: 'Admin-only: filter to a specific hospital' })
+  @IsOptional()
+  @IsUUID()
+  hospitalId?: string;
+
+  @ApiPropertyOptional({ description: 'Admin-only: filter to a specific campaign' })
+  @IsOptional()
+  @IsUUID()
+  campaignId?: string;
 }
 
 export class CreateAppointmentDto {

@@ -1,8 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { notification_type, user_role } from '../../../generated/prisma/client';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { notification_type, notifications, Prisma, user_role } from '../../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { BroadcastByBloodGroupDto } from '../dto/broadcast.dto';
-import { ListNotificationsQueryDto } from '../dto/notification.dto';
+import { NotificationTarget, SendNotificationDto } from '../dto/broadcast.dto';
+import { ListAdminNotificationsQueryDto, ListNotificationsQueryDto } from '../dto/notification.dto';
 import { DeviceTokensService } from './device-tokens.service';
 import { FcmService } from './fcm.service';
 import { MailService } from './mail.service';
@@ -107,18 +107,28 @@ export class NotificationsService {
     return { targeted: uniqueUserIds.length, delivered: rows.filter((row) => row.sent_at !== null).length };
   }
 
-  async broadcastByBloodGroup(dto: BroadcastByBloodGroupDto) {
-    const users = await this.prisma.users.findMany({
-      where: { blood_group: { in: dto.bloodGroups }, deleted_at: null },
-      select: { id: true },
-    });
+  async broadcast(dto: SendNotificationDto) {
+    let userIds: string[];
+    let type: notification_type;
 
-    const result = await this.notifyUsers(
-      users.map((user) => user.id),
-      { type: 'BLOOD_REQUEST', title: dto.title, body: dto.body },
-    );
+    if (dto.target === NotificationTarget.BLOOD_GROUP) {
+      const users = await this.prisma.users.findMany({
+        where: { blood_group: { in: dto.bloodGroups }, deleted_at: null },
+        select: { id: true },
+      });
+      userIds = users.map((user) => user.id);
+      type = 'BLOOD_REQUEST';
+    } else if (dto.target === NotificationTarget.SPECIFIC_USERS) {
+      userIds = dto.userIds ?? [];
+      type = 'SYSTEM';
+    } else {
+      const users = await this.prisma.users.findMany({ where: { deleted_at: null }, select: { id: true } });
+      userIds = users.map((user) => user.id);
+      type = 'SYSTEM';
+    }
 
-    return { matchedUsers: users.length, ...result };
+    const result = await this.notifyUsers(userIds, { type, title: dto.title, body: dto.body });
+    return { matchedUsers: userIds.length, ...result };
   }
 
   /** Reusable entry point for other modules to email every admin/super-admin about a critical event. */
@@ -148,17 +158,97 @@ export class NotificationsService {
     ]);
 
     return {
-      items: rows.map((row) => ({
-        id: row.id,
-        type: row.type,
-        title: row.title,
-        body: row.body,
-        data: row.data,
-        isRead: row.is_read,
-        sentAt: row.sent_at,
-        createdAt: row.created_at,
-      })),
+      items: rows.map((row) => this.toPublic(row)),
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
+    };
+  }
+
+  async getMyNotification(userId: string, id: string) {
+    const row = await this.prisma.notifications.findFirst({ where: { id, user_id: userId } });
+    if (!row) {
+      throw new NotFoundException('Notification not found');
+    }
+    return this.toPublic(row);
+  }
+
+  async deleteMyNotification(userId: string, id: string) {
+    const row = await this.prisma.notifications.findFirst({ where: { id, user_id: userId } });
+    if (!row) {
+      throw new NotFoundException('Notification not found');
+    }
+    await this.prisma.notifications.delete({ where: { id } });
+  }
+
+  async adminList(query: ListAdminNotificationsQueryDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.notificationsWhereInput = {
+      ...(query.type ? { type: query.type } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { title: { contains: query.search, mode: 'insensitive' } },
+              { body: { contains: query.search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+
+    const [total, rows] = await Promise.all([
+      this.prisma.notifications.count({ where }),
+      this.prisma.notifications.findMany({ where, skip, take: limit, orderBy: { created_at: 'desc' } }),
+    ]);
+
+    const recipientsById = await this.getRecipientsById(rows.map((row) => row.user_id));
+
+    return {
+      items: rows.map((row) => this.toPublic(row, recipientsById.get(row.user_id))),
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
+    };
+  }
+
+  async adminGet(id: string) {
+    const row = await this.prisma.notifications.findUnique({ where: { id } });
+    if (!row) {
+      throw new NotFoundException('Notification not found');
+    }
+    const recipientsById = await this.getRecipientsById([row.user_id]);
+    return this.toPublic(row, recipientsById.get(row.user_id));
+  }
+
+  async adminDelete(id: string) {
+    const row = await this.prisma.notifications.findUnique({ where: { id } });
+    if (!row) {
+      throw new NotFoundException('Notification not found');
+    }
+    await this.prisma.notifications.delete({ where: { id } });
+  }
+
+  private async getRecipientsById(userIds: string[]) {
+    const uniqueIds = [...new Set(userIds)];
+    if (uniqueIds.length === 0) {
+      return new Map<string, { full_name: string; email: string | null }>();
+    }
+    const rows = await this.prisma.users.findMany({
+      where: { id: { in: uniqueIds } },
+      select: { id: true, full_name: true, email: true },
+    });
+    return new Map(rows.map((row) => [row.id, row]));
+  }
+
+  private toPublic(row: notifications, recipient?: { full_name: string; email: string | null }) {
+    return {
+      id: row.id,
+      type: row.type,
+      title: row.title,
+      body: row.body,
+      data: row.data,
+      isRead: row.is_read,
+      sentAt: row.sent_at,
+      createdAt: row.created_at,
+      recipient: recipient ? { id: row.user_id, fullName: recipient.full_name, email: recipient.email } : undefined,
     };
   }
 }
