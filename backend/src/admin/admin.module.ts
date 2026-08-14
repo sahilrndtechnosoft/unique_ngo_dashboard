@@ -8,6 +8,7 @@ import {
   CategoriesController,
 } from './controllers/categories.controller';
 import { AdminOrdersController, SellerOrdersController } from './controllers/orders.controller';
+import { PagesController } from './controllers/pages.controller';
 import { PermissionsController } from './controllers/permissions.controller';
 import {
   AdminProductsController,
@@ -22,6 +23,7 @@ import { AppSettingsService } from './services/app-settings.service';
 import { BannerImagesService } from './services/banner-images.service';
 import { CategoriesService } from './services/categories.service';
 import { AdminOrdersService } from './services/orders.service';
+import { PagesService } from './services/pages.service';
 import { PermissionsCatalogService } from './services/permissions-catalog.service';
 import { ProductsService } from './services/products.service';
 import { RbacService } from './services/rbac.service';
@@ -33,6 +35,7 @@ import { RolesService } from './services/roles.service';
     PermissionsController,
     AppSettingsController,
     BannerImagesController,
+    PagesController,
     PublicSettingsController,
     AdminUsersController,
     AdminSellersController,
@@ -50,6 +53,7 @@ import { RolesService } from './services/roles.service';
     RbacService,
     AppSettingsService,
     BannerImagesService,
+    PagesService,
     AdminUsersService,
     AdminSellersService,
     CategoriesService,

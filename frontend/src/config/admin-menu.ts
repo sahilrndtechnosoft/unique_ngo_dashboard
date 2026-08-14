@@ -43,6 +43,10 @@ export const adminMenuGroups: AdminMenuGroup[] = [
             { label: 'Send Notification', to: '/admin/notifications', permission: 'NOTIFICATIONS:CREATE' },
         ],
     },
+    {
+        label: 'Item Donations',
+        items: [{ label: 'Donation Items', to: '/admin/donation-items', permission: 'DONATIONS:VIEW' }],
+    },
 ];
 
 export function canAccess(

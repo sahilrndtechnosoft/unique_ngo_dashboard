@@ -12,6 +12,7 @@ import { AuthModule } from './auth/auth.module';
 import { BloodBankModule } from './blood-bank/blood-bank.module';
 import { CartModule } from './cart/cart.module';
 import { CouponsModule } from './coupons/coupons.module';
+import { DonationItemsModule } from './donation-items/donation-items.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
@@ -47,6 +48,7 @@ import { WishlistModule } from './wishlist/wishlist.module';
     WishlistModule,
     NotificationsModule,
     CouponsModule,
+    DonationItemsModule,
   ],
   providers: [
     JwtStrategy,

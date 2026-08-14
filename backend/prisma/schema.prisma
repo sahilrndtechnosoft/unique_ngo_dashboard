@@ -155,6 +155,24 @@ model banner_images {
   @@index([placement, slot])
 }
 
+model pages {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug          String    @unique @db.VarChar(150)
+  title         String    @db.VarChar(255)
+  type          page_type
+  content       String
+  sort_order    Int       @default(0)
+  is_active     Boolean   @default(true)
+  updated_by_id String?   @db.Uuid
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
+  deleted_at    DateTime? @db.Timestamptz(6)
+
+  @@index([type])
+  @@index([is_active])
+  @@index([deleted_at])
+}
+
 model blood_admin_notes {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   entity_type String   @db.VarChar(50)
@@ -602,7 +620,7 @@ model donation_items {
   donor_id       String                  @db.Uuid
   title          String                  @db.VarChar(500)
   description    String
-  category_id    String?                 @db.Uuid
+  category       donation_item_category?
   condition      donation_item_condition @default(GOOD)
   quantity       Int                     @default(1)
   status         donation_item_status    @default(AVAILABLE)
@@ -622,7 +640,7 @@ model donation_items {
   @@index([created_at])
   @@index([deleted_at])
   @@index([donor_id])
-  @@index([category_id])
+  @@index([category])
   @@index([verified_by_id])
 }
 
@@ -1751,6 +1769,17 @@ enum conversation_type {
   CHANNEL
 }
 
+enum donation_item_category {
+  FURNITURE
+  CLOTHING
+  MEDICAL_EQUIPMENT
+  ELECTRONICS
+  BOOKS_STATIONERY
+  HOUSEHOLD
+  TOYS
+  OTHER
+}
+
 enum donation_item_condition {
   NEW
   LIKE_NEW
@@ -1946,6 +1975,14 @@ enum banner_placement {
   PRODUCT
   CHECKOUT
   SIDEBAR
+}
+
+enum page_type {
+  GOVERNMENT_POLICY
+  EMERGENCY
+  INFORMATION
+  TERMS_AND_CONDITIONS
+  PRIVACY_POLICY
 }
 
 enum product_status {

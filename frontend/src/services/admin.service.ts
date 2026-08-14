@@ -209,4 +209,22 @@ export const adminApi = {
     updateCoupon: (id: string, body: Record<string, unknown>) =>
         api.patch(`/admin/coupons/${id}`, body).then((r) => unwrap(r)),
     deleteCoupon: (id: string) => api.delete(`/admin/coupons/${id}`).then((r) => unwrap(r)),
+
+    listDonationItems: (params?: Record<string, unknown>) =>
+        api.get('/admin/donation-items', { params }).then((r) => unwrap<Paginated<any>>(r)),
+    getDonationItem: (id: string) => api.get(`/admin/donation-items/${id}`).then((r) => unwrap(r)),
+    updateDonationItem: (id: string, body: Record<string, unknown>) =>
+        api.patch(`/admin/donation-items/${id}`, body).then((r) => unwrap(r)),
+    verifyDonationItem: (id: string) => api.patch(`/admin/donation-items/${id}/verify`, {}).then((r) => unwrap(r)),
+    rejectDonationItem: (id: string, adminNote: string) =>
+        api.patch(`/admin/donation-items/${id}/reject`, { adminNote }).then((r) => unwrap(r)),
+    deleteDonationItem: (id: string) => api.delete(`/admin/donation-items/${id}`).then((r) => unwrap(r)),
+
+    listDonationItemRequests: (params?: Record<string, unknown>) =>
+        api.get('/admin/donation-item-requests', { params }).then((r) => unwrap<Paginated<any>>(r)),
+    getDonationItemRequest: (id: string) => api.get(`/admin/donation-item-requests/${id}`).then((r) => unwrap(r)),
+    deleteDonationItemRequest: (id: string) => api.delete(`/admin/donation-item-requests/${id}`).then((r) => unwrap(r)),
+
+    listDonationTransfers: (params?: Record<string, unknown>) =>
+        api.get('/admin/donation-transfers', { params }).then((r) => unwrap<Paginated<any>>(r)),
 };
