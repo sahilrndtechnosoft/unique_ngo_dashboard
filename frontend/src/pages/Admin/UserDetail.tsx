@@ -26,6 +26,10 @@ const emptyAppointmentForm = {
     notes: '',
     status: 'PENDING',
     cancelReason: '',
+    forSelf: true,
+    beneficiaryName: '',
+    beneficiaryMobile: '',
+    beneficiaryRelation: '',
 };
 
 export default function UserDetail() {
@@ -113,6 +117,10 @@ export default function UserDetail() {
             notes: appointment.notes ?? '',
             status: appointment.status,
             cancelReason: appointment.cancelReason ?? '',
+            forSelf: appointment.forSelf ?? true,
+            beneficiaryName: appointment.beneficiary?.name ?? '',
+            beneficiaryMobile: appointment.beneficiary?.mobile ?? '',
+            beneficiaryRelation: appointment.beneficiary?.relation ?? '',
         });
         setAppointmentMode('edit');
     };
@@ -129,6 +137,10 @@ export default function UserDetail() {
                 notes: appointmentForm.notes || undefined,
                 hospitalId: appointmentForm.donationType === 'hospital' ? appointmentForm.hospitalId || undefined : undefined,
                 campaignId: appointmentForm.donationType === 'camp' ? appointmentForm.campaignId || undefined : undefined,
+                forSelf: appointmentForm.forSelf,
+                beneficiaryName: appointmentForm.forSelf ? undefined : appointmentForm.beneficiaryName || undefined,
+                beneficiaryMobile: appointmentForm.forSelf ? undefined : appointmentForm.beneficiaryMobile || undefined,
+                beneficiaryRelation: appointmentForm.forSelf ? undefined : appointmentForm.beneficiaryRelation || undefined,
             };
             if (appointmentMode === 'create') {
                 await adminApi.createAppointment({ ...body, userId: id });
@@ -170,6 +182,9 @@ export default function UserDetail() {
             { label: 'Account type', value: user.role },
             { label: 'RBAC role', value: user.rbacRole?.name || '—' },
             { label: 'Status', value: user.status },
+            { label: 'Blood Group', value: user.bloodGroup ? user.bloodGroup.replace('_', ' ') : '—' },
+            { label: 'Gender', value: user.gender ? user.gender.replace(/_/g, ' ') : '—' },
+            { label: 'Available Donor', value: user.isAvailableDonor ? 'Yes' : 'No' },
         ];
     }, [user]);
 
@@ -284,6 +299,11 @@ export default function UserDetail() {
                         key: 'bloodGroup',
                         label: 'Blood Group',
                         render: (row) => row.bloodGroup.replace('_', ' '),
+                    },
+                    {
+                        key: 'donatingFor',
+                        label: 'Donating For',
+                        render: (row) => (row.forSelf === false ? `${row.beneficiary?.name ?? '—'} (${row.beneficiary?.relation ?? ''})` : 'Self'),
                     },
                     {
                         key: 'status',
@@ -435,6 +455,52 @@ export default function UserDetail() {
                                 onChange={(e) => setAppointmentForm({ ...appointmentForm, notes: e.target.value })}
                             />
                         </FormField>
+                    </div>
+                </FormSection>
+
+                <FormSection title="Who is donating?" className="md:col-span-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <FormField label="Donating For" className="md:col-span-2">
+                            <div className="flex items-center gap-4 h-[38px]">
+                                <label className="flex items-center gap-2">
+                                    <input type="radio" checked={appointmentForm.forSelf} onChange={() => setAppointmentForm({ ...appointmentForm, forSelf: true })} />
+                                    The donor themselves
+                                </label>
+                                <label className="flex items-center gap-2">
+                                    <input type="radio" checked={!appointmentForm.forSelf} onChange={() => setAppointmentForm({ ...appointmentForm, forSelf: false })} />
+                                    On behalf of someone else
+                                </label>
+                            </div>
+                        </FormField>
+                        {!appointmentForm.forSelf ? (
+                            <>
+                                <FormField label="Beneficiary Name" required>
+                                    <input
+                                        className="form-input"
+                                        required
+                                        value={appointmentForm.beneficiaryName}
+                                        onChange={(e) => setAppointmentForm({ ...appointmentForm, beneficiaryName: e.target.value })}
+                                    />
+                                </FormField>
+                                <FormField label="Beneficiary Mobile" required>
+                                    <input
+                                        className="form-input"
+                                        required
+                                        value={appointmentForm.beneficiaryMobile}
+                                        onChange={(e) => setAppointmentForm({ ...appointmentForm, beneficiaryMobile: e.target.value })}
+                                    />
+                                </FormField>
+                                <FormField label="Relation to Account Holder" required>
+                                    <input
+                                        className="form-input"
+                                        required
+                                        placeholder="e.g. Spouse, Parent, Friend"
+                                        value={appointmentForm.beneficiaryRelation}
+                                        onChange={(e) => setAppointmentForm({ ...appointmentForm, beneficiaryRelation: e.target.value })}
+                                    />
+                                </FormField>
+                            </>
+                        ) : null}
                     </div>
                 </FormSection>
             </AdminFormModal>

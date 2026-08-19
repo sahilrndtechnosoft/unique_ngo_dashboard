@@ -27,6 +27,16 @@ export function normalizeMobile(mobile: string): string {
   return mobile.replace(/\D/g, '').slice(-10);
 }
 
+/** Hides the middle of a mobile number, e.g. "9876543210" -> "98xxxxxx10". */
+export function maskMobile(mobile: string): string {
+  if (mobile.length <= 4) {
+    return 'x'.repeat(mobile.length);
+  }
+  const first = mobile.slice(0, 2);
+  const last = mobile.slice(-2);
+  return `${first}${'x'.repeat(mobile.length - 4)}${last}`;
+}
+
 export function addMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() + minutes * 60 * 1000);
 }

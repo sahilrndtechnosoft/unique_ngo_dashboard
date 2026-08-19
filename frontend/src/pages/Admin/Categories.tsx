@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { setPageTitle } from '../../store/themeConfigSlice';
 import { adminApi } from '../../services/admin.service';
 import { getErrorMessage, mediaUrl } from '../../services/api';
@@ -9,20 +10,25 @@ import AdminFormModal from '../../components/Admin/AdminFormModal';
 import { FormField, FormSection, RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
 import { confirmAction, showAlert } from '../../utils/alerts';
 
-type Mode = 'create' | 'edit' | 'view';
+type Mode = 'create' | 'edit';
 
 const emptyForm = {
     name: '',
     slug: '',
     description: '',
+    parentId: '',
+    commissionRate: '',
     sortOrder: 0,
     isActive: true,
     isFeatured: false,
+    metaTitle: '',
+    metaDescription: '',
     imageUrl: '' as string | null,
 };
 
 export default function AdminCategories() {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
     const [items, setItems] = useState<any[]>([]);
     const [meta, setMeta] = useState({ page: 1, total: 0, totalPages: 1 });
     const [search, setSearch] = useState('');
@@ -34,6 +40,7 @@ export default function AdminCategories() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState(emptyForm);
     const [pendingImage, setPendingImage] = useState<File | null>(null);
+    const [allCategories, setAllCategories] = useState<any[]>([]);
 
     const ids = useMemo(() => items.map((item) => item.id), [items]);
     const selection = useRowSelection(ids);
@@ -61,6 +68,7 @@ export default function AdminCategories() {
     useEffect(() => {
         dispatch(setPageTitle('Categories'));
         load();
+        adminApi.listCategories({ page: 1, limit: 100 }).then((data) => setAllCategories(data.items));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -77,9 +85,13 @@ export default function AdminCategories() {
             name: category.name,
             slug: category.slug,
             description: category.description ?? '',
+            parentId: category.parentId ?? '',
+            commissionRate: category.commissionRate != null ? String(category.commissionRate) : '',
             sortOrder: category.sortOrder ?? 0,
             isActive: category.isActive,
             isFeatured: category.isFeatured,
+            metaTitle: category.metaTitle ?? '',
+            metaDescription: category.metaDescription ?? '',
             imageUrl: category.imageUrl,
         });
         setPendingImage(null);
@@ -94,9 +106,13 @@ export default function AdminCategories() {
                 name: form.name,
                 slug: form.slug || undefined,
                 description: form.description || undefined,
+                parentId: form.parentId || undefined,
+                commissionRate: form.commissionRate ? Number(form.commissionRate) : undefined,
                 sortOrder: Number(form.sortOrder),
                 isActive: form.isActive,
                 isFeatured: form.isFeatured,
+                metaTitle: form.metaTitle || undefined,
+                metaDescription: form.metaDescription || undefined,
             };
             let id = editingId;
             if (mode === 'create') {
@@ -146,8 +162,6 @@ export default function AdminCategories() {
             showAlert(getErrorMessage(err), 'error');
         }
     };
-
-    const readOnly = mode === 'view';
 
     return (
         <div>
@@ -227,13 +241,7 @@ export default function AdminCategories() {
                 actions={(row) => (
                     <RowActionsMenu
                         actions={[
-                            {
-                                label: 'View',
-                                onClick: () => {
-                                    fillForm(row);
-                                    setMode('view');
-                                },
-                            },
+                            { label: 'View', onClick: () => navigate(`/admin/categories/${row.id}`) },
                             {
                                 label: 'Edit',
                                 onClick: () => {
@@ -249,27 +257,48 @@ export default function AdminCategories() {
 
             <AdminFormModal
                 open={mode !== null}
-                title={mode === 'create' ? 'Create Category' : mode === 'edit' ? 'Edit Category' : 'View Category'}
+                title={mode === 'create' ? 'Create Category' : 'Edit Category'}
                 onClose={() => setMode(null)}
                 onSubmit={submit}
-                readOnly={readOnly}
                 busy={busy}
             >
                 <FormSection title="Category details" className="md:col-span-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <FormField label="Name" required>
-                            <input className="form-input" required disabled={readOnly} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                            <input className="form-input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                         </FormField>
                         <FormField label="Slug" hint="Leave blank to auto-generate">
-                            <input className="form-input" disabled={readOnly} value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
+                            <input className="form-input" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
+                        </FormField>
+                        <FormField label="Parent Category" hint="Leave unset for a top-level category">
+                            <select className="form-select" value={form.parentId} onChange={(e) => setForm({ ...form, parentId: e.target.value })}>
+                                <option value="">None (top-level)</option>
+                                {allCategories
+                                    .filter((category) => category.id !== editingId)
+                                    .map((category) => (
+                                        <option key={category.id} value={category.id}>
+                                            {category.name}
+                                        </option>
+                                    ))}
+                            </select>
                         </FormField>
                         <FormField label="Sort Order">
                             <input
                                 className="form-input"
                                 type="number"
-                                disabled={readOnly}
+
                                 value={form.sortOrder}
                                 onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })}
+                            />
+                        </FormField>
+                        <FormField label="Commission Rate (%)" hint="Overrides the platform default for products in this category">
+                            <input
+                                className="form-input"
+                                type="number"
+                                min={0}
+                                max={100}
+                                value={form.commissionRate}
+                                onChange={(e) => setForm({ ...form, commissionRate: e.target.value })}
                             />
                         </FormField>
                         <FormField label="Flags">
@@ -278,7 +307,7 @@ export default function AdminCategories() {
                                     <input
                                         type="checkbox"
                                         className="form-checkbox"
-                                        disabled={readOnly}
+                                       
                                         checked={form.isActive}
                                         onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
                                     />
@@ -288,7 +317,7 @@ export default function AdminCategories() {
                                     <input
                                         type="checkbox"
                                         className="form-checkbox"
-                                        disabled={readOnly}
+                                       
                                         checked={form.isFeatured}
                                         onChange={(e) => setForm({ ...form, isFeatured: e.target.checked })}
                                     />
@@ -297,14 +326,18 @@ export default function AdminCategories() {
                             </div>
                         </FormField>
                         <FormField label="Description" className="md:col-span-2">
-                            <textarea className="form-textarea min-h-[100px]" disabled={readOnly} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                            <textarea className="form-textarea min-h-[100px]" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                        </FormField>
+                        <FormField label="Meta Title" hint="SEO page title">
+                            <input className="form-input" value={form.metaTitle} onChange={(e) => setForm({ ...form, metaTitle: e.target.value })} />
+                        </FormField>
+                        <FormField label="Meta Description" hint="SEO page description">
+                            <input className="form-input" value={form.metaDescription} onChange={(e) => setForm({ ...form, metaDescription: e.target.value })} />
                         </FormField>
                         <FormField label="Image" className="md:col-span-2">
                             <div className="flex items-center gap-4">
                                 {form.imageUrl ? <img src={mediaUrl(form.imageUrl)} alt="" className="h-16 w-16 rounded object-cover" /> : null}
-                                {!readOnly ? (
-                                    <input type="file" accept="image/*" className="form-input" onChange={(e) => setPendingImage(e.target.files?.[0] ?? null)} />
-                                ) : null}
+                                <input type="file" accept="image/*" className="form-input" onChange={(e) => setPendingImage(e.target.files?.[0] ?? null)} />
                             </div>
                         </FormField>
                     </div>

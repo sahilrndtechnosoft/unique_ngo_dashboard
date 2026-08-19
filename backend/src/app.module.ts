@@ -4,16 +4,22 @@ import { ConfigModule } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import appConfig from './config/app.config';
+import firebaseConfig from './config/firebase.config';
+import mailConfig from './config/mail.config';
 import { AddressesModule } from './addresses/addresses.module';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { BloodBankModule } from './blood-bank/blood-bank.module';
 import { CartModule } from './cart/cart.module';
+import { CouponsModule } from './coupons/coupons.module';
+import { DonationItemsModule } from './donation-items/donation-items.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { JwtStrategy } from './common/strategies/jwt.strategy';
+import { InquiriesModule } from './inquiries/inquiries.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { OrdersModule } from './orders/orders.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
@@ -23,7 +29,7 @@ import { WishlistModule } from './wishlist/wishlist.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig],
+      load: [appConfig, firebaseConfig, mailConfig],
     }),
     ThrottlerModule.forRoot([
       {
@@ -41,6 +47,10 @@ import { WishlistModule } from './wishlist/wishlist.module';
     OrdersModule,
     BloodBankModule,
     WishlistModule,
+    NotificationsModule,
+    CouponsModule,
+    DonationItemsModule,
+    InquiriesModule,
   ],
   providers: [
     JwtStrategy,

@@ -1,5 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 import { IRootState } from '../../store';
 import { setPageTitle } from '../../store/themeConfigSlice';
 import { updateUser } from '../../store/authSlice';
@@ -18,11 +20,29 @@ import IconGallery from '../../components/Icon/IconGallery';
 import IconTrashLines from '../../components/Icon/IconTrashLines';
 import IconPlus from '../../components/Icon/IconPlus';
 import IconPencil from '../../components/Icon/IconPencil';
+import IconNotes from '../../components/Icon/IconNotes';
 
-type TabKey = 'profile' | 'app-settings' | 'roles';
+type TabKey = 'profile' | 'app-settings' | 'roles' | 'pages';
 
 const BANNER_PLACEMENTS = ['HOME', 'CATEGORY', 'PRODUCT', 'CHECKOUT', 'SIDEBAR'];
 const BANNER_SLOTS = ['TOP', 'MIDDLE', 'BOTTOM'];
+
+const PAGE_TYPES = ['GOVERNMENT_POLICY', 'EMERGENCY', 'INFORMATION', 'TERMS_AND_CONDITIONS', 'PRIVACY_POLICY'];
+const PAGE_TYPE_LABELS: Record<string, string> = {
+    GOVERNMENT_POLICY: 'Government Policy',
+    EMERGENCY: 'Emergency',
+    INFORMATION: 'Information',
+    TERMS_AND_CONDITIONS: 'Terms & Conditions',
+    PRIVACY_POLICY: 'Privacy Policy',
+};
+
+const emptyPageForm = {
+    title: '',
+    type: 'INFORMATION',
+    content: '',
+    sortOrder: 0,
+    isActive: true,
+};
 
 const emptyProfileForm = {
     fullName: '',
@@ -79,10 +99,20 @@ const Profile = () => {
     const [orgBusy, setOrgBusy] = useState(false);
     const [orgError, setOrgError] = useState('');
 
+    const [pages, setPages] = useState<any[]>([]);
+    const [pagesLoading, setPagesLoading] = useState(false);
+    const [pageModalOpen, setPageModalOpen] = useState(false);
+    const [editingPageId, setEditingPageId] = useState<string | null>(null);
+    const [pageForm, setPageForm] = useState(emptyPageForm);
+    const [pageBusy, setPageBusy] = useState(false);
+
     useEffect(() => {
         dispatch(setPageTitle('Account Settings'));
         loadProfile();
-        if (canManageOrgSettings) loadOrgSettings();
+        if (canManageOrgSettings) {
+            loadOrgSettings();
+            loadPages();
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -309,6 +339,80 @@ const Profile = () => {
         }
     };
 
+    const loadPages = async () => {
+        setPagesLoading(true);
+        try {
+            const list = await api.get('/admin/pages').then((r) => unwrap<any[]>(r));
+            setPages(Array.isArray(list) ? list : []);
+        } catch (err) {
+            showAlert(getErrorMessage(err), 'error');
+        } finally {
+            setPagesLoading(false);
+        }
+    };
+
+    const openCreatePage = () => {
+        setEditingPageId(null);
+        setPageForm(emptyPageForm);
+        setPageModalOpen(true);
+    };
+
+    const openEditPage = (page: any) => {
+        setEditingPageId(page.id);
+        setPageForm({
+            title: page.title ?? '',
+            type: page.type ?? 'INFORMATION',
+            content: page.content ?? '',
+            sortOrder: page.sortOrder ?? 0,
+            isActive: page.isActive ?? true,
+        });
+        setPageModalOpen(true);
+    };
+
+    const closePageModal = () => {
+        setPageModalOpen(false);
+        setEditingPageId(null);
+    };
+
+    const submitPage = async (event: FormEvent) => {
+        event.preventDefault();
+        setPageBusy(true);
+        try {
+            const body = {
+                title: pageForm.title,
+                type: pageForm.type,
+                content: pageForm.content,
+                sortOrder: Number(pageForm.sortOrder),
+                isActive: pageForm.isActive,
+            };
+            if (editingPageId) {
+                await api.patch(`/admin/pages/${editingPageId}`, body);
+                showAlert('Page updated successfully');
+            } else {
+                await api.post('/admin/pages', body);
+                showAlert('Page created successfully');
+            }
+            closePageModal();
+            await loadPages();
+        } catch (err) {
+            showAlert(getErrorMessage(err), 'error');
+        } finally {
+            setPageBusy(false);
+        }
+    };
+
+    const deletePage = async (id: string) => {
+        const ok = await confirmAction('Delete page?', 'This page will be permanently removed.');
+        if (!ok) return;
+        try {
+            await api.delete(`/admin/pages/${id}`);
+            showAlert('Page deleted successfully');
+            await loadPages();
+        } catch (err) {
+            showAlert(getErrorMessage(err), 'error');
+        }
+    };
+
     return (
         <div>
             <ul className="flex space-x-2 rtl:space-x-reverse">
@@ -355,6 +459,18 @@ const Profile = () => {
                             >
                                 <IconShieldRoles className="w-5 h-5" />
                                 Roles &amp; Permissions
+                            </button>
+                        </li>
+                    ) : null}
+                    {canManageOrgSettings ? (
+                        <li className="inline-block">
+                            <button
+                                type="button"
+                                onClick={() => setTab('pages')}
+                                className={`flex gap-2 p-4 border-b-2 border-transparent hover:border-primary hover:text-primary ${tab === 'pages' ? '!border-primary text-primary' : ''}`}
+                            >
+                                <IconNotes className="w-5 h-5" />
+                                Policy &amp; Info Pages
                             </button>
                         </li>
                     ) : null}
@@ -750,6 +866,126 @@ const Profile = () => {
                 ) : null}
 
                 {tab === 'roles' && canManageRoles ? <AdminRoles /> : null}
+
+                {tab === 'pages' && canManageOrgSettings ? (
+                    <div className="panel">
+                        <div className="flex items-center justify-between mb-5">
+                            <div>
+                                <h5 className="font-semibold text-lg dark:text-white-light">Policy &amp; Info Pages</h5>
+                                <p className="text-white-dark text-sm mt-1">Manage Government Policy, Emergency, Information, Terms &amp; Conditions, and Privacy Policy pages shown in the app</p>
+                            </div>
+                            <button type="button" className="btn btn-primary gap-2" onClick={openCreatePage}>
+                                <IconPlus className="w-4 h-4" />
+                                Add Page
+                            </button>
+                        </div>
+
+                        {pagesLoading ? (
+                            <p>Loading...</p>
+                        ) : pages.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center gap-2 py-10 text-white-dark border border-dashed border-[#ebedf2] dark:border-[#191e3a] rounded-lg">
+                                <p className="text-sm">No pages yet — add one above</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {pages.map((page) => (
+                                    <div
+                                        key={page.id}
+                                        className="flex items-center justify-between gap-4 rounded-lg border border-[#ebedf2] dark:border-[#191e3a] p-4"
+                                    >
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="font-semibold truncate">{page.title}</span>
+                                                <span className="badge badge-outline-primary">{PAGE_TYPE_LABELS[page.type] ?? page.type}</span>
+                                                {!page.isActive ? <span className="badge badge-outline-warning">Inactive</span> : null}
+                                            </div>
+                                            <p className="text-xs text-white-dark mt-1 truncate">/{page.slug}</p>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                            <button
+                                                type="button"
+                                                title="Edit page"
+                                                className="grid place-content-center w-8 h-8 rounded-full hover:bg-primary-light dark:hover:bg-[#1a2941] text-primary"
+                                                onClick={() => openEditPage(page)}
+                                            >
+                                                <IconPencil className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                title="Delete page"
+                                                className="grid place-content-center w-8 h-8 rounded-full hover:bg-danger-light dark:hover:bg-[#1a2941] text-danger"
+                                                onClick={() => deletePage(page.id)}
+                                            >
+                                                <IconTrashLines className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <AdminFormModal
+                            open={pageModalOpen}
+                            title={editingPageId ? 'Edit Page' : 'Add Page'}
+                            onClose={closePageModal}
+                            onSubmit={submitPage}
+                            busy={pageBusy}
+                        >
+                            <FormSection title="Page details" className="md:col-span-2">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <FormField label="Title" required>
+                                        <input
+                                            className="form-input"
+                                            required
+                                            value={pageForm.title}
+                                            onChange={(e) => setPageForm((prev) => ({ ...prev, title: e.target.value }))}
+                                        />
+                                    </FormField>
+                                    <FormField label="Type" required>
+                                        <select
+                                            className="form-select"
+                                            value={pageForm.type}
+                                            onChange={(e) => setPageForm((prev) => ({ ...prev, type: e.target.value }))}
+                                        >
+                                            {PAGE_TYPES.map((type) => (
+                                                <option key={type} value={type}>
+                                                    {PAGE_TYPE_LABELS[type]}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </FormField>
+                                    <FormField label="Content" required className="md:col-span-2">
+                                        <ReactQuill
+                                            theme="snow"
+                                            value={pageForm.content}
+                                            onChange={(content) => setPageForm((prev) => ({ ...prev, content }))}
+                                            style={{ minHeight: '200px' }}
+                                        />
+                                    </FormField>
+                                    <FormField label="Sort Order">
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            value={pageForm.sortOrder}
+                                            onChange={(e) => setPageForm((prev) => ({ ...prev, sortOrder: Number(e.target.value) }))}
+                                        />
+                                    </FormField>
+                                    <FormField label="Active">
+                                        <label className="flex items-center gap-2 cursor-pointer h-[38px]">
+                                            <input
+                                                type="checkbox"
+                                                className="form-checkbox"
+                                                checked={pageForm.isActive}
+                                                onChange={(e) => setPageForm((prev) => ({ ...prev, isActive: e.target.checked }))}
+                                            />
+                                            Page is active
+                                        </label>
+                                    </FormField>
+                                </div>
+                            </FormSection>
+                        </AdminFormModal>
+                    </div>
+                ) : null}
             </div>
         </div>
     );

@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsInt,
@@ -11,6 +12,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 import { blood_group, donation_status } from '../../../generated/prisma/client';
 
@@ -115,6 +117,30 @@ export class CreateDonationDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ example: true, default: true, description: 'Did the account holder personally donate, or a family member?' })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  forSelf?: boolean = true;
+
+  @ApiPropertyOptional({ description: 'Required when forSelf is false: name of the person who actually donated' })
+  @ValidateIf((dto: CreateDonationDto) => dto.forSelf === false)
+  @IsString()
+  @MaxLength(255)
+  beneficiaryName?: string;
+
+  @ApiPropertyOptional({ description: 'Required when forSelf is false: mobile number of the person who actually donated' })
+  @ValidateIf((dto: CreateDonationDto) => dto.forSelf === false)
+  @IsString()
+  @MaxLength(20)
+  beneficiaryMobile?: string;
+
+  @ApiPropertyOptional({ example: 'Spouse', description: 'Required when forSelf is false: relationship to the account holder' })
+  @ValidateIf((dto: CreateDonationDto) => dto.forSelf === false)
+  @IsString()
+  @MaxLength(100)
+  beneficiaryRelation?: string;
 }
 
 export class AdminCreateDonationDto extends CreateDonationDto {
@@ -179,6 +205,30 @@ export class AdminUpdateDonationDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  forSelf?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  beneficiaryName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  beneficiaryMobile?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  beneficiaryRelation?: string;
 }
 
 export class UpdateDonationStatusDto {

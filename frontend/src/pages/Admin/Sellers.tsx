@@ -23,6 +23,9 @@ const emptyForm = {
     description: '',
     status: 'ACTIVE',
     rejectionReason: '',
+    gstNumber: '',
+    panNumber: '',
+    commissionRate: '',
     profilePicture: '' as string | null,
 };
 
@@ -103,6 +106,9 @@ export default function AdminSellers() {
             description: seller.description ?? '',
             status: seller.status,
             rejectionReason: seller.rejectionReason ?? '',
+            gstNumber: seller.gstNumber ?? '',
+            panNumber: seller.panNumber ?? '',
+            commissionRate: seller.commissionRate != null ? String(seller.commissionRate) : '',
             profilePicture: seller.profilePicture ?? null,
         });
         setPendingImage(null);
@@ -125,6 +131,9 @@ export default function AdminSellers() {
                     businessType: form.businessType || undefined,
                     description: form.description || undefined,
                     status: form.status,
+                    gstNumber: form.gstNumber || undefined,
+                    panNumber: form.panNumber || undefined,
+                    commissionRate: form.commissionRate ? Number(form.commissionRate) : undefined,
                 })) as any;
                 id = created?.id;
                 showAlert('Seller created successfully');
@@ -138,6 +147,9 @@ export default function AdminSellers() {
                     description: form.description || undefined,
                     status: form.status,
                     rejectionReason: form.rejectionReason || undefined,
+                    gstNumber: form.gstNumber || undefined,
+                    panNumber: form.panNumber || undefined,
+                    commissionRate: form.commissionRate ? Number(form.commissionRate) : undefined,
                 };
                 if (form.password) body.password = form.password;
                 await adminApi.updateSeller(editingId, body);
@@ -355,6 +367,22 @@ export default function AdminSellers() {
                         </FormField>
                         <FormField label="Notes / Reason">
                             <input className="form-input" value={form.rejectionReason} onChange={(e) => setForm({ ...form, rejectionReason: e.target.value })} />
+                        </FormField>
+                        <FormField label="GST Number">
+                            <input className="form-input" value={form.gstNumber} onChange={(e) => setForm({ ...form, gstNumber: e.target.value })} />
+                        </FormField>
+                        <FormField label="PAN Number">
+                            <input className="form-input" value={form.panNumber} onChange={(e) => setForm({ ...form, panNumber: e.target.value })} />
+                        </FormField>
+                        <FormField label="Commission Rate (%)" hint="Overrides the platform default for this seller">
+                            <input
+                                className="form-input"
+                                type="number"
+                                min={0}
+                                max={100}
+                                value={form.commissionRate}
+                                onChange={(e) => setForm({ ...form, commissionRate: e.target.value })}
+                            />
                         </FormField>
                         <FormField label="Description" className="md:col-span-2">
                             <textarea className="form-textarea min-h-[100px]" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />

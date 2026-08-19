@@ -86,6 +86,26 @@ export class CreateAdminSellerDto {
   @IsOptional()
   @IsEnum(seller_status)
   status?: seller_status;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  gstNumber?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  panNumber?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  commissionRate?: number;
 }
 
 export class UpdateAdminSellerDto {

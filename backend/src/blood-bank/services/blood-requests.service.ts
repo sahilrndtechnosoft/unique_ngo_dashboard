@@ -1,5 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { blood_request_status, blood_requests, Prisma, users } from '../../../generated/prisma/client';
+import { NotificationsService } from '../../notifications/services/notifications.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   AdminCreateBloodRequestDto,
@@ -8,11 +9,25 @@ import {
   ListBloodRequestsQueryDto,
 } from '../dto/blood-request.dto';
 
+/** Human-readable status text used in requester-facing notifications. */
+const STATUS_NOTIFICATION_TEXT: Record<blood_request_status, string> = {
+  OPEN: 'is now open and visible to donors',
+  PARTIALLY_FULFILLED: 'has been partially fulfilled',
+  FULFILLED: 'has been fully fulfilled',
+  CANCELLED: 'has been cancelled',
+  EXPIRED: 'has expired',
+};
+
 @Injectable()
 export class BloodRequestsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(BloodRequestsService.name);
 
-  async createRequest(requesterId: string, dto: CreateBloodRequestDto) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
+
+  async createRequest(requesterId: string, dto: CreateBloodRequestDto, proofImageUrl?: string, notifyAdmins = true) {
     const request = await this.prisma.blood_requests.create({
       data: {
         requester_id: requesterId,
@@ -29,19 +44,28 @@ export class BloodRequestsService {
         required_by_date: new Date(dto.requiredByDate),
         notes: dto.notes,
         is_emergency: dto.isEmergency ?? false,
+        proof_image_url: proofImageUrl,
+        for_self: dto.forSelf ?? true,
+        patient_relation: dto.forSelf === false ? dto.patientRelation : null,
       },
     });
+
+    await this.notifyRequester(request, 'Blood Request Submitted', `Your blood request for ${request.patient_name} (${request.blood_group.replace('_', ' ')}) has been submitted and is under review.`);
+
+    if (notifyAdmins) {
+      await this.notifyAdminsOfNewRequest(request);
+    }
 
     return this.toPublic(request);
   }
 
-  async adminCreateRequest(dto: AdminCreateBloodRequestDto) {
+  async adminCreateRequest(dto: AdminCreateBloodRequestDto, proofImageUrl?: string) {
     const requester = await this.prisma.users.findFirst({ where: { id: dto.userId, deleted_at: null } });
     if (!requester) {
       throw new NotFoundException('User not found');
     }
 
-    return this.createRequest(dto.userId, dto);
+    return this.createRequest(dto.userId, dto, proofImageUrl, false);
   }
 
   async listMyRequests(requesterId: string, query: ListBloodRequestsQueryDto) {
@@ -132,10 +156,20 @@ export class BloodRequestsService {
         ...(dto.isEmergency !== undefined && { is_emergency: dto.isEmergency }),
         ...(dto.adminNote !== undefined && { admin_note: dto.adminNote }),
         ...(dto.expiresAt !== undefined && { expires_at: new Date(dto.expiresAt) }),
+        ...(dto.forSelf !== undefined && { for_self: dto.forSelf }),
+        ...(dto.patientRelation !== undefined && { patient_relation: dto.patientRelation }),
         ...(dto.status !== undefined && { status: dto.status, verified_by_id: request.verified_by_id ?? adminId }),
         updated_at: new Date(),
       },
     });
+
+    if (dto.status !== undefined && dto.status !== request.status) {
+      await this.notifyRequester(
+        updated,
+        'Blood Request Update',
+        `Your blood request for ${updated.patient_name} ${STATUS_NOTIFICATION_TEXT[dto.status]}.`,
+      );
+    }
 
     return this.toPublic(updated);
   }
@@ -146,6 +180,42 @@ export class BloodRequestsService {
       where: { id: requestId },
       data: { deleted_at: new Date() },
     });
+  }
+
+  /** Best-effort push notification — a delivery failure must not fail the underlying request mutation. */
+  private async notifyRequester(request: blood_requests, title: string, body: string) {
+    try {
+      await this.notificationsService.notifyUser(request.requester_id, {
+        type: 'BLOOD_REQUEST',
+        title,
+        body,
+        data: { requestId: request.id, screen: 'BLOOD_REQUEST_DETAIL' },
+      });
+    } catch (error) {
+      this.logger.error(`Failed to notify requester ${request.requester_id} for blood request ${request.id}`, error as Error);
+    }
+  }
+
+  /** Best-effort admin email — a delivery failure must not fail the underlying request mutation. */
+  private async notifyAdminsOfNewRequest(request: blood_requests) {
+    try {
+      await this.notificationsService.notifyAdminsByEmail(
+        `New Blood Request: ${request.patient_name} (${request.blood_group.replace('_', ' ')})${request.is_emergency ? ' — EMERGENCY' : ''}`,
+        `<p>A new blood request has been submitted.</p>
+         <ul>
+           <li><strong>Patient:</strong> ${request.patient_name}</li>
+           <li><strong>Blood Group:</strong> ${request.blood_group.replace('_', ' ')}</li>
+           <li><strong>Units Required:</strong> ${request.units_required}</li>
+           <li><strong>Urgency:</strong> ${request.urgency}${request.is_emergency ? ' (EMERGENCY)' : ''}</li>
+           <li><strong>Hospital:</strong> ${request.hospital_name}, ${request.city}, ${request.state}</li>
+           <li><strong>Contact:</strong> ${request.contact_name} (${request.contact_mobile})</li>
+           <li><strong>Required By:</strong> ${request.required_by_date.toISOString().slice(0, 10)}</li>
+         </ul>
+         <p>Please review it in the admin panel.</p>`,
+      );
+    } catch (error) {
+      this.logger.error(`Failed to email admins about blood request ${request.id}`, error as Error);
+    }
   }
 
   private async findOrThrow(requestId: string, options?: { requesterId?: string }) {
@@ -189,6 +259,9 @@ export class BloodRequestsService {
       status: request.status,
       notes: request.notes,
       isEmergency: request.is_emergency,
+      proofImageUrl: request.proof_image_url,
+      forSelf: request.for_self,
+      patientRelation: request.patient_relation,
       adminNote: request.admin_note,
       verifiedById: request.verified_by_id,
       expiresAt: request.expires_at,

@@ -90,6 +90,16 @@ model role_permissions {
   @@index([permission_id])
 }
 
+model blood_bank_settings {
+  id                          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key                         String   @unique @default("default") @db.VarChar(50)
+  donation_eligibility_months Int      @default(3)
+  tattoo_eligibility_months   Int      @default(6)
+  updated_by_id               String?  @db.Uuid
+  created_at                  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at                  DateTime @default(now()) @db.Timestamptz(6)
+}
+
 model app_settings {
   id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   key               String   @unique @default("default") @db.VarChar(50)
@@ -143,6 +153,24 @@ model banner_images {
   @@index([deleted_at])
   @@index([created_at])
   @@index([placement, slot])
+}
+
+model pages {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug          String    @unique @db.VarChar(150)
+  title         String    @db.VarChar(255)
+  type          page_type
+  content       String
+  sort_order    Int       @default(0)
+  is_active     Boolean   @default(true)
+  updated_by_id String?   @db.Uuid
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
+  deleted_at    DateTime? @db.Timestamptz(6)
+
+  @@index([type])
+  @@index([is_active])
+  @@index([deleted_at])
 }
 
 model blood_admin_notes {
@@ -205,6 +233,10 @@ model blood_donations {
   status           donation_status @default(PENDING)
   proof_image_url  String?
   notes            String?
+  for_self             Boolean     @default(true)
+  beneficiary_name     String?     @db.VarChar(255)
+  beneficiary_mobile   String?     @db.VarChar(20)
+  beneficiary_relation String?     @db.VarChar(100)
   verified_by_id   String?         @db.Uuid
   verified_at      DateTime?       @db.Timestamptz(6)
   rejection_reason String?
@@ -321,6 +353,10 @@ model blood_donation_appointments {
   notes            String?
   cancel_reason    String?
   donation_id      String?            @db.Uuid
+  for_self         Boolean            @default(true)
+  beneficiary_name     String?        @db.VarChar(255)
+  beneficiary_mobile   String?        @db.VarChar(20)
+  beneficiary_relation String?        @db.VarChar(100)
   created_at       DateTime           @default(now()) @db.Timestamptz(6)
   updated_at       DateTime           @default(now()) @db.Timestamptz(6)
 
@@ -373,6 +409,9 @@ model blood_requests {
   status           blood_request_status @default(OPEN)
   notes            String?
   is_emergency     Boolean              @default(false)
+  proof_image_url  String?
+  for_self         Boolean              @default(true)
+  patient_relation String?              @db.VarChar(100)
   admin_note       String?
   verified_by_id   String?              @db.Uuid
   expires_at       DateTime?            @db.Timestamptz(6)
@@ -513,6 +552,23 @@ model device_tokens {
   @@index([created_at])
 }
 
+model notifications {
+  id         String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String               @db.Uuid
+  type       notification_type
+  channel    notification_channel
+  title      String
+  body       String
+  data       Json?
+  is_read    Boolean              @default(false)
+  sent_at    DateTime?            @db.Timestamptz(6)
+  created_at DateTime             @default(now()) @db.Timestamptz(6)
+
+  @@index([user_id])
+  @@index([is_read])
+  @@index([created_at])
+}
+
 model donation_certificates {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   donation_id    String   @unique @db.Uuid
@@ -564,7 +620,7 @@ model donation_items {
   donor_id       String                  @db.Uuid
   title          String                  @db.VarChar(500)
   description    String
-  category_id    String?                 @db.Uuid
+  category       donation_item_category?
   condition      donation_item_condition @default(GOOD)
   quantity       Int                     @default(1)
   status         donation_item_status    @default(AVAILABLE)
@@ -584,7 +640,7 @@ model donation_items {
   @@index([created_at])
   @@index([deleted_at])
   @@index([donor_id])
-  @@index([category_id])
+  @@index([category])
   @@index([verified_by_id])
 }
 
@@ -750,6 +806,26 @@ model featured_products {
   @@index([is_active])
   @@index([created_at])
   @@index([created_by_id])
+}
+
+model inquiries {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id         String?        @db.Uuid
+  name            String         @db.VarChar(150)
+  email           String         @db.VarChar(255)
+  mobile          String         @db.VarChar(20)
+  subject         String         @db.VarChar(255)
+  message         String
+  status          inquiry_status @default(NEW)
+  admin_note      String?
+  resolved_by_id  String?        @db.Uuid
+  resolved_at     DateTime?      @db.Timestamptz(6)
+  created_at      DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime       @default(now()) @db.Timestamptz(6)
+
+  @@index([status])
+  @@index([created_at])
+  @@index([user_id])
 }
 
 model invoices {
@@ -1713,6 +1789,17 @@ enum conversation_type {
   CHANNEL
 }
 
+enum donation_item_category {
+  FURNITURE
+  CLOTHING
+  MEDICAL_EQUIPMENT
+  ELECTRONICS
+  BOOKS_STATIONERY
+  HOUSEHOLD
+  TOYS
+  OTHER
+}
+
 enum donation_item_condition {
   NEW
   LIKE_NEW
@@ -1779,6 +1866,13 @@ enum group_privacy {
   PUBLIC
   PRIVATE
   INVITE_ONLY
+}
+
+enum inquiry_status {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
 }
 
 enum membership_status {
@@ -1908,6 +2002,14 @@ enum banner_placement {
   PRODUCT
   CHECKOUT
   SIDEBAR
+}
+
+enum page_type {
+  GOVERNMENT_POLICY
+  EMERGENCY
+  INFORMATION
+  TERMS_AND_CONDITIONS
+  PRIVACY_POLICY
 }
 
 enum product_status {

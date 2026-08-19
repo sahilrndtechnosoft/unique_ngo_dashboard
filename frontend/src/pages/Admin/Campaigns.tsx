@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { setPageTitle } from '../../store/themeConfigSlice';
 import { adminApi } from '../../services/admin.service';
 import { getErrorMessage, mediaUrl } from '../../services/api';
@@ -37,6 +38,7 @@ const emptyForm = {
 
 export default function AdminCampaigns() {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
     const [items, setItems] = useState<any[]>([]);
     const [hospitals, setHospitals] = useState<any[]>([]);
     const [meta, setMeta] = useState({ page: 1, total: 0, totalPages: 1 });
@@ -288,13 +290,7 @@ export default function AdminCampaigns() {
                 actions={(row) => (
                     <RowActionsMenu
                         actions={[
-                            {
-                                label: 'View',
-                                onClick: () => {
-                                    fillForm(row);
-                                    setMode('view');
-                                },
-                            },
+                            { label: 'View', onClick: () => navigate(`/admin/campaigns/${row.id}`) },
                             {
                                 label: 'Edit',
                                 onClick: () => {

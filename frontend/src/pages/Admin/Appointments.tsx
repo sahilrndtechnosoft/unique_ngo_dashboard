@@ -16,6 +16,7 @@ const BLOOD_GROUPS = ['A_POSITIVE', 'A_NEGATIVE', 'B_POSITIVE', 'B_NEGATIVE', 'A
 
 const emptyForm = {
     userId: '',
+    donorLabel: '',
     donationType: 'hospital' as 'hospital' | 'camp',
     hospitalId: '',
     campaignId: '',
@@ -25,6 +26,10 @@ const emptyForm = {
     notes: '',
     status: 'PENDING',
     cancelReason: '',
+    forSelf: true,
+    beneficiaryName: '',
+    beneficiaryMobile: '',
+    beneficiaryRelation: '',
 };
 
 export default function AdminAppointments() {
@@ -42,9 +47,24 @@ export default function AdminAppointments() {
     const [form, setForm] = useState(emptyForm);
     const [hospitals, setHospitals] = useState<any[]>([]);
     const [campaigns, setCampaigns] = useState<any[]>([]);
+    const [donorSearch, setDonorSearch] = useState('');
+    const [donorResults, setDonorResults] = useState<any[]>([]);
 
     const ids = useMemo(() => items.map((item) => item.id), [items]);
     const selection = useRowSelection(ids);
+
+    const searchDonors = async () => {
+        if (!donorSearch.trim()) {
+            setDonorResults([]);
+            return;
+        }
+        try {
+            const data = await adminApi.listUsers({ search: donorSearch, limit: 10 });
+            setDonorResults(data.items);
+        } catch (err) {
+            showAlert(getErrorMessage(err), 'error');
+        }
+    };
 
     const load = async (page = 1, size = pageSize, filters?: { search?: string; status?: string }) => {
         const nextSearch = filters?.search ?? search;
@@ -84,6 +104,8 @@ export default function AdminAppointments() {
     const openCreate = () => {
         setEditingId(null);
         setForm(emptyForm);
+        setDonorSearch('');
+        setDonorResults([]);
         setMode('create');
     };
 
@@ -91,6 +113,7 @@ export default function AdminAppointments() {
         setEditingId(appointment.id);
         setForm({
             userId: appointment.donorId,
+            donorLabel: appointment.donor?.fullName ?? appointment.donorId,
             donationType: appointment.campaignId ? 'camp' : 'hospital',
             hospitalId: appointment.hospitalId ?? '',
             campaignId: appointment.campaignId ?? '',
@@ -100,12 +123,20 @@ export default function AdminAppointments() {
             notes: appointment.notes ?? '',
             status: appointment.status,
             cancelReason: appointment.cancelReason ?? '',
+            forSelf: appointment.forSelf ?? true,
+            beneficiaryName: appointment.beneficiary?.name ?? '',
+            beneficiaryMobile: appointment.beneficiary?.mobile ?? '',
+            beneficiaryRelation: appointment.beneficiary?.relation ?? '',
         });
         setMode('edit');
     };
 
     const submit = async (event: FormEvent) => {
         event.preventDefault();
+        if (mode === 'create' && !form.userId) {
+            showAlert('Select a donor first', 'error');
+            return;
+        }
         setBusy(true);
         setError('');
         try {
@@ -116,6 +147,10 @@ export default function AdminAppointments() {
                 notes: form.notes || undefined,
                 hospitalId: form.donationType === 'hospital' ? form.hospitalId || undefined : undefined,
                 campaignId: form.donationType === 'camp' ? form.campaignId || undefined : undefined,
+                forSelf: form.forSelf,
+                beneficiaryName: form.forSelf ? undefined : form.beneficiaryName || undefined,
+                beneficiaryMobile: form.forSelf ? undefined : form.beneficiaryMobile || undefined,
+                beneficiaryRelation: form.forSelf ? undefined : form.beneficiaryRelation || undefined,
             };
             if (mode === 'create') {
                 await adminApi.createAppointment({ ...body, userId: form.userId });
@@ -220,8 +255,10 @@ export default function AdminAppointments() {
                         label: 'Donor',
                         render: (row) => (
                             <div>
-                                <div>{row.donor?.fullName ?? '—'}</div>
-                                <div className="text-xs text-white-dark">{row.donor?.mobile ?? row.donor?.email ?? ''}</div>
+                                <div>{row.forSelf === false ? row.beneficiary?.name : row.donor?.fullName ?? '—'}</div>
+                                <div className="text-xs text-white-dark">
+                                    {row.forSelf === false ? `On behalf of ${row.donor?.fullName ?? 'account holder'}` : row.donor?.mobile ?? row.donor?.email ?? ''}
+                                </div>
                             </div>
                         ),
                     },
@@ -279,8 +316,55 @@ export default function AdminAppointments() {
                 <FormSection title="Appointment details" className="md:col-span-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         {mode === 'create' ? (
-                            <FormField label="Donor User ID" required className="md:col-span-2" hint="UUID of the donor this appointment is booked for">
-                                <input className="form-input" required value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })} />
+                            <FormField label="Donor" required className="md:col-span-2" hint="Search by name, email or mobile">
+                                {form.userId ? (
+                                    <div className="flex items-center justify-between rounded border border-[#ebedf2] p-2 dark:border-[#191e3a]">
+                                        <span>{form.donorLabel}</span>
+                                        <button type="button" className="btn btn-outline-dark btn-sm" onClick={() => setForm({ ...form, userId: '', donorLabel: '' })}>
+                                            Change
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                className="form-input"
+                                                value={donorSearch}
+                                                onChange={(e) => setDonorSearch(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        searchDonors();
+                                                    }
+                                                }}
+                                            />
+                                            <button type="button" className="btn btn-primary btn-sm" onClick={searchDonors}>
+                                                Search
+                                            </button>
+                                        </div>
+                                        {donorResults.length > 0 ? (
+                                            <ul className="mt-2 max-h-40 overflow-y-auto rounded border border-[#ebedf2] dark:border-[#191e3a]">
+                                                {donorResults.map((donor) => (
+                                                    <li key={donor.id}>
+                                                        <button
+                                                            type="button"
+                                                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-[#191e3a]"
+                                                            onClick={() =>
+                                                                setForm({
+                                                                    ...form,
+                                                                    userId: donor.id,
+                                                                    donorLabel: `${donor.fullName} (${donor.email ?? donor.mobile ?? ''})`,
+                                                                })
+                                                            }
+                                                        >
+                                                            {donor.fullName} — {donor.email ?? donor.mobile ?? ''}
+                                                        </button>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : null}
+                                    </div>
+                                )}
                             </FormField>
                         ) : null}
                         <FormField label="Donated At">
@@ -361,6 +445,52 @@ export default function AdminAppointments() {
                         <FormField label="Notes" className="md:col-span-2">
                             <textarea className="form-textarea" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
                         </FormField>
+                    </div>
+                </FormSection>
+
+                <FormSection title="Who is donating?" className="md:col-span-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <FormField label="Donating For" className="md:col-span-2">
+                            <div className="flex items-center gap-4 h-[38px]">
+                                <label className="flex items-center gap-2">
+                                    <input type="radio" checked={form.forSelf} onChange={() => setForm({ ...form, forSelf: true })} />
+                                    The donor themselves
+                                </label>
+                                <label className="flex items-center gap-2">
+                                    <input type="radio" checked={!form.forSelf} onChange={() => setForm({ ...form, forSelf: false })} />
+                                    On behalf of someone else
+                                </label>
+                            </div>
+                        </FormField>
+                        {!form.forSelf ? (
+                            <>
+                                <FormField label="Beneficiary Name" required>
+                                    <input
+                                        className="form-input"
+                                        required
+                                        value={form.beneficiaryName}
+                                        onChange={(e) => setForm({ ...form, beneficiaryName: e.target.value })}
+                                    />
+                                </FormField>
+                                <FormField label="Beneficiary Mobile" required>
+                                    <input
+                                        className="form-input"
+                                        required
+                                        value={form.beneficiaryMobile}
+                                        onChange={(e) => setForm({ ...form, beneficiaryMobile: e.target.value })}
+                                    />
+                                </FormField>
+                                <FormField label="Relation to Account Holder" required>
+                                    <input
+                                        className="form-input"
+                                        required
+                                        placeholder="e.g. Spouse, Parent, Friend"
+                                        value={form.beneficiaryRelation}
+                                        onChange={(e) => setForm({ ...form, beneficiaryRelation: e.target.value })}
+                                    />
+                                </FormField>
+                            </>
+                        ) : null}
                     </div>
                 </FormSection>
             </AdminFormModal>

@@ -103,13 +103,25 @@ const AdminUserDetail = lazy(() => import('../pages/Admin/UserDetail'));
 const AdminSellers = lazy(() => import('../pages/Admin/Sellers'));
 const AdminSellerDetail = lazy(() => import('../pages/Admin/SellerDetail'));
 const AdminCategories = lazy(() => import('../pages/Admin/Categories'));
+const AdminCategoryDetail = lazy(() => import('../pages/Admin/CategoryDetail'));
 const AdminProducts = lazy(() => import('../pages/Admin/Products'));
+const AdminProductDetail = lazy(() => import('../pages/Admin/ProductDetail'));
 const AdminOrders = lazy(() => import('../pages/Admin/Orders'));
+const AdminOrderDetail = lazy(() => import('../pages/Admin/OrderDetail'));
 const AdminHospitals = lazy(() => import('../pages/Admin/Hospitals'));
+const AdminHospitalDetail = lazy(() => import('../pages/Admin/HospitalDetail'));
 const AdminCampaigns = lazy(() => import('../pages/Admin/Campaigns'));
+const AdminCampaignDetail = lazy(() => import('../pages/Admin/CampaignDetail'));
 const AdminBloodDonations = lazy(() => import('../pages/Admin/BloodDonations'));
 const AdminAppointments = lazy(() => import('../pages/Admin/Appointments'));
 const AdminBloodRequests = lazy(() => import('../pages/Admin/BloodRequests'));
+const AdminNotificationBroadcast = lazy(() => import('../pages/Admin/NotificationBroadcast'));
+const AdminCoupons = lazy(() => import('../pages/Admin/Coupons'));
+const AdminCouponDetail = lazy(() => import('../pages/Admin/CouponDetail'));
+const AdminDonationItems = lazy(() => import('../pages/Admin/DonationItems'));
+const AdminDonationItemDetail = lazy(() => import('../pages/Admin/DonationItemDetail'));
+const AdminInquiries = lazy(() => import('../pages/Admin/Inquiries'));
+const AdminInquiryDetail = lazy(() => import('../pages/Admin/InquiryDetail'));
 const DonateBlood = lazy(() => import('../pages/Public/DonateBlood'));
 
 const routes = [
@@ -139,20 +151,40 @@ const routes = [
         element: <AdminCategories />,
     },
     {
+        path: '/admin/categories/:id',
+        element: <AdminCategoryDetail />,
+    },
+    {
         path: '/admin/products',
         element: <AdminProducts />,
+    },
+    {
+        path: '/admin/products/:id',
+        element: <AdminProductDetail />,
     },
     {
         path: '/admin/orders',
         element: <AdminOrders />,
     },
     {
+        path: '/admin/orders/:id',
+        element: <AdminOrderDetail />,
+    },
+    {
         path: '/admin/hospitals',
         element: <AdminHospitals />,
     },
     {
+        path: '/admin/hospitals/:id',
+        element: <AdminHospitalDetail />,
+    },
+    {
         path: '/admin/campaigns',
         element: <AdminCampaigns />,
+    },
+    {
+        path: '/admin/campaigns/:id',
+        element: <AdminCampaignDetail />,
     },
     {
         path: '/admin/blood-donations',
@@ -165,6 +197,34 @@ const routes = [
     {
         path: '/admin/blood-requests',
         element: <AdminBloodRequests />,
+    },
+    {
+        path: '/admin/notifications',
+        element: <AdminNotificationBroadcast />,
+    },
+    {
+        path: '/admin/coupons',
+        element: <AdminCoupons />,
+    },
+    {
+        path: '/admin/coupons/:id',
+        element: <AdminCouponDetail />,
+    },
+    {
+        path: '/admin/donation-items',
+        element: <AdminDonationItems />,
+    },
+    {
+        path: '/admin/donation-items/:id',
+        element: <AdminDonationItemDetail />,
+    },
+    {
+        path: '/admin/inquiries',
+        element: <AdminInquiries />,
+    },
+    {
+        path: '/admin/inquiries/:id',
+        element: <AdminInquiryDetail />,
     },
     {
         path: '/donate',

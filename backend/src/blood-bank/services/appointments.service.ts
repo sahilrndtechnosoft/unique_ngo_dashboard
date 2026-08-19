@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   appointment_status,
   blood_campaigns,
@@ -8,6 +8,7 @@ import {
   Prisma,
   users,
 } from '../../../generated/prisma/client';
+import { NotificationsService } from '../../notifications/services/notifications.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   AdminCreateAppointmentDto,
@@ -16,14 +17,50 @@ import {
   ListAppointmentsQueryDto,
   UpdateAppointmentStatusDto,
 } from '../dto/appointment.dto';
+import { EligibilityService } from './eligibility.service';
 
 @Injectable()
 export class AppointmentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(AppointmentsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eligibilityService: EligibilityService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async bookAppointment(donorId: string, dto: CreateAppointmentDto) {
     await this.validateHospitalOrCampaign(dto.hospitalId, dto.campaignId);
 
+    const eligibility = await this.eligibilityService.checkEligibility(
+      donorId,
+      {
+        lastDonationDate: dto.lastDonationDate,
+        hadTattooRecently: dto.hadTattooRecently,
+        tattooDate: dto.tattooDate,
+      },
+      { useAccountHistory: dto.forSelf !== false },
+    );
+    if (!eligibility.eligible) {
+      throw new BadRequestException(eligibility.reasons.join(' '));
+    }
+
+    const appointment = await this.createAppointmentRecord(donorId, dto);
+    await this.notifyAdminsOfNewAppointment(appointment.id, dto);
+    return appointment;
+  }
+
+  async adminCreateAppointment(dto: AdminCreateAppointmentDto) {
+    const donor = await this.prisma.users.findFirst({ where: { id: dto.userId, deleted_at: null } });
+    if (!donor) {
+      throw new NotFoundException('User not found');
+    }
+    await this.validateHospitalOrCampaign(dto.hospitalId, dto.campaignId);
+
+    return this.createAppointmentRecord(dto.userId, dto);
+  }
+
+  private async createAppointmentRecord(donorId: string, dto: CreateAppointmentDto) {
     const appointment = await this.prisma.blood_donation_appointments.create({
       data: {
         donor_id: donorId,
@@ -33,19 +70,14 @@ export class AppointmentsService {
         appointment_date: new Date(dto.appointmentDate),
         time_slot: dto.timeSlot,
         notes: dto.notes,
+        for_self: dto.forSelf ?? true,
+        beneficiary_name: dto.forSelf === false ? dto.beneficiaryName : null,
+        beneficiary_mobile: dto.forSelf === false ? dto.beneficiaryMobile : null,
+        beneficiary_relation: dto.forSelf === false ? dto.beneficiaryRelation : null,
       },
     });
 
     return this.toPublic(appointment);
-  }
-
-  async adminCreateAppointment(dto: AdminCreateAppointmentDto) {
-    const donor = await this.prisma.users.findFirst({ where: { id: dto.userId, deleted_at: null } });
-    if (!donor) {
-      throw new NotFoundException('User not found');
-    }
-
-    return this.bookAppointment(dto.userId, dto);
   }
 
   async listMyAppointments(donorId: string, query: ListAppointmentsQueryDto) {
@@ -76,6 +108,8 @@ export class AppointmentsService {
     const where: Prisma.blood_donation_appointmentsWhereInput = {
       ...(options?.donorId ? { donor_id: options.donorId } : {}),
       ...(query.status ? { status: query.status } : {}),
+      ...(query.hospitalId ? { hospital_id: query.hospitalId } : {}),
+      ...(query.campaignId ? { campaign_id: query.campaignId } : {}),
       ...(query.search ? { donor_id: options?.donorId ? options.donorId : { in: matchingDonorIds } } : {}),
     };
 
@@ -147,6 +181,10 @@ export class AppointmentsService {
         ...(dto.status !== undefined && { status: dto.status }),
         ...(dto.notes !== undefined && { notes: dto.notes }),
         ...(dto.cancelReason !== undefined && { cancel_reason: dto.cancelReason }),
+        ...(dto.forSelf !== undefined && { for_self: dto.forSelf }),
+        ...(dto.beneficiaryName !== undefined && { beneficiary_name: dto.beneficiaryName }),
+        ...(dto.beneficiaryMobile !== undefined && { beneficiary_mobile: dto.beneficiaryMobile }),
+        ...(dto.beneficiaryRelation !== undefined && { beneficiary_relation: dto.beneficiaryRelation }),
         updated_at: new Date(),
       },
     });
@@ -212,6 +250,34 @@ export class AppointmentsService {
     }
   }
 
+  /** Best-effort admin email — a delivery failure must not fail the underlying booking. */
+  private async notifyAdminsOfNewAppointment(appointmentId: string, dto: CreateAppointmentDto) {
+    try {
+      const appointment = await this.findOrThrow(appointmentId);
+      const [donor, hospital, campaign] = await Promise.all([
+        this.prisma.users.findUnique({ where: { id: appointment.donor_id } }),
+        appointment.hospital_id ? this.prisma.hospitals.findUnique({ where: { id: appointment.hospital_id } }) : null,
+        appointment.campaign_id ? this.prisma.blood_campaigns.findUnique({ where: { id: appointment.campaign_id } }) : null,
+      ]);
+
+      const donorLabel = dto.forSelf === false ? `${dto.beneficiaryName} (booked by ${donor?.full_name ?? 'a donor'})` : donor?.full_name ?? 'A donor';
+
+      await this.notificationsService.notifyAdminsByEmail(
+        `New Appointment Booked: ${donorLabel}`,
+        `<p>A new blood donation appointment has been booked.</p>
+         <ul>
+           <li><strong>Donor:</strong> ${donorLabel}</li>
+           <li><strong>Blood Group:</strong> ${appointment.blood_group.replace('_', ' ')}</li>
+           <li><strong>Date:</strong> ${appointment.appointment_date.toISOString().slice(0, 10)}${appointment.time_slot ? ` (${appointment.time_slot})` : ''}</li>
+           <li><strong>Location:</strong> ${hospital?.name ?? campaign?.name ?? '—'}</li>
+         </ul>
+         <p>Please review it in the admin panel.</p>`,
+      );
+    } catch (error) {
+      this.logger.error(`Failed to email admins about appointment ${appointmentId}`, error as Error);
+    }
+  }
+
   private async findOrThrow(appointmentId: string) {
     const appointment = await this.prisma.blood_donation_appointments.findUnique({
       where: { id: appointmentId },
@@ -269,6 +335,14 @@ export class AppointmentsService {
       notes: appointment.notes,
       cancelReason: appointment.cancel_reason,
       donationId: appointment.donation_id,
+      forSelf: appointment.for_self,
+      beneficiary: appointment.for_self
+        ? null
+        : {
+            name: appointment.beneficiary_name,
+            mobile: appointment.beneficiary_mobile,
+            relation: appointment.beneficiary_relation,
+          },
       createdAt: appointment.created_at,
       updatedAt: appointment.updated_at,
     };

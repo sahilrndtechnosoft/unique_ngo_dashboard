@@ -44,6 +44,7 @@ export const adminApi = {
 
     listCategories: (params?: Record<string, unknown>) =>
         api.get('/admin/categories', { params }).then((r) => unwrap<Paginated<any>>(r)),
+    getCategory: (id: string) => api.get(`/admin/categories/${id}`).then((r) => unwrap(r)),
     createCategory: (body: Record<string, unknown>) =>
         api.post('/admin/categories', body).then((r) => unwrap(r)),
     updateCategory: (id: string, body: Record<string, unknown>) =>
@@ -192,4 +193,45 @@ export const adminApi = {
     updateBloodRequest: (id: string, body: Record<string, unknown>) =>
         api.patch(`/admin/blood-requests/${id}`, body).then((r) => unwrap(r)),
     deleteBloodRequest: (id: string) => api.delete(`/admin/blood-requests/${id}`).then((r) => unwrap(r)),
+
+    broadcastNotification: (body: { target: string; bloodGroups?: string[]; userIds?: string[]; title: string; body: string }) =>
+        api.post('/admin/notifications/broadcast', body).then((r) => unwrap<{ matchedUsers: number; targeted: number; delivered: number }>(r)),
+    listNotifications: (params?: Record<string, unknown>) =>
+        api.get('/admin/notifications', { params }).then((r) => unwrap<Paginated<any>>(r)),
+    getNotification: (id: string) => api.get(`/admin/notifications/${id}`).then((r) => unwrap(r)),
+    deleteNotification: (id: string) => api.delete(`/admin/notifications/${id}`).then((r) => unwrap(r)),
+
+    listCoupons: (params?: Record<string, unknown>) =>
+        api.get('/admin/coupons', { params }).then((r) => unwrap<Paginated<any>>(r)),
+    getCoupon: (id: string) => api.get(`/admin/coupons/${id}`).then((r) => unwrap(r)),
+    getCouponUsages: (id: string) => api.get(`/admin/coupons/${id}/usages`).then((r) => unwrap<any[]>(r)),
+    createCoupon: (body: Record<string, unknown>) => api.post('/admin/coupons', body).then((r) => unwrap(r)),
+    updateCoupon: (id: string, body: Record<string, unknown>) =>
+        api.patch(`/admin/coupons/${id}`, body).then((r) => unwrap(r)),
+    deleteCoupon: (id: string) => api.delete(`/admin/coupons/${id}`).then((r) => unwrap(r)),
+
+    listDonationItems: (params?: Record<string, unknown>) =>
+        api.get('/admin/donation-items', { params }).then((r) => unwrap<Paginated<any>>(r)),
+    getDonationItem: (id: string) => api.get(`/admin/donation-items/${id}`).then((r) => unwrap(r)),
+    updateDonationItem: (id: string, body: Record<string, unknown>) =>
+        api.patch(`/admin/donation-items/${id}`, body).then((r) => unwrap(r)),
+    verifyDonationItem: (id: string) => api.patch(`/admin/donation-items/${id}/verify`, {}).then((r) => unwrap(r)),
+    rejectDonationItem: (id: string, adminNote: string) =>
+        api.patch(`/admin/donation-items/${id}/reject`, { adminNote }).then((r) => unwrap(r)),
+    deleteDonationItem: (id: string) => api.delete(`/admin/donation-items/${id}`).then((r) => unwrap(r)),
+
+    listDonationItemRequests: (params?: Record<string, unknown>) =>
+        api.get('/admin/donation-item-requests', { params }).then((r) => unwrap<Paginated<any>>(r)),
+    getDonationItemRequest: (id: string) => api.get(`/admin/donation-item-requests/${id}`).then((r) => unwrap(r)),
+    deleteDonationItemRequest: (id: string) => api.delete(`/admin/donation-item-requests/${id}`).then((r) => unwrap(r)),
+
+    listDonationTransfers: (params?: Record<string, unknown>) =>
+        api.get('/admin/donation-transfers', { params }).then((r) => unwrap<Paginated<any>>(r)),
+
+    listInquiries: (params?: Record<string, unknown>) =>
+        api.get('/admin/inquiries', { params }).then((r) => unwrap<Paginated<any>>(r)),
+    getInquiry: (id: string) => api.get(`/admin/inquiries/${id}`).then((r) => unwrap(r)),
+    updateInquiry: (id: string, body: Record<string, unknown>) =>
+        api.patch(`/admin/inquiries/${id}`, body).then((r) => unwrap(r)),
+    deleteInquiry: (id: string) => api.delete(`/admin/inquiries/${id}`).then((r) => unwrap(r)),
 };

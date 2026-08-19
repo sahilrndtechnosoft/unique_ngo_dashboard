@@ -55,4 +55,33 @@ export class RewardsService {
 
     return { walletId: wallet.id, pointsCredited: points, balanceAfter: wallet.current_balance };
   }
+
+  async getMyRewards(userId: string) {
+    const wallet = await this.prisma.reward_wallets.findUnique({ where: { user_id: userId } });
+    const transactions = await this.prisma.reward_transactions.findMany({
+      where: { user_id: userId },
+      orderBy: { created_at: 'desc' },
+      take: 50,
+    });
+
+    return {
+      wallet: wallet
+        ? {
+            currentBalance: wallet.current_balance,
+            totalEarned: wallet.total_earned,
+            totalRedeemed: wallet.total_redeemed,
+            tier: wallet.tier,
+          }
+        : { currentBalance: 0, totalEarned: 0, totalRedeemed: 0, tier: 'BRONZE' },
+      transactions: transactions.map((tx) => ({
+        id: tx.id,
+        type: tx.type,
+        points: tx.points,
+        balanceAfter: tx.balance_after,
+        activity: tx.activity,
+        description: tx.description,
+        createdAt: tx.created_at,
+      })),
+    };
+  }
 }

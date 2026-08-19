@@ -53,6 +53,10 @@ export class DonationsService {
         notes: dto.notes,
         is_camp_donation: !!(dto.campaignId ?? appointment?.campaign_id),
         campaign_id: dto.campaignId ?? appointment?.campaign_id,
+        for_self: dto.forSelf ?? true,
+        beneficiary_name: dto.forSelf === false ? dto.beneficiaryName : null,
+        beneficiary_mobile: dto.forSelf === false ? dto.beneficiaryMobile : null,
+        beneficiary_relation: dto.forSelf === false ? dto.beneficiaryRelation : null,
       },
     });
 
@@ -154,6 +158,10 @@ export class DonationsService {
         notes: dto.notes,
         is_camp_donation: !!dto.campaignId,
         campaign_id: dto.campaignId,
+        for_self: dto.forSelf ?? true,
+        beneficiary_name: dto.forSelf === false ? dto.beneficiaryName : null,
+        beneficiary_mobile: dto.forSelf === false ? dto.beneficiaryMobile : null,
+        beneficiary_relation: dto.forSelf === false ? dto.beneficiaryRelation : null,
       },
     });
 
@@ -176,6 +184,10 @@ export class DonationsService {
         ...(dto.city !== undefined && { city: dto.city }),
         ...(dto.state !== undefined && { state: dto.state }),
         ...(dto.notes !== undefined && { notes: dto.notes }),
+        ...(dto.forSelf !== undefined && { for_self: dto.forSelf }),
+        ...(dto.beneficiaryName !== undefined && { beneficiary_name: dto.beneficiaryName }),
+        ...(dto.beneficiaryMobile !== undefined && { beneficiary_mobile: dto.beneficiaryMobile }),
+        ...(dto.beneficiaryRelation !== undefined && { beneficiary_relation: dto.beneficiaryRelation }),
         updated_at: new Date(),
       },
     });
@@ -290,6 +302,14 @@ export class DonationsService {
       status: donation.status,
       proofImageUrl: donation.proof_image_url,
       notes: donation.notes,
+      forSelf: donation.for_self,
+      beneficiary: donation.for_self
+        ? null
+        : {
+            name: donation.beneficiary_name,
+            mobile: donation.beneficiary_mobile,
+            relation: donation.beneficiary_relation,
+          },
       verifiedById: donation.verified_by_id,
       verifiedAt: donation.verified_at,
       rejectionReason: donation.rejection_reason,

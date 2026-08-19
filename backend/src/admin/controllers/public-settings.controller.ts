@@ -1,9 +1,11 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public, ResponseMessage } from '../../common/decorators';
 import { ListBannersQueryDto } from '../dto/update-banner.dto';
+import { ListPagesQueryDto } from '../dto/page.dto';
 import { AppSettingsService } from '../services/app-settings.service';
 import { BannerImagesService } from '../services/banner-images.service';
+import { PagesService } from '../services/pages.service';
 
 @ApiTags('Public - Settings')
 @Controller('public')
@@ -12,6 +14,7 @@ export class PublicSettingsController {
   constructor(
     private readonly appSettingsService: AppSettingsService,
     private readonly bannerImagesService: BannerImagesService,
+    private readonly pagesService: PagesService,
   ) {}
 
   @Get('settings')
@@ -36,5 +39,19 @@ export class PublicSettingsController {
   @ApiOperation({ summary: 'Get active banner images, optionally filtered by placement and slot' })
   getActiveBanners(@Query() query: ListBannersQueryDto) {
     return this.bannerImagesService.listBanners(true, query.placement, query.slot);
+  }
+
+  @Get('pages')
+  @ResponseMessage('Pages fetched successfully')
+  @ApiOperation({ summary: 'Get active Government Policy, Emergency, and Information pages' })
+  getActivePages(@Query() query: ListPagesQueryDto) {
+    return this.pagesService.listPages(true, query.type);
+  }
+
+  @Get('pages/:slug')
+  @ResponseMessage('Page fetched successfully')
+  @ApiOperation({ summary: 'Get a single active page by slug' })
+  getPageBySlug(@Param('slug') slug: string) {
+    return this.pagesService.getPageBySlug(slug);
   }
 }

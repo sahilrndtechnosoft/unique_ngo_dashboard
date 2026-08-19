@@ -13,6 +13,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { blood_group, blood_request_status, urgency_level } from '../../../generated/prisma/client';
 
@@ -129,6 +130,18 @@ export class CreateBloodRequestDto {
   @IsOptional()
   @IsBoolean()
   isEmergency?: boolean;
+
+  @ApiPropertyOptional({ example: true, default: true, description: 'Is this request for the logged-in user, or on behalf of a family member?' })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  forSelf?: boolean = true;
+
+  @ApiPropertyOptional({ example: 'Spouse', description: 'Required when forSelf is false: relationship to the logged-in user' })
+  @ValidateIf((dto: CreateBloodRequestDto) => dto.forSelf === false)
+  @IsString()
+  @MaxLength(100)
+  patientRelation?: string;
 }
 
 export class AdminCreateBloodRequestDto extends CreateBloodRequestDto {
@@ -233,4 +246,16 @@ export class AdminUpdateBloodRequestDto {
   @IsOptional()
   @IsDateString()
   expiresAt?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  forSelf?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  patientRelation?: string;
 }

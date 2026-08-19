@@ -134,6 +134,9 @@ export class AdminSellersService {
           business_name: dto.businessName,
           business_type: dto.businessType,
           description: dto.description,
+          gst_number: dto.gstNumber,
+          pan_number: dto.panNumber,
+          ...(dto.commissionRate !== undefined && { commission_rate: dto.commissionRate }),
           status,
           verified_by_id:
             status === seller_status.ACTIVE ? actorId : undefined,

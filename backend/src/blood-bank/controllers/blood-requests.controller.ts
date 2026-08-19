@@ -1,9 +1,27 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { blood_group, urgency_level } from '../../../generated/prisma/client';
 import { AppModule, JwtPayload, PermissionAction, UserRole } from '../../common/constants';
 import { CurrentUser, RequirePermissions, ResponseMessage, Roles } from '../../common/decorators';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { buildUploadedFilePath, createImageUploadOptions } from '../../common/utils/image-upload.util';
 import {
   AdminCreateBloodRequestDto,
   AdminUpdateBloodRequestDto,
@@ -11,6 +29,27 @@ import {
   ListBloodRequestsQueryDto,
 } from '../dto/blood-request.dto';
 import { BloodRequestsService } from '../services/blood-requests.service';
+
+const BLOOD_REQUEST_BODY_SCHEMA = {
+  type: 'object' as const,
+  properties: {
+    file: { type: 'string', format: 'binary', description: 'Proof/document showing blood is required (e.g. doctor prescription, hospital admission slip)' },
+    patientName: { type: 'string' },
+    bloodGroup: { type: 'string', enum: Object.values(blood_group) },
+    unitsRequired: { type: 'number', example: 2 },
+    urgency: { type: 'string', enum: Object.values(urgency_level) },
+    hospitalName: { type: 'string' },
+    hospitalAddress: { type: 'string' },
+    city: { type: 'string' },
+    state: { type: 'string' },
+    contactName: { type: 'string' },
+    contactMobile: { type: 'string' },
+    requiredByDate: { type: 'string', format: 'date', example: '2026-08-15' },
+    notes: { type: 'string' },
+    isEmergency: { type: 'boolean', example: false },
+  },
+  required: ['file', 'patientName', 'bloodGroup', 'hospitalName', 'hospitalAddress', 'city', 'state', 'contactName', 'contactMobile', 'requiredByDate'],
+};
 
 @ApiTags('Blood Requests')
 @ApiBearerAuth()
@@ -20,8 +59,14 @@ export class BloodRequestsController {
 
   @Post()
   @ResponseMessage('Blood request submitted successfully')
-  create(@CurrentUser() user: JwtPayload, @Body() dto: CreateBloodRequestDto) {
-    return this.bloodRequestsService.createRequest(user.sub, dto);
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: BLOOD_REQUEST_BODY_SCHEMA })
+  @UseInterceptors(FileInterceptor('file', createImageUploadOptions('blood-requests')))
+  create(@CurrentUser() user: JwtPayload, @UploadedFile() file: Express.Multer.File, @Body() dto: CreateBloodRequestDto) {
+    if (!file) {
+      throw new BadRequestException('A supporting proof/document is required');
+    }
+    return this.bloodRequestsService.createRequest(user.sub, dto, buildUploadedFilePath('blood-requests', file.filename));
   }
 
   @Get()
@@ -68,8 +113,20 @@ export class AdminBloodRequestsController {
   @Post()
   @RequirePermissions(AppModule.BLOOD_BANK, PermissionAction.CREATE)
   @ResponseMessage('Blood request created successfully')
-  create(@Body() dto: AdminCreateBloodRequestDto) {
-    return this.bloodRequestsService.adminCreateRequest(dto);
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      ...BLOOD_REQUEST_BODY_SCHEMA,
+      properties: { ...BLOOD_REQUEST_BODY_SCHEMA.properties, userId: { type: 'string', format: 'uuid' } },
+      required: ['userId', ...BLOOD_REQUEST_BODY_SCHEMA.required.filter((field) => field !== 'file')],
+    },
+  })
+  @UseInterceptors(FileInterceptor('file', createImageUploadOptions('blood-requests')))
+  create(@UploadedFile() file: Express.Multer.File, @Body() dto: AdminCreateBloodRequestDto) {
+    return this.bloodRequestsService.adminCreateRequest(
+      dto,
+      file ? buildUploadedFilePath('blood-requests', file.filename) : undefined,
+    );
   }
 
   @Patch(':id')

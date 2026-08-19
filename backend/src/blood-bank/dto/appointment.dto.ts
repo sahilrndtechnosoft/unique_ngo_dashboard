@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 import { appointment_status, blood_group } from '../../../generated/prisma/client';
 
 export class ListAppointmentsQueryDto {
@@ -33,6 +33,16 @@ export class ListAppointmentsQueryDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({ description: 'Admin-only: filter to a specific hospital' })
+  @IsOptional()
+  @IsUUID()
+  hospitalId?: string;
+
+  @ApiPropertyOptional({ description: 'Admin-only: filter to a specific campaign' })
+  @IsOptional()
+  @IsUUID()
+  campaignId?: string;
 }
 
 export class CreateAppointmentDto {
@@ -64,6 +74,45 @@ export class CreateAppointmentDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ example: '2026-05-01', description: 'Date of your last blood donation, if any. Falls back to your donation history if omitted.' })
+  @IsOptional()
+  @IsDateString()
+  lastDonationDate?: string;
+
+  @ApiProperty({ example: false, description: 'Eligibility question: have you had a tattoo recently?' })
+  @Type(() => Boolean)
+  @IsBoolean()
+  hadTattooRecently!: boolean;
+
+  @ApiPropertyOptional({ example: '2026-06-01', description: 'Required when hadTattooRecently is true' })
+  @ValidateIf((dto: CreateAppointmentDto) => dto.hadTattooRecently)
+  @IsDateString()
+  tattooDate?: string;
+
+  @ApiPropertyOptional({ example: true, default: true, description: 'Is this donation for the logged-in user, or on behalf of someone else?' })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  forSelf?: boolean = true;
+
+  @ApiPropertyOptional({ description: 'Required when forSelf is false: name of the person who will actually donate' })
+  @ValidateIf((dto: CreateAppointmentDto) => dto.forSelf === false)
+  @IsString()
+  @MaxLength(255)
+  beneficiaryName?: string;
+
+  @ApiPropertyOptional({ description: 'Required when forSelf is false: mobile number of the person who will actually donate' })
+  @ValidateIf((dto: CreateAppointmentDto) => dto.forSelf === false)
+  @IsString()
+  @MaxLength(20)
+  beneficiaryMobile?: string;
+
+  @ApiPropertyOptional({ example: 'Spouse', description: 'Required when forSelf is false: relationship to the logged-in user' })
+  @ValidateIf((dto: CreateAppointmentDto) => dto.forSelf === false)
+  @IsString()
+  @MaxLength(100)
+  beneficiaryRelation?: string;
 }
 
 export class UpdateAppointmentStatusDto {
@@ -81,6 +130,11 @@ export class AdminCreateAppointmentDto extends CreateAppointmentDto {
   @ApiProperty({ description: 'The donor this appointment is booked for' })
   @IsUUID()
   userId!: string;
+
+  @ApiPropertyOptional({ description: 'Admin-created appointments skip the self-service eligibility gate' })
+  @IsOptional()
+  @IsBoolean()
+  declare hadTattooRecently: boolean;
 }
 
 export class AdminUpdateAppointmentDto {
@@ -124,4 +178,28 @@ export class AdminUpdateAppointmentDto {
   @IsOptional()
   @IsString()
   cancelReason?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  forSelf?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  beneficiaryName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  beneficiaryMobile?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  beneficiaryRelation?: string;
 }

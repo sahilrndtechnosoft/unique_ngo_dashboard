@@ -29,6 +29,7 @@ export const adminMenuGroups: AdminMenuGroup[] = [
             { label: 'Categories', to: '/admin/categories', permission: 'PRODUCTS:VIEW' },
             { label: 'Products', to: '/admin/products', permission: 'PRODUCTS:VIEW' },
             { label: 'Orders', to: '/admin/orders', permission: 'ORDERS:VIEW' },
+            { label: 'Coupons', to: '/admin/coupons', permission: 'COUPONS:VIEW' },
         ],
     },
     {
@@ -39,7 +40,16 @@ export const adminMenuGroups: AdminMenuGroup[] = [
             { label: 'Appointments', to: '/admin/appointments', permission: 'BLOOD_BANK:VIEW' },
             { label: 'Donations', to: '/admin/blood-donations', permission: 'BLOOD_BANK:VIEW' },
             { label: 'Blood Requests', to: '/admin/blood-requests', permission: 'BLOOD_BANK:VIEW' },
+            { label: 'Send Notification', to: '/admin/notifications', permission: 'NOTIFICATIONS:CREATE' },
         ],
+    },
+    {
+        label: 'Item Donations',
+        items: [{ label: 'Donation Items', to: '/admin/donation-items', permission: 'DONATIONS:VIEW' }],
+    },
+    {
+        label: 'Support',
+        items: [{ label: 'Inquiries', to: '/admin/inquiries', permission: 'INQUIRIES:VIEW' }],
     },
 ];
 
