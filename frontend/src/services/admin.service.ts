@@ -227,4 +227,11 @@ export const adminApi = {
 
     listDonationTransfers: (params?: Record<string, unknown>) =>
         api.get('/admin/donation-transfers', { params }).then((r) => unwrap<Paginated<any>>(r)),
+
+    listInquiries: (params?: Record<string, unknown>) =>
+        api.get('/admin/inquiries', { params }).then((r) => unwrap<Paginated<any>>(r)),
+    getInquiry: (id: string) => api.get(`/admin/inquiries/${id}`).then((r) => unwrap(r)),
+    updateInquiry: (id: string, body: Record<string, unknown>) =>
+        api.patch(`/admin/inquiries/${id}`, body).then((r) => unwrap(r)),
+    deleteInquiry: (id: string) => api.delete(`/admin/inquiries/${id}`).then((r) => unwrap(r)),
 };

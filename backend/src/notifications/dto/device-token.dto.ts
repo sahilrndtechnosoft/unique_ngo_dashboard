@@ -1,9 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class RegisterDeviceTokenDto {
-  @ApiProperty({ description: 'FCM registration token from the client device' })
+  @ApiProperty({
+    example: 'dJ3f...Q9x:APA91bF...actual-device-token',
+    description: 'FCM registration token from the client device',
+  })
   @IsString()
+  @MinLength(100)
   token!: string;
 
   @ApiProperty({ example: 'ANDROID', description: 'Client platform, e.g. ANDROID, IOS, WEB' })

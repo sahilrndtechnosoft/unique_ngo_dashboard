@@ -18,6 +18,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { JwtStrategy } from './common/strategies/jwt.strategy';
+import { InquiriesModule } from './inquiries/inquiries.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { OrdersModule } from './orders/orders.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -49,6 +50,7 @@ import { WishlistModule } from './wishlist/wishlist.module';
     NotificationsModule,
     CouponsModule,
     DonationItemsModule,
+    InquiriesModule,
   ],
   providers: [
     JwtStrategy,

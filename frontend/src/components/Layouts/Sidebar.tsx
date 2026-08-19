@@ -29,6 +29,7 @@ const menuIcons: Record<string, JSX.Element> = {
     '/admin/blood-donations': <IconMenuInvoice className="group-hover:!text-primary shrink-0" />,
     '/admin/blood-requests': <IconMenuInvoice className="group-hover:!text-primary shrink-0" />,
     '/admin/notifications': <IconMenuNotes className="group-hover:!text-primary shrink-0" />,
+    '/admin/inquiries': <IconMenuNotes className="group-hover:!text-primary shrink-0" />,
 };
 
 const Sidebar = () => {

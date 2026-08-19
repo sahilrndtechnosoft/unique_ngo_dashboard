@@ -18,6 +18,7 @@ export interface PushResult {
 const DEAD_TOKEN_ERROR_CODES = [
   'messaging/registration-token-not-registered',
   'messaging/invalid-registration-token',
+  'messaging/invalid-argument',
 ];
 
 @Injectable()

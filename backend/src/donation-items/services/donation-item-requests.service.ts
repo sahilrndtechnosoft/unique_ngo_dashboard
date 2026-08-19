@@ -271,8 +271,12 @@ export class DonationItemRequestsService {
 
     const itemsById = await this.getItemsById(rows.map((row) => row.donation_item_id));
 
+    const items = await Promise.all(
+      rows.map((row) => this.toPublic(row, itemsById.get(row.donation_item_id), options)),
+    );
+
     return {
-      items: rows.map((row) => this.toPublic(row, itemsById.get(row.donation_item_id), options)),
+      items,
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
     };
   }

@@ -47,6 +47,10 @@ export const adminMenuGroups: AdminMenuGroup[] = [
         label: 'Item Donations',
         items: [{ label: 'Donation Items', to: '/admin/donation-items', permission: 'DONATIONS:VIEW' }],
     },
+    {
+        label: 'Support',
+        items: [{ label: 'Inquiries', to: '/admin/inquiries', permission: 'INQUIRIES:VIEW' }],
+    },
 ];
 
 export function canAccess(
