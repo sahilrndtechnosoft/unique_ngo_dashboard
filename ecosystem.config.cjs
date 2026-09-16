@@ -1,13 +1,4 @@
-/**
- * PM2 ecosystem — Unique NGO Dashboard (VPS)
- *
- * Paths assume:
- *   /var/www/rndprojects/unique_ngo_dashboard/{backend,frontend}
- *
- * Ports (chosen to avoid common conflicts 3000/3001/5173/8080):
- *   API (NestJS) → 3017
- *   Frontend     → static files via nginx (no Node port)
- */
+
 module.exports = {
   apps: [
     {
