@@ -178,7 +178,7 @@ export default function AdminNotificationBroadcast() {
                                 <div className="flex flex-wrap gap-4">
                                     {TARGET_TYPES.map((t) => (
                                         <label key={t.value} className="flex items-center gap-2 cursor-pointer">
-                                            <input type="radio" checked={target === t.value} onChange={() => setTarget(t.value)} />
+                                            <input type="radio" name="notification-target" value={t.value} checked={target === t.value} onChange={() => setTarget(t.value)} />
                                             {t.label}
                                         </label>
                                     ))}
@@ -218,7 +218,7 @@ export default function AdminNotificationBroadcast() {
                                                     className="inline-flex items-center gap-2 rounded-full bg-primary-light px-3 py-1 text-xs font-medium text-primary dark:bg-primary/20"
                                                 >
                                                     {user.label}
-                                                    <button type="button" onClick={() => removeUser(user.id)} className="hover:text-danger">
+                                                    <button type="button" onClick={() => removeUser(user.id)} className="hover:text-danger" aria-label={`Remove ${user.label}`}>
                                                         &times;
                                                     </button>
                                                 </span>
@@ -228,6 +228,8 @@ export default function AdminNotificationBroadcast() {
                                     <div className="flex items-center gap-2">
                                         <input
                                             className="form-input"
+                                            aria-label="Search recipients by name, email, or mobile"
+                                            placeholder="Name, email, or mobile"
                                             value={userSearch}
                                             onChange={(e) => setUserSearch(e.target.value)}
                                             onKeyDown={(e) => {

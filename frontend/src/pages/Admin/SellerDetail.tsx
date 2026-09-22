@@ -391,12 +391,29 @@ export default function SellerDetail() {
 
     const infoCards = useMemo(() => {
         if (!seller) return [];
+        const originFields = [
+            seller.shiprocketPickupLocation,
+            seller.shiprocketPickupAddress,
+            seller.shiprocketPickupCity,
+            seller.shiprocketPickupState,
+            seller.shiprocketPickupPinCode,
+        ];
+        const hasCustomOrigin = originFields.some(Boolean);
+        const completeOrigin = originFields.every(Boolean) && seller.shiprocketPickupAddress.trim().length >= 10;
+        const originSummary = !hasCustomOrigin
+            ? 'Platform warehouse fallback (when configured)'
+            : completeOrigin
+                ? `${seller.shiprocketPickupLocation} · ${seller.shiprocketPickupCity}, ${seller.shiprocketPickupState} ${seller.shiprocketPickupPinCode}`
+                : 'Incomplete custom origin · shipment creation blocked';
         return [
             { label: 'Owner', value: seller.fullName || '—' },
             { label: 'Email', value: seller.email || '—' },
             { label: 'Mobile', value: seller.mobile || '—' },
             { label: 'Business type', value: seller.businessType || '—' },
             { label: 'Status', value: seller.status },
+            { label: 'Seller commission override', value: seller.commissionRate == null ? 'Not set' : `${seller.commissionRate}%` },
+            { label: 'Shiprocket origin', value: originSummary },
+            { label: 'Recorded sales', value: `₹${Number(seller.totalSales ?? 0).toLocaleString('en-IN')}` },
         ];
     }, [seller]);
 
@@ -434,16 +451,16 @@ export default function SellerDetail() {
 
             <div className="panel mb-5">
                 <h5 className="font-semibold text-lg mb-4">Seller information</h5>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <dl className="admin-detail-facts">
                     {infoCards.map((card) => (
-                        <div key={card.label} className="rounded border border-[#ebedf2] dark:border-[#191e3a] p-4">
-                            <div className="text-xs uppercase tracking-wide text-white-dark mb-1">{card.label}</div>
-                            <div className="font-semibold break-all">
+                        <div key={card.label}>
+                            <dt>{card.label}</dt>
+                            <dd>
                                 {card.label === 'Status' ? <StatusBadge status={String(card.value)} /> : card.value}
-                            </div>
+                            </dd>
                         </div>
                     ))}
-                </div>
+                </dl>
                 {seller.description ? (
                     <div className="mt-4">
                         <div className="text-xs uppercase tracking-wide text-white-dark mb-1">Description</div>

@@ -5,11 +5,28 @@ import { setPageTitle } from '../../store/themeConfigSlice';
 import { adminApi } from '../../services/admin.service';
 import { getErrorMessage } from '../../services/api';
 import { AdminDataTable } from '../../components/Admin/AdminTable';
-import { FormField, FormSection, RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
-import { showAlert } from '../../utils/alerts';
+import { DetailFacts, FormField, FormSection, RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
+import { confirmAction, showAlert } from '../../utils/alerts';
 import IconArrowLeft from '../../components/Icon/IconArrowLeft';
 
 const STATUSES = ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', 'RETURNED', 'REFUNDED'];
+const formatMoney = (value: number | string | null | undefined) => new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+}).format(Number(value ?? 0));
+const STATUS_TRANSITIONS: Record<string, string[]> = {
+    PENDING: ['CONFIRMED', 'PROCESSING', 'CANCELLED'],
+    CONFIRMED: ['PROCESSING', 'CANCELLED'],
+    PROCESSING: ['SHIPPED', 'CANCELLED'],
+    SHIPPED: ['OUT_FOR_DELIVERY', 'DELIVERED', 'RETURNED'],
+    OUT_FOR_DELIVERY: ['DELIVERED', 'RETURNED'],
+    DELIVERED: ['RETURNED', 'REFUNDED'],
+    CANCELLED: ['REFUNDED'],
+    RETURNED: ['REFUNDED'],
+    REFUNDED: [],
+};
 
 export default function OrderDetail() {
     const { id } = useParams<{ id: string }>();
@@ -20,6 +37,9 @@ export default function OrderDetail() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
+    const [shippingBusy, setShippingBusy] = useState(false);
+    const [couriers, setCouriers] = useState<any[]>([]);
+    const [selectedCourierId, setSelectedCourierId] = useState('');
     const [statusForm, setStatusForm] = useState({ status: '', note: '', location: '' });
 
     const [history, setHistory] = useState<any[]>([]);
@@ -61,6 +81,8 @@ export default function OrderDetail() {
     };
 
     useEffect(() => {
+        setCouriers([]);
+        setSelectedCourierId('');
         loadOrder();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
@@ -90,13 +112,82 @@ export default function OrderDetail() {
         }
     };
 
+    const createShipment = async () => {
+        if (!order) return;
+        setShippingBusy(true);
+        try {
+            const result = await adminApi.fulfillOrderWithShiprocket(order.id, selectedCourierId ? Number(selectedCourierId) : undefined) as any;
+            setOrder({ ...order, tracking: { ...order.tracking, ...result } });
+            showAlert(result?.trackingNumber
+                ? 'Shipment created and AWB assigned'
+                : result?.status === 'AWB_ASSIGNING'
+                    ? 'AWB assignment is still processing. Check provider status shortly.'
+                    : 'Provider shipment status refreshed');
+            await loadOrder();
+        } catch (err) {
+            showAlert(getErrorMessage(err), 'error');
+            await loadOrder();
+        } finally {
+            setShippingBusy(false);
+        }
+    };
+
+    const findCouriers = async () => {
+        if (!order) return;
+        setShippingBusy(true);
+        try {
+            const result = await adminApi.getShiprocketCouriers(order.id) as any;
+            const options = Array.isArray(result?.items) ? result.items : [];
+            setCouriers(options);
+            setSelectedCourierId('');
+            if (!options.length) showAlert('No couriers are available for this route and package', 'warning');
+        } catch (err) {
+            showAlert(getErrorMessage(err), 'error');
+        } finally {
+            setShippingBusy(false);
+        }
+    };
+
+    const cancelShipment = async () => {
+        if (!order || !(await confirmAction(
+            'Cancel Shiprocket fulfillment?',
+            'This cancels the AWB or carrier order. The carrier may reject cancellation after pickup. If this order stays active, you can create a replacement shipment afterward.',
+            'Cancel fulfillment',
+        ))) return;
+        setShippingBusy(true);
+        try {
+            await adminApi.cancelShiprocketShipment(order.id);
+            showAlert('Shiprocket shipment cancelled');
+            await loadOrder();
+        } catch (err) {
+            showAlert(getErrorMessage(err), 'error');
+            await loadOrder();
+        } finally {
+            setShippingBusy(false);
+        }
+    };
+
+    const refreshShipment = async () => {
+        if (!order) return;
+        setShippingBusy(true);
+        try {
+            await adminApi.refreshShiprocketTracking(order.id);
+            await loadOrder();
+            showAlert('Shipment tracking refreshed');
+        } catch (err) {
+            showAlert(getErrorMessage(err), 'error');
+        } finally {
+            setShippingBusy(false);
+        }
+    };
+
     const infoCards = useMemo(() => {
         if (!order) return [];
         return [
             { label: 'Buyer', value: order.buyer?.fullName || '—' },
+            { label: 'Channel', value: ({ ADMIN_COUNTER: 'Counter sale', ADMIN_PHONE: 'Phone order', ADMIN_MANUAL: 'Admin sale' } as Record<string, string>)[order.source] || 'Online' },
             { label: 'Seller', value: order.seller?.businessName || '—' },
             { label: 'Payment', value: `${order.paymentMethod} · ${order.paymentStatus}` },
-            { label: 'Total', value: `₹${order.totalAmount}` },
             { label: 'Items', value: order.items?.length ?? 0 },
             { label: 'Status', value: order.status },
         ];
@@ -117,6 +208,24 @@ export default function OrderDetail() {
         );
     }
 
+    const statusTransitions = new Set([
+        ...(STATUS_TRANSITIONS[order.status] ?? []),
+        ...(order.shippingType === 'PICKUP' && order.status === 'PROCESSING' ? ['DELIVERED'] : []),
+    ]);
+    const shipmentPaymentResolved = (
+        order.paymentStatus === 'SUCCESS' ||
+        (order.paymentMethod === 'COD' && !['FAILED', 'CANCELLED', 'REFUNDED'].includes(order.paymentStatus))
+    );
+    const canShipOrder = ['CONFIRMED', 'PROCESSING'].includes(order.status) && shipmentPaymentResolved;
+    const shipmentBlockReason = !['CONFIRMED', 'PROCESSING'].includes(order.status)
+        ? 'Confirm or start processing this order before creating a shipment.'
+        : !shipmentPaymentResolved
+            ? 'Resolve the payment status before creating a shipment.'
+            : '';
+    if (order.shippingType === 'PICKUP' || !order.tracking?.trackingNumber) {
+        statusTransitions.delete('SHIPPED');
+    }
+
     return (
         <div>
             <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
@@ -134,14 +243,25 @@ export default function OrderDetail() {
 
             <div className="panel mb-5">
                 <h5 className="font-semibold text-lg mb-4">Order information</h5>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {infoCards.map((card) => (
-                        <div key={card.label} className="rounded border border-[#ebedf2] dark:border-[#191e3a] p-4">
-                            <div className="text-xs uppercase tracking-wide text-white-dark mb-1">{card.label}</div>
-                            <div className="font-semibold break-all">{card.label === 'Status' ? <StatusBadge status={String(card.value)} /> : card.value}</div>
-                        </div>
-                    ))}
-                </div>
+                <DetailFacts items={infoCards.map((card) => ({
+                    ...card,
+                    value: card.label === 'Status' ? <StatusBadge status={String(card.value)} /> : card.value,
+                }))} />
+            </div>
+
+            <div className="panel mb-5">
+                <FormSection title="Financial summary" description="Commission is calculated per item after discounts, excluding tax and shipping.">
+                    <DetailFacts items={[
+                        { label: 'Item subtotal', value: formatMoney(order.subtotal) },
+                        { label: 'Discount', value: `−${formatMoney(order.discountAmount)}` },
+                        { label: 'Tax', value: formatMoney(order.taxAmount) },
+                        { label: 'Shipping', value: formatMoney(order.shippingFee) },
+                        { label: 'Order total', value: formatMoney(order.totalAmount) },
+                        { label: 'Platform commission', value: formatMoney(order.commissionAmount) },
+                        { label: 'Seller payout', value: formatMoney(order.sellerPayout) },
+                        { label: 'Payout status', value: order.sellerId ? order.payoutStatus : 'Not applicable' },
+                    ]} />
+                </FormSection>
             </div>
 
             <div className="panel mb-5">
@@ -149,7 +269,7 @@ export default function OrderDetail() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <FormField label="Status">
                             <select className="form-select" value={statusForm.status} onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value })}>
-                                {STATUSES.map((status) => (
+                                {STATUSES.filter((status) => status === order.status || statusTransitions.has(status)).map((status) => (
                                     <option key={status} value={status}>
                                         {status}
                                     </option>
@@ -163,10 +283,87 @@ export default function OrderDetail() {
                             <input className="form-input" value={statusForm.note} onChange={(e) => setStatusForm({ ...statusForm, note: e.target.value })} />
                         </FormField>
                     </div>
-                    <button type="button" className="btn btn-primary btn-sm mt-3" disabled={busy} onClick={updateStatus}>
+                    <button type="button" className="btn btn-primary btn-sm mt-3" disabled={busy || statusForm.status === order.status} onClick={updateStatus}>
                         {busy ? 'Updating...' : 'Update status'}
                     </button>
                 </FormSection>
+            </div>
+
+            <div className="panel mb-5">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                        <h5 className="font-semibold">Shipping and tracking</h5>
+                        {order.tracking?.provider ? (
+                            <div className="mt-3 space-y-1 text-sm">
+                                <p>{order.tracking.carrier || 'Shiprocket'}{order.tracking.trackingNumber ? ` · ${order.tracking.trackingNumber}` : ''}</p>
+                                <p className="text-white-dark">{order.tracking.status}</p>
+                                {order.tracking.status === 'CANCELLED' && canShipOrder ? (
+                                    <p className="text-white-dark" role="status">The carrier shipment was cancelled. You can create a replacement shipment for this active order.</p>
+                                ) : null}
+                                {order.tracking.status === 'CREATE_UNCERTAIN' ? (
+                                    <p className="text-warning" role="alert">The provider response was interrupted. Check provider status before retrying so a second shipment is not created.</p>
+                                ) : null}
+                                {order.tracking.status === 'CANCEL_UNCERTAIN' ? (
+                                    <p className="text-warning" role="alert">The cancellation response was interrupted. Check Shiprocket before another cancellation request is sent.</p>
+                                ) : null}
+                                {order.tracking.status === 'AWB_ASSIGNING' ? (
+                                    <p className="text-warning" role="status">Shiprocket is assigning the AWB. Check provider status again shortly.</p>
+                                ) : null}
+                                {order.tracking.shipmentError ? <p className="text-danger">{order.tracking.shipmentError}</p> : null}
+                            </div>
+                        ) : <p className="mt-2 text-sm text-white-dark">No carrier shipment created yet.</p>}
+                    </div>
+                    {order.shippingType !== 'PICKUP' && (!order.tracking?.providerShipmentId || order.tracking?.status === 'CANCELLED') && canShipOrder ? (
+                        <div className="mt-4 max-w-xl space-y-3">
+                            <button type="button" className="btn btn-outline-primary" disabled={shippingBusy} onClick={findCouriers}>
+                                {shippingBusy ? 'Checking availability...' : 'Check courier rates'}
+                            </button>
+                            {couriers.length ? (
+                                <FormField label="Courier and estimated rate" hint="This carrier quote does not change the order total or customer shipping charge.">
+                                    <select className="form-select" value={selectedCourierId} onChange={(event) => setSelectedCourierId(event.target.value)}>
+                                        <option value="">Let Shiprocket select the courier</option>
+                                        {couriers.map((courier) => (
+                                            <option key={courier.courierCompanyId} value={courier.courierCompanyId}>
+                                                {courier.courierName} · ₹{courier.freightCharge}{courier.estimatedDeliveryDays ? ` · ${courier.estimatedDeliveryDays} days` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </FormField>
+                            ) : null}
+                        </div>
+                    ) : null}
+                    {order.shippingType !== 'PICKUP' && !order.tracking?.providerShipmentId && shipmentBlockReason ? (
+                        <p className="mt-3 text-sm text-white-dark" role="status">{shipmentBlockReason}</p>
+                    ) : null}
+                    <div className="flex flex-wrap gap-2">
+                        {order.shippingType !== 'PICKUP' && canShipOrder && (!order.tracking?.providerShipmentId || order.tracking?.status === 'CANCELLED' || (!order.tracking?.trackingNumber && ['CREATE_UNCERTAIN', 'CREATED', 'AWB_FAILED', 'AWB_ASSIGNING', 'FAILED'].includes(order.tracking?.status))) ? (
+                            <button type="button" className="btn btn-primary" disabled={shippingBusy} onClick={createShipment}>
+                                {shippingBusy
+                                    ? 'Processing...'
+                                    : ['CREATE_UNCERTAIN', 'AWB_ASSIGNING'].includes(order.tracking?.status)
+                                        ? 'Check provider status'
+                                        : order.tracking?.status === 'CANCELLED'
+                                            ? 'Create replacement shipment'
+                                            : order.tracking?.providerShipmentId
+                                            ? 'Retry AWB assignment'
+                                            : 'Create Shiprocket shipment'}
+                            </button>
+                        ) : null}
+                        {order.tracking?.providerShipmentId && order.tracking?.trackingNumber && order.tracking?.status !== 'CANCELLED' ? (
+                            <button type="button" className="btn btn-outline-primary" disabled={shippingBusy} onClick={refreshShipment}>
+                                {shippingBusy ? 'Refreshing...' : 'Refresh tracking'}
+                            </button>
+                        ) : null}
+                        {order.tracking?.trackingUrl ? <a className="btn btn-outline-primary" href={order.tracking.trackingUrl} target="_blank" rel="noreferrer">Track</a> : null}
+                        {order.tracking?.labelUrl ? <a className="btn btn-outline-primary" href={order.tracking.labelUrl} target="_blank" rel="noreferrer">Shipping label</a> : null}
+                        {order.tracking?.manifestUrl ? <a className="btn btn-outline-primary" href={order.tracking.manifestUrl} target="_blank" rel="noreferrer">Manifest</a> : null}
+                        {order.tracking?.provider === 'SHIPROCKET' && (order.tracking?.trackingNumber || order.tracking?.providerOrderId) && order.tracking?.status !== 'CANCELLED' && !['DELIVERED', 'RETURNED'].includes(order.status) ? (
+                            <button type="button" className="btn btn-outline-danger" disabled={shippingBusy} onClick={cancelShipment}>
+                                {shippingBusy ? 'Updating shipment...' : order.tracking?.status === 'CANCEL_UNCERTAIN' ? 'Check cancellation status' : 'Cancel fulfillment'}
+                            </button>
+                        ) : null}
+                    </div>
+                </div>
             </div>
 
             <div className="panel mb-5">
@@ -178,6 +375,10 @@ export default function OrderDetail() {
                                     <th>Product</th>
                                     <th>Qty</th>
                                     <th>Unit price</th>
+                                    <th>Discount</th>
+                                    <th>Tax</th>
+                                    <th>Commission</th>
+                                    <th>Seller payout</th>
                                     <th>Total</th>
                                 </tr>
                             </thead>
@@ -191,8 +392,16 @@ export default function OrderDetail() {
                                             {item.variantName ? ` (${item.variantName})` : ''}
                                         </td>
                                         <td>{item.quantity}</td>
-                                        <td>₹{item.unitPrice}</td>
-                                        <td>₹{item.totalPrice}</td>
+                                        <td>{formatMoney(item.unitPrice)}</td>
+                                        <td>{formatMoney(item.discountAmount)}</td>
+                                        <td>{formatMoney(item.taxAmount)}</td>
+                                        <td>
+                                            {item.commissionRate === null || item.commissionRate === undefined
+                                                ? '—'
+                                                : `${item.commissionRate}% · ${formatMoney(item.commissionAmount)}`}
+                                        </td>
+                                        <td>{item.sellerPayout === null || item.sellerPayout === undefined ? '—' : formatMoney(item.sellerPayout)}</td>
+                                        <td>{formatMoney(item.totalPrice)}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -216,7 +425,7 @@ export default function OrderDetail() {
                     </FormSection>
                 ) : null}
 
-                {order.tracking?.events?.length ? (
+                {Array.isArray(order.tracking?.events) && order.tracking.events.length ? (
                     <FormSection title="Tracking history" className="mt-5">
                         <ul className="space-y-2 text-sm">
                             {order.tracking.events.map((event: any, index: number) => (

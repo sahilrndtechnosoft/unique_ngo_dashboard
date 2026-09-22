@@ -37,7 +37,7 @@ export function AdminPageHeader({
     actions,
 }: AdminPageHeaderProps) {
     return (
-        <div className="mb-5 space-y-4">
+        <div className="admin-page-header mb-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h2 className="text-xl font-semibold dark:text-white-light">{title}</h2>
@@ -54,27 +54,36 @@ export function AdminPageHeader({
                 </div>
             </div>
 
-            <div className="panel !py-3 !px-4">
+            <form
+                role="search"
+                aria-label={`Search and filter ${title}`}
+                className="admin-filter-bar panel !py-3 !px-4"
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    onSearch();
+                }}
+            >
                 <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
                     <div className="relative w-full min-w-0 flex-1">
                         <span className="absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 text-white-dark pointer-events-none">
                             <IconSearch className="w-4 h-4" />
                         </span>
+                        <label className="sr-only" htmlFor={`admin-search-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>
+                            Search {title}
+                        </label>
                         <input
+                            id={`admin-search-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
                             type="text"
                             placeholder={searchPlaceholder}
                             className="form-input w-full ltr:pl-9 rtl:pr-9"
                             value={search}
                             onChange={(e) => onSearchChange(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') onSearch();
-                            }}
                         />
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
                         {filters}
-                        <button type="button" className="btn btn-primary" onClick={onSearch}>
+                        <button type="submit" className="btn btn-primary">
                             <IconSearch className="w-4 h-4 ltr:mr-1.5 rtl:ml-1.5" />
                             Search
                         </button>
@@ -84,7 +93,7 @@ export function AdminPageHeader({
                         </button>
                     </div>
                 </div>
-            </div>
+            </form>
         </div>
     );
 }
@@ -180,19 +189,20 @@ export function AdminDataTable<T extends { id: string }>({
 }: AdminDataTableProps<T>) {
     const [sortKey, setSortKey] = useState<string | null>(null);
     const [sortDir, setSortDir] = useState<SortDirection>('asc');
+    const safeRows = Array.isArray(rows) ? rows : [];
 
     const sortedRows = useMemo(() => {
-        if (!sortKey) return rows;
+        if (!sortKey) return safeRows;
         const column = columns.find((col) => col.key === sortKey);
-        if (!column?.sortable) return rows;
+        if (!column?.sortable) return safeRows;
         const getValue = column.sortValue ?? ((row: T) => (row as Record<string, unknown>)[column.key] as string | number);
-        const copy = [...rows];
+        const copy = [...safeRows];
         copy.sort((left, right) => {
             const result = compareValues(getValue(left), getValue(right));
             return sortDir === 'asc' ? result : -result;
         });
         return copy;
-    }, [rows, columns, sortKey, sortDir]);
+    }, [safeRows, columns, sortKey, sortDir]);
 
     const colSpan = columns.length + (actions ? 1 : 0) + (selectable ? 1 : 0);
 
@@ -207,13 +217,14 @@ export function AdminDataTable<T extends { id: string }>({
     };
 
     return (
-        <div className="panel p-0">
+        <div className="admin-data-table panel p-0">
+            {loading ? <span className="sr-only" role="status">Loading records</span> : null}
             <div className="overflow-x-auto">
-                <table className="table-striped table-hover text-sm">
+                <table className="table-striped table-hover text-sm" aria-busy={loading}>
                     <thead>
                         <tr>
                             {selectable ? (
-                                <th className="!w-12 ltr:!pl-4 rtl:!pr-4 !py-3">
+                                    <th scope="col" className="!w-12 ltr:!pl-4 rtl:!pr-4 !py-3">
                                     <input
                                         type="checkbox"
                                         className="form-checkbox"
@@ -227,11 +238,17 @@ export function AdminDataTable<T extends { id: string }>({
                                 </th>
                             ) : null}
                             {columns.map((col) => (
-                                <th key={col.key} className={`!py-3 ${col.className ?? ''}`}>
+                                <th
+                                    key={col.key}
+                                    scope="col"
+                                    className={`!py-3 ${col.className ?? ''}`}
+                                    aria-sort={sortKey === col.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                                >
                                     {col.sortable ? (
                                         <button
                                             type="button"
                                             className="inline-flex items-center gap-1 font-semibold hover:text-primary"
+                                            aria-label={`Sort by ${col.label}${sortKey === col.key ? `, ${sortDir === 'asc' ? 'ascending' : 'descending'}` : ''}`}
                                             onClick={() => toggleSort(col)}
                                         >
                                             <span>{col.label}</span>
@@ -250,20 +267,24 @@ export function AdminDataTable<T extends { id: string }>({
                                     )}
                                 </th>
                             ))}
-                            {actions ? <th className="!text-center ltr:!pr-4 rtl:!pl-4 w-20 !py-3">Actions</th> : null}
+                            {actions ? <th scope="col" className="ltr:!text-right rtl:!text-left ltr:!pr-4 rtl:!pl-4 w-16 !py-3">Actions</th> : null}
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr>
-                                <td colSpan={colSpan} className="text-center !py-10">
-                                    Loading...
-                                </td>
-                            </tr>
+                            Array.from({ length: 5 }, (_, rowIndex) => (
+                                <tr key={`loading-${rowIndex}`} aria-hidden="true">
+                                    {Array.from({ length: colSpan }, (_, columnIndex) => (
+                                        <td key={columnIndex}>
+                                            <span className="admin-table-skeleton" style={{ width: `${46 + ((rowIndex + columnIndex) % 4) * 12}%` }} />
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))
                         ) : sortedRows.length === 0 ? (
                             <tr>
-                                <td colSpan={colSpan} className="text-center !py-10 text-white-dark">
-                                    {emptyText}
+                                <td colSpan={colSpan} className="!py-10 text-white-dark">
+                                    <div className="admin-table-empty-state">{emptyText}</div>
                                 </td>
                             </tr>
                         ) : (
@@ -285,16 +306,16 @@ export function AdminDataTable<T extends { id: string }>({
                                             {col.render(row)}
                                         </td>
                                     ))}
-                                    {actions ? <td className="text-center ltr:!pr-4 rtl:!pl-4 !py-2.5">{actions(row)}</td> : null}
+                                    {actions ? <td className="ltr:text-right rtl:text-left ltr:!pr-4 rtl:!pl-4 !py-2.5">{actions(row)}</td> : null}
                                 </tr>
                             ))
                         )}
                     </tbody>
                 </table>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-[#ebedf2] dark:border-[#191e3a] bg-[#fbfbfb]/70 dark:bg-[#0e1726]/40">
-                <div className="flex flex-wrap items-center gap-3 text-sm text-white-dark">
-                    <span>
+            <div className="admin-table-pagination flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-[#ebedf2] dark:border-[#191e3a] bg-[#fbfbfb]/70 dark:bg-[#0e1726]/40">
+                <div className="flex flex-wrap items-center gap-3 text-sm text-white-dark" aria-live="polite">
+                    <span className="admin-table-count">
                         Showing {(total === 0 ? 0 : (page - 1) * pageSize + 1).toLocaleString()}–
                         {Math.min(page * pageSize, total).toLocaleString()} of {total.toLocaleString()}
                     </span>
@@ -317,12 +338,13 @@ export function AdminDataTable<T extends { id: string }>({
                     <span className="text-sm text-white-dark">
                         Page {page} / {Math.max(totalPages, 1)}
                     </span>
-                    <button type="button" className="btn btn-sm btn-outline-primary" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
+                    <button type="button" className="btn btn-sm btn-outline-primary" aria-label="Previous page" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
                         Prev
                     </button>
                     <button
                         type="button"
                         className="btn btn-sm btn-outline-primary"
+                        aria-label="Next page"
                         disabled={page >= totalPages}
                         onClick={() => onPageChange(page + 1)}
                     >

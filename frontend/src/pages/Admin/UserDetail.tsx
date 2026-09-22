@@ -6,7 +6,7 @@ import { adminApi } from '../../services/admin.service';
 import { getErrorMessage, mediaUrl } from '../../services/api';
 import { AdminDataTable } from '../../components/Admin/AdminTable';
 import AdminFormModal from '../../components/Admin/AdminFormModal';
-import { FormField, FormSection, RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
+import { DetailFacts, FormField, FormSection, RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
 import { confirmAction, showAlert } from '../../utils/alerts';
 import IconArrowLeft from '../../components/Icon/IconArrowLeft';
 import IconPlus from '../../components/Icon/IconPlus';
@@ -212,7 +212,7 @@ export default function UserDetail() {
                     </Link>
                     <div className="flex items-center gap-3">
                         {user.profilePicture ? (
-                            <img src={mediaUrl(user.profilePicture)} alt={user.fullName} className="h-12 w-12 rounded-full object-cover" />
+                            <img src={mediaUrl(user.profilePicture)} alt={user.fullName} className="h-12 w-12 rounded-full object-cover" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/assets/images/auth/user.png'; }} />
                         ) : null}
                         <div>
                             <h2 className="text-xl font-semibold dark:text-white-light">{user.fullName}</h2>
@@ -225,16 +225,10 @@ export default function UserDetail() {
 
             <div className="panel mb-5">
                 <h5 className="font-semibold text-lg mb-4">User information</h5>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {infoCards.map((card) => (
-                        <div key={card.label} className="rounded border border-[#ebedf2] dark:border-[#191e3a] p-4">
-                            <div className="text-xs uppercase tracking-wide text-white-dark mb-1">{card.label}</div>
-                            <div className="font-semibold break-all">
-                                {card.label === 'Status' ? <StatusBadge status={String(card.value)} /> : card.value}
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                <DetailFacts items={infoCards.map((card) => ({
+                    ...card,
+                    value: card.label === 'Status' ? <StatusBadge status={String(card.value)} /> : card.value,
+                }))} />
             </div>
 
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

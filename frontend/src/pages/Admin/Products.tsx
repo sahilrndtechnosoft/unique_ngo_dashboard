@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { setPageTitle } from '../../store/themeConfigSlice';
 import { adminApi } from '../../services/admin.service';
 import { getErrorMessage, mediaUrl } from '../../services/api';
@@ -25,7 +25,12 @@ const emptyForm = {
     sku: '',
     price: 0,
     compareAtPrice: '',
+    commissionRate: '',
     stockQuantity: 0,
+    weightGrams: '',
+    lengthCm: '',
+    widthCm: '',
+    heightCm: '',
     status: 'ACTIVE',
     tags: '',
     isFeatured: false,
@@ -37,15 +42,23 @@ const emptyForm = {
 export default function AdminProducts() {
     const dispatch = useDispatch();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [items, setItems] = useState<any[]>([]);
     const [categories, setCategories] = useState<any[]>([]);
     const [sellers, setSellers] = useState<any[]>([]);
     const [meta, setMeta] = useState({ page: 1, total: 0, totalPages: 1 });
     const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState(() => {
+        const status = searchParams.get('status') ?? '';
+        return STATUSES.includes(status) ? status : '';
+    });
     const [pageSize, setPageSize] = useState(20);
     const [loading, setLoading] = useState(false);
     const [busy, setBusy] = useState(false);
+    const [commissionRate, setCommissionRate] = useState('');
+    const [commissionReady, setCommissionReady] = useState(false);
+    const [commissionBusy, setCommissionBusy] = useState(false);
+    const [commissionError, setCommissionError] = useState('');
     const [error, setError] = useState('');
     const [mode, setMode] = useState<Mode | null>(null);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -53,6 +66,7 @@ export default function AdminProducts() {
 
     const ids = useMemo(() => items.map((item) => item.id), [items]);
     const selection = useRowSelection(ids);
+    const editingPendingProduct = items.find((item) => item.id === editingId)?.status === 'PENDING_REVIEW';
 
     const load = async (page = 1, size = pageSize, filters?: { search?: string; status?: string }) => {
         const nextSearch = filters?.search ?? search;
@@ -78,7 +92,18 @@ export default function AdminProducts() {
     const clearFilters = () => {
         setSearch('');
         setStatusFilter('');
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('status');
+        setSearchParams(nextParams, { replace: true });
         load(1, pageSize, { search: '', status: '' });
+    };
+
+    const searchProducts = () => {
+        const nextParams = new URLSearchParams(searchParams);
+        if (statusFilter) nextParams.set('status', statusFilter);
+        else nextParams.delete('status');
+        setSearchParams(nextParams, { replace: true });
+        load(1, pageSize);
     };
 
     const loadLookups = async () => {
@@ -90,10 +115,23 @@ export default function AdminProducts() {
         setSellers(sellersData.items);
     };
 
+    const loadCommissionRate = async () => {
+        setCommissionReady(false);
+        setCommissionError('');
+        try {
+            const setting = await adminApi.getPlatformCommissionRate();
+            setCommissionRate(String(setting.rate));
+            setCommissionReady(true);
+        } catch (err) {
+            setCommissionError(getErrorMessage(err));
+        }
+    };
+
     useEffect(() => {
         dispatch(setPageTitle('Products'));
         load();
         loadLookups().catch((err) => setError(getErrorMessage(err)));
+        loadCommissionRate();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -105,6 +143,25 @@ export default function AdminProducts() {
             sellerId: sellers[0]?.id ?? '',
         });
         setMode('create');
+    };
+
+    const saveCommissionRate = async () => {
+        if (!commissionReady) return;
+        const rate = Number(commissionRate);
+        if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
+            showAlert('Commission rate must be between 0 and 100', 'error');
+            return;
+        }
+        setCommissionBusy(true);
+        try {
+            const setting = await adminApi.updatePlatformCommissionRate(rate);
+            setCommissionRate(String(setting.rate));
+            showAlert('Platform commission updated');
+        } catch (err) {
+            showAlert(getErrorMessage(err), 'error');
+        } finally {
+            setCommissionBusy(false);
+        }
     };
 
     const fillForm = (product: any) => {
@@ -121,7 +178,12 @@ export default function AdminProducts() {
             sku: product.sku ?? '',
             price: product.price,
             compareAtPrice: product.compareAtPrice ?? '',
+            commissionRate: product.commissionRate != null ? String(product.commissionRate) : '',
             stockQuantity: product.stockQuantity,
+            weightGrams: product.weightGrams == null ? '' : String(product.weightGrams),
+            lengthCm: product.lengthCm == null ? '' : String(product.lengthCm),
+            widthCm: product.widthCm == null ? '' : String(product.widthCm),
+            heightCm: product.heightCm == null ? '' : String(product.heightCm),
             status: product.status,
             tags: (product.tags ?? []).join(', '),
             isFeatured: product.isFeatured ?? false,
@@ -141,7 +203,12 @@ export default function AdminProducts() {
         sku: form.sku || undefined,
         price: Number(form.price),
         compareAtPrice: form.compareAtPrice === '' ? undefined : Number(form.compareAtPrice),
+        commissionRate: form.commissionRate === '' ? null : Number(form.commissionRate),
         stockQuantity: Number(form.stockQuantity),
+        weightGrams: form.weightGrams === '' ? null : Number(form.weightGrams),
+        lengthCm: form.lengthCm === '' ? null : Number(form.lengthCm),
+        widthCm: form.widthCm === '' ? null : Number(form.widthCm),
+        heightCm: form.heightCm === '' ? null : Number(form.heightCm),
         status: form.status,
         tags: form.tags
             ? form.tags
@@ -162,7 +229,7 @@ export default function AdminProducts() {
         try {
             const body: Record<string, unknown> = buildBody();
             if (mode === 'create') {
-                body.sellerId = form.sellerId;
+                if (form.sellerId) body.sellerId = form.sellerId;
                 await adminApi.createProduct(body);
                 showAlert('Product created successfully');
             } else if (editingId) {
@@ -292,7 +359,7 @@ export default function AdminProducts() {
                 subtitle="Catalog, pending review, and approvals"
                 search={search}
                 onSearchChange={setSearch}
-                onSearch={() => load(1, pageSize)}
+                onSearch={searchProducts}
                 onClear={clearFilters}
                 canClear={Boolean(search || statusFilter)}
                 onCreate={openCreate}
@@ -313,7 +380,37 @@ export default function AdminProducts() {
                 }
             />
 
-            {error ? <div className="mb-4 rounded bg-danger-light p-3 text-danger">{error}</div> : null}
+            <div className="panel mb-5 flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <h3 className="font-semibold">Platform commission</h3>
+                    <p className="mt-1 max-w-2xl text-sm text-white-dark">Order: product → category → seller → platform. The rate applies to each item subtotal after discounts, excluding tax and shipping; the chosen rate and payout are saved on the order item.</p>
+                </div>
+                <div className="flex items-end gap-2">
+                    <FormField label="Rate (%)" hint={!commissionReady && !commissionError ? 'Loading saved platform rate...' : undefined}>
+                        <input
+                            className="form-input w-28"
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={commissionRate}
+                            disabled={!commissionReady || commissionBusy}
+                            onChange={(e) => setCommissionRate(e.target.value)}
+                        />
+                    </FormField>
+                    <button type="button" className="btn btn-primary" disabled={!commissionReady || commissionBusy} onClick={saveCommissionRate}>
+                        {commissionBusy ? 'Saving...' : commissionReady ? 'Save rate' : commissionError ? 'Unavailable' : 'Loading...'}
+                    </button>
+                </div>
+                {commissionError ? (
+                    <div className="w-full rounded bg-danger-light p-3 text-sm text-danger" role="alert">
+                        <span>{commissionError} </span>
+                        <button type="button" className="font-semibold underline" onClick={loadCommissionRate}>Retry loading rate</button>
+                    </div>
+                ) : null}
+            </div>
+
+            {error ? <div className="mb-4 rounded bg-danger-light p-3 text-danger" role="alert">{error}</div> : null}
 
             <BulkActionsBar
                 count={selection.selectedIds.length}
@@ -422,9 +519,9 @@ export default function AdminProducts() {
                             <input className="form-input" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
                         </FormField>
                         {mode === 'create' ? (
-                            <FormField label="Seller" required>
-                                <select className="form-select" required value={form.sellerId} onChange={(e) => setForm({ ...form, sellerId: e.target.value })}>
-                                    <option value="">Select seller</option>
+                            <FormField label="Seller">
+                                <select className="form-select" value={form.sellerId} onChange={(e) => setForm({ ...form, sellerId: e.target.value })}>
+                                    <option value="">Platform-owned product</option>
                                     {sellers.map((seller) => (
                                         <option key={seller.id} value={seller.id}>
                                             {seller.businessName}
@@ -464,6 +561,17 @@ export default function AdminProducts() {
                                 onChange={(e) => setForm({ ...form, compareAtPrice: e.target.value })}
                             />
                         </FormField>
+                        <FormField label="Commission override (%)" hint="Highest priority. Leave blank to use category, seller, then platform rate; enter 0 for no commission.">
+                            <input
+                                className="form-input"
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                value={form.commissionRate}
+                                onChange={(e) => setForm({ ...form, commissionRate: e.target.value })}
+                            />
+                        </FormField>
                         <FormField label="Stock">
                             <input
                                 className="form-input"
@@ -473,10 +581,30 @@ export default function AdminProducts() {
                                 onChange={(e) => setForm({ ...form, stockQuantity: Number(e.target.value) })}
                             />
                         </FormField>
-                        <FormField label="Status" required>
+                        <FormField label="Packed weight (g)" hint="Used for shipping quotes and labels">
+                            <input className="form-input" type="number" min="1" value={form.weightGrams} onChange={(e) => setForm({ ...form, weightGrams: e.target.value })} />
+                        </FormField>
+                        <FormField label="Package length (cm)">
+                            <input className="form-input" type="number" min="0.5" step="0.01" value={form.lengthCm} onChange={(e) => setForm({ ...form, lengthCm: e.target.value })} />
+                        </FormField>
+                        <FormField label="Package width (cm)">
+                            <input className="form-input" type="number" min="0.5" step="0.01" value={form.widthCm} onChange={(e) => setForm({ ...form, widthCm: e.target.value })} />
+                        </FormField>
+                        <FormField label="Package height (cm)">
+                            <input className="form-input" type="number" min="0.5" step="0.01" value={form.heightCm} onChange={(e) => setForm({ ...form, heightCm: e.target.value })} />
+                        </FormField>
+                        <FormField
+                            label="Status"
+                            required
+                            hint={editingPendingProduct ? 'Use the row actions to approve or reject a product under review.' : undefined}
+                        >
                             <select className="form-select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
                                 {STATUSES.map((status) => (
-                                    <option key={status} value={status}>
+                                    <option
+                                        key={status}
+                                        value={status}
+                                        disabled={editingPendingProduct && (status === 'ACTIVE' || status === 'REJECTED')}
+                                    >
                                         {status}
                                     </option>
                                 ))}

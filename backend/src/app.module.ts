@@ -22,6 +22,7 @@ import { InquiriesModule } from './inquiries/inquiries.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { OrdersModule } from './orders/orders.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { RbacModule } from './admin/rbac.module';
 import { UsersModule } from './users/users.module';
 import { WishlistModule } from './wishlist/wishlist.module';
 
@@ -39,6 +40,7 @@ import { WishlistModule } from './wishlist/wishlist.module';
     ]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     PrismaModule,
+    RbacModule,
     AuthModule,
     AdminModule,
     UsersModule,

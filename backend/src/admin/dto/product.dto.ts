@@ -112,6 +112,42 @@ export class CreateProductDto {
   @Min(0)
   compareAtPrice?: number;
 
+  @ApiPropertyOptional({ example: 10, description: 'Product commission override (%)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  commissionRate?: number | null;
+
+  @ApiPropertyOptional({ description: 'Packed shipping weight in grams' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  weightGrams?: number | null;
+
+  @ApiPropertyOptional({ description: 'Packed parcel length in centimetres' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.5)
+  lengthCm?: number | null;
+
+  @ApiPropertyOptional({ description: 'Packed parcel width in centimetres' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.5)
+  widthCm?: number | null;
+
+  @ApiPropertyOptional({ description: 'Packed parcel height in centimetres' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.5)
+  heightCm?: number | null;
+
   @ApiPropertyOptional({ example: 50 })
   @IsOptional()
   @Type(() => Number)
@@ -159,6 +195,7 @@ export class CreateProductDto {
 export class CreateSellerProductDto extends OmitType(CreateProductDto, [
   'sellerId',
   'status',
+  'commissionRate',
 ] as const) {}
 
 export class UpdateProductDto {
@@ -217,6 +254,42 @@ export class UpdateProductDto {
   @Min(0)
   compareAtPrice?: number;
 
+  @ApiPropertyOptional({ example: 10, description: 'Product commission override (%)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  commissionRate?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  weightGrams?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.5)
+  lengthCm?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.5)
+  widthCm?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.5)
+  heightCm?: number | null;
+
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
@@ -257,18 +330,26 @@ export class UpdateProductDto {
   @Min(0)
   returnDays?: number;
 
-  @ApiPropertyOptional({
-    description: 'Seller resubmit for review after edits',
-    example: true,
-  })
-  @IsOptional()
-  @IsBoolean()
-  resubmitForReview?: boolean;
 }
+
+export class UpdateSellerProductDto extends OmitType(UpdateProductDto, [
+  'status',
+  'commissionRate',
+  'isFeatured',
+] as const) {}
 
 export class RejectProductDto {
   @ApiProperty({ example: 'Incomplete product details' })
   @IsString()
   @MinLength(2)
   reason!: string;
+}
+
+export class UpdatePlatformCommissionDto {
+  @ApiProperty({ example: 10, minimum: 0, maximum: 100 })
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  rate!: number;
 }

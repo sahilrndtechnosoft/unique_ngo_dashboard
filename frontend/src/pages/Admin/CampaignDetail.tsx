@@ -5,7 +5,7 @@ import { setPageTitle } from '../../store/themeConfigSlice';
 import { adminApi } from '../../services/admin.service';
 import { getErrorMessage, mediaUrl } from '../../services/api';
 import { AdminDataTable } from '../../components/Admin/AdminTable';
-import { StatusBadge } from '../../components/Admin/FormPrimitives';
+import { DetailFacts, StatusBadge } from '../../components/Admin/FormPrimitives';
 import { showAlert } from '../../utils/alerts';
 import IconArrowLeft from '../../components/Icon/IconArrowLeft';
 
@@ -131,14 +131,10 @@ export default function CampaignDetail() {
 
             <div className="panel mb-5">
                 <h5 className="font-semibold text-lg mb-4">Campaign information</h5>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {infoCards.map((card) => (
-                        <div key={card.label} className="rounded border border-[#ebedf2] dark:border-[#191e3a] p-4">
-                            <div className="text-xs uppercase tracking-wide text-white-dark mb-1">{card.label}</div>
-                            <div className="font-semibold break-all">{card.label === 'Status' ? <StatusBadge status={String(card.value)} /> : card.value}</div>
-                        </div>
-                    ))}
-                </div>
+                <DetailFacts items={infoCards.map((card) => ({
+                    ...card,
+                    value: card.label === 'Status' ? <StatusBadge status={String(card.value)} /> : card.value,
+                }))} />
             </div>
 
             <div className="mb-4">

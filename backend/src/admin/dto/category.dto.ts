@@ -67,10 +67,10 @@ export class CreateCategoryDto {
   @ApiPropertyOptional({ example: 10 })
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @Max(100)
-  commissionRate?: number;
+  commissionRate?: number | null;
 
   @ApiPropertyOptional({ example: 0 })
   @IsOptional()
@@ -128,10 +128,10 @@ export class UpdateCategoryDto {
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @Max(100)
-  commissionRate?: number;
+  commissionRate?: number | null;
 
   @ApiPropertyOptional()
   @IsOptional()

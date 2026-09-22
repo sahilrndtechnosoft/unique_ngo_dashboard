@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AdminSellersController } from './controllers/admin-sellers.controller';
+import { AdminDashboardController } from './controllers/dashboard.controller';
 import { AdminUsersController } from './controllers/admin-users.controller';
 import { AppSettingsController } from './controllers/app-settings.controller';
 import { BannerImagesController } from './controllers/banner-images.controller';
@@ -23,13 +24,18 @@ import { AppSettingsService } from './services/app-settings.service';
 import { BannerImagesService } from './services/banner-images.service';
 import { CategoriesService } from './services/categories.service';
 import { AdminOrdersService } from './services/orders.service';
+import { AdminDashboardService } from './services/dashboard.service';
 import { PagesService } from './services/pages.service';
 import { PermissionsCatalogService } from './services/permissions-catalog.service';
 import { ProductsService } from './services/products.service';
-import { RbacService } from './services/rbac.service';
+import { RbacModule } from './rbac.module';
 import { RolesService } from './services/roles.service';
+import { OrdersModule } from '../orders/orders.module';
+import { ShiprocketService } from './services/shiprocket.service';
+import { ShiprocketWebhookController } from './controllers/shiprocket-webhook.controller';
 
 @Module({
+  imports: [OrdersModule, RbacModule],
   controllers: [
     RolesController,
     PermissionsController,
@@ -38,6 +44,7 @@ import { RolesService } from './services/roles.service';
     PagesController,
     PublicSettingsController,
     AdminUsersController,
+    AdminDashboardController,
     AdminSellersController,
     AdminCategoriesController,
     CategoriesController,
@@ -46,11 +53,11 @@ import { RolesService } from './services/roles.service';
     PublicProductsController,
     AdminOrdersController,
     SellerOrdersController,
+    ShiprocketWebhookController,
   ],
   providers: [
     RolesService,
     PermissionsCatalogService,
-    RbacService,
     AppSettingsService,
     BannerImagesService,
     PagesService,
@@ -59,7 +66,9 @@ import { RolesService } from './services/roles.service';
     CategoriesService,
     ProductsService,
     AdminOrdersService,
+    AdminDashboardService,
+    ShiprocketService,
   ],
-  exports: [RbacService, AppSettingsService, BannerImagesService],
+  exports: [RbacModule, AppSettingsService, BannerImagesService],
 })
 export class AdminModule {}

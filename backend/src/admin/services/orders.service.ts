@@ -1,15 +1,28 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   Prisma,
   order_items,
   order_status,
   orders,
+  payment_status,
   seller_profiles,
   user_addresses,
   users,
 } from '../../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ListAdminOrdersQueryDto, UpdateOrderStatusDto } from '../dto/order.dto';
+
+const allowedOrderTransitions: Record<order_status, readonly order_status[]> = {
+  [order_status.PENDING]: [order_status.CONFIRMED, order_status.PROCESSING, order_status.CANCELLED],
+  [order_status.CONFIRMED]: [order_status.PROCESSING, order_status.CANCELLED],
+  [order_status.PROCESSING]: [order_status.SHIPPED, order_status.CANCELLED],
+  [order_status.SHIPPED]: [order_status.OUT_FOR_DELIVERY, order_status.DELIVERED, order_status.RETURNED],
+  [order_status.OUT_FOR_DELIVERY]: [order_status.DELIVERED, order_status.RETURNED],
+  [order_status.DELIVERED]: [order_status.RETURNED, order_status.REFUNDED],
+  [order_status.CANCELLED]: [order_status.REFUNDED],
+  [order_status.RETURNED]: [order_status.REFUNDED],
+  [order_status.REFUNDED]: [],
+};
 
 @Injectable()
 export class AdminOrdersService {
@@ -56,6 +69,9 @@ export class AdminOrdersService {
             OR: [
               { order_number: { contains: query.search, mode: 'insensitive' } },
               { buyer_id: { in: matchingBuyerIds } },
+              { buyer_name: { contains: query.search, mode: 'insensitive' } },
+              { buyer_email: { contains: query.search, mode: 'insensitive' } },
+              { buyer_mobile: { contains: query.search, mode: 'insensitive' } },
             ],
           }
         : {}),
@@ -74,16 +90,16 @@ export class AdminOrdersService {
     const orderIds = rows.map((row) => row.id);
     const [itemCounts, buyersById, sellersById] = await Promise.all([
       this.getItemCountsByOrder(orderIds),
-      this.getUsersById(rows.map((row) => row.buyer_id)),
-      this.getSellersById(rows.map((row) => row.seller_id)),
+      this.getUsersById(rows.flatMap((row) => row.buyer_id ? [row.buyer_id] : [])),
+      this.getSellersById(rows.flatMap((row) => row.seller_id ? [row.seller_id] : [])),
     ]);
 
     return {
       items: rows.map((row) =>
         this.toPublicOrder(row, {
           itemCount: itemCounts.get(row.id) ?? 0,
-          buyer: buyersById.get(row.buyer_id),
-          seller: sellersById.get(row.seller_id),
+          buyer: row.buyer_id ? buyersById.get(row.buyer_id) : undefined,
+          seller: row.seller_id ? sellersById.get(row.seller_id) : undefined,
         }),
       ),
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
@@ -95,9 +111,15 @@ export class AdminOrdersService {
 
     const [items, buyer, seller, address, shipment] = await Promise.all([
       this.prisma.order_items.findMany({ where: { order_id: orderId } }),
-      this.prisma.users.findUnique({ where: { id: order.buyer_id } }),
-      this.prisma.seller_profiles.findUnique({ where: { id: order.seller_id } }),
-      this.prisma.user_addresses.findUnique({ where: { id: order.shipping_address_id } }),
+      order.buyer_id
+        ? this.prisma.users.findUnique({ where: { id: order.buyer_id } })
+        : null,
+      order.seller_id
+        ? this.prisma.seller_profiles.findUnique({ where: { id: order.seller_id } })
+        : null,
+      order.shipping_address_id
+        ? this.prisma.user_addresses.findUnique({ where: { id: order.shipping_address_id } })
+        : null,
       this.prisma.shipments.findUnique({ where: { order_id: orderId } }),
     ]);
 
@@ -115,13 +137,20 @@ export class AdminOrdersService {
         seller: seller ?? undefined,
       }),
       items: items.map((item) => this.toPublicItem(item)),
-      shippingAddress: address ? this.toPublicAddress(address) : null,
+      shippingAddress: order.shipping_address_snapshot ?? (address ? this.toPublicAddress(address) : null),
       tracking: shipment
         ? {
             trackingNumber: shipment.tracking_number,
             carrier: shipment.carrier,
             trackingUrl: shipment.tracking_url,
             status: shipment.status,
+            provider: shipment.provider,
+            providerOrderId: shipment.provider_order_id,
+            providerShipmentId: shipment.provider_shipment_id,
+            labelUrl: shipment.label_url,
+            manifestUrl: shipment.manifest_url,
+            pickupScheduledAt: shipment.pickup_scheduled_at,
+            shipmentError: shipment.error_message,
             shippedAt: shipment.shipped_at,
             deliveredAt: shipment.delivered_at,
             estimatedDate: shipment.estimated_date,
@@ -136,39 +165,109 @@ export class AdminOrdersService {
     };
   }
 
-  async updateStatus(orderId: string, dto: UpdateOrderStatusDto) {
-    await this.findOrderOrThrow(orderId);
+  async updateStatus(orderId: string, dto: UpdateOrderStatusDto, adminId: string) {
+    await this.prisma.$transaction(async (tx) => {
+      const order = await tx.orders.findUnique({ where: { id: orderId } });
+      if (!order) throw new NotFoundException('Order not found');
+      if (order.status === dto.status) return;
+      const pickupDelivery = order.shipping_type === 'PICKUP' &&
+        order.status === order_status.PROCESSING && dto.status === order_status.DELIVERED;
+      if (!allowedOrderTransitions[order.status].includes(dto.status) && !pickupDelivery) {
+        throw new ConflictException(`Cannot move an order from ${order.status} to ${dto.status}`);
+      }
 
-    await this.prisma.orders.update({
-      where: { id: orderId },
-      data: { status: dto.status, updated_at: new Date() },
-    });
+      const shipment = await tx.shipments.findUnique({ where: { order_id: orderId } });
+      if (dto.status === order_status.SHIPPED && order.shipping_type === 'PICKUP') {
+        throw new ConflictException('Mark a counter pickup as delivered instead of shipped');
+      }
+      if (dto.status === order_status.SHIPPED &&
+        (shipment?.provider !== 'SHIPROCKET' || !shipment.tracking_number)) {
+        throw new ConflictException('Create the carrier shipment and assign its AWB before marking the order shipped');
+      }
+      if (
+        dto.status === order_status.DELIVERED &&
+        order.shipping_type !== 'PICKUP' &&
+        shipment?.provider === 'SHIPROCKET' &&
+        shipment.status.toUpperCase().replaceAll(' ', '_') !== 'DELIVERED'
+      ) {
+        throw new ConflictException('Wait for Shiprocket to confirm delivery before marking this order delivered');
+      }
+      if (
+        dto.status === order_status.CANCELLED &&
+        shipment?.provider === 'SHIPROCKET' &&
+        !['PENDING', 'FAILED', 'CANCELLED'].includes(shipment.status)
+      ) {
+        throw new ConflictException('Cancel the active Shiprocket shipment before cancelling this order');
+      }
 
-    const shipment = await this.prisma.shipments.findUnique({ where: { order_id: orderId } });
-    if (shipment) {
-      await this.prisma.shipments.update({
-        where: { id: shipment.id },
+      const changed = await tx.orders.updateMany({
+        where: { id: orderId, status: order.status },
         data: {
           status: dto.status,
-          ...(dto.status === order_status.SHIPPED && !shipment.shipped_at
-            ? { shipped_at: new Date() }
-            : {}),
-          ...(dto.status === order_status.DELIVERED && !shipment.delivered_at
-            ? { delivered_at: new Date() }
-            : {}),
+          ...(dto.status === order_status.REFUNDED
+            ? { payment_status: payment_status.REFUNDED }
+            : dto.status === order_status.CANCELLED && order.payment_status === payment_status.PENDING
+              ? { payment_status: payment_status.CANCELLED }
+              : {}),
           updated_at: new Date(),
+          ...(dto.status === order_status.CANCELLED
+            ? { cancelled_at: new Date(), cancelled_by_id: adminId, cancel_reason: dto.note }
+            : {}),
         },
       });
+      if (!changed.count) throw new ConflictException('Order status changed; reload and try again');
 
-      await this.prisma.delivery_tracking_events.create({
-        data: {
-          shipment_id: shipment.id,
-          status: dto.status,
-          location: dto.location,
-          description: dto.note,
-        },
-      });
-    }
+      if (dto.status === order_status.CANCELLED) {
+        const items = await tx.order_items.findMany({ where: { order_id: orderId } });
+        for (const item of items) {
+          if (item.variant_id) {
+            await tx.product_variants.update({
+              where: { id: item.variant_id },
+              data: { stock_quantity: { increment: item.quantity } },
+            });
+          } else {
+            await tx.products.update({
+              where: { id: item.product_id },
+              data: { stock_quantity: { increment: item.quantity } },
+            });
+          }
+        }
+        await tx.product_inventory_logs.createMany({
+          data: items.map((item) => ({
+            product_id: item.product_id,
+            variant_id: item.variant_id,
+            change: item.quantity,
+            reason: 'ORDER_CANCELLED',
+            reference_type: 'ORDER',
+            reference_id: orderId,
+            performed_by_id: adminId,
+            note: dto.note,
+          })),
+        });
+      }
+
+      if (shipment) {
+        const now = new Date();
+        const shipmentChanged = await tx.shipments.updateMany({
+          where: { id: shipment.id, status: shipment.status },
+          data: {
+            status: dto.status,
+            ...(dto.status === order_status.SHIPPED && !shipment.shipped_at ? { shipped_at: now } : {}),
+            ...(dto.status === order_status.DELIVERED && !shipment.delivered_at ? { delivered_at: now } : {}),
+            updated_at: now,
+          },
+        });
+        if (!shipmentChanged.count) throw new ConflictException('Shipment status changed; reload and try again');
+        await tx.delivery_tracking_events.create({
+          data: {
+            shipment_id: shipment.id,
+            status: dto.status,
+            location: dto.location,
+            description: dto.note,
+          },
+        });
+      }
+    });
 
     return this.getOrder(orderId);
   }
@@ -217,6 +316,7 @@ export class AdminOrdersService {
     return {
       id: order.id,
       orderNumber: order.order_number,
+      source: order.source,
       status: order.status,
       buyerId: order.buyer_id,
       buyer: relations.buyer
@@ -226,7 +326,14 @@ export class AdminOrdersService {
             email: relations.buyer.email,
             mobile: relations.buyer.mobile,
           }
-        : null,
+        : order.buyer_name || order.buyer_email || order.buyer_mobile
+          ? {
+              id: null,
+              fullName: order.buyer_name,
+              email: order.buyer_email,
+              mobile: order.buyer_mobile,
+            }
+          : null,
       sellerId: order.seller_id,
       seller: relations.seller
         ? { id: relations.seller.id, businessName: relations.seller.business_name }
@@ -262,7 +369,11 @@ export class AdminOrdersService {
       sku: item.sku,
       quantity: item.quantity,
       unitPrice: Number(item.unit_price),
+      commissionRate: item.commission_rate === null ? null : Number(item.commission_rate),
+      commissionAmount: item.commission_amount === null ? null : Number(item.commission_amount),
+      sellerPayout: item.seller_payout === null ? null : Number(item.seller_payout),
       taxAmount: Number(item.tax_amount),
+      discountAmount: Number(item.discount_amount),
       totalPrice: Number(item.total_price),
       imageUrl: item.image_url,
       isReturnable: item.is_returnable,

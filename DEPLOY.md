@@ -80,6 +80,14 @@ OTP_EXPIRY_MINUTES=5
 APP_URL=https://app.uniquemarketing.in
 UPLOAD_DIR=uploads
 
+# Shiprocket (required to enable fulfillment)
+SHIPROCKET_EMAIL=<api-user-email>
+SHIPROCKET_PASSWORD=<api-user-password>
+SHIPROCKET_PICKUP_LOCATION=<pickup-location-name>
+SHIPROCKET_PICKUP_POSTCODE=<warehouse-postcode-for-courier-quotes>
+SHIPROCKET_FALLBACK_EMAIL=<orders-contact-email>
+SHIPROCKET_WEBHOOK_SECRET=<long-random-secret>
+
 # Seed (optional)
 ADMIN_EMAIL=admin@unique-ngo.com
 ADMIN_PASSWORD=<strong-password>
@@ -132,6 +140,41 @@ npm ci
 npm run build
 ```
 
+Commerce referential-integrity constraints are installed as `NOT VALID` so
+existing order and tracking history is retained while new writes are checked.
+Do not remove orphaned historical rows to make these constraints validate.
+Before and after deployment, run the read-only relationship audit:
+with `DATABASE_URL` exported from the backend environment (do not commit it):
+
+```bash
+psql "$DATABASE_URL" -f backend/prisma/audit_commerce_integrity.sql
+```
+
+Review every nonzero result as historical data; do not delete it automatically.
+Repair only with a reviewed mapping/retention decision. Once the corresponding
+relationship reports zero orphans, validate its named constraint individually
+with `ALTER TABLE ... VALIDATE CONSTRAINT ...`.
+
+Order-level financial snapshot checks are also installed as `NOT VALID` so
+existing snapshots remain reviewable. Order-item rate, commission, and payout
+checks are also `NOT VALID`; this preserves legacy rows while enforcing the
+rules for new writes. Seller-owned order items must also include immutable
+commission and payout snapshots. Commission rate bounds for products, categories, sellers,
+and platform settings are enforced the same way. Run the read-only financial audit:
+
+```bash
+psql "$DATABASE_URL" -f backend/prisma/audit_commerce_financial_integrity.sql
+```
+
+Investigate each nonzero invariant before correcting it; the order-item and
+order snapshots are accounting records. After reviewed corrections, validate
+the matching `orders_*_check` and `order_items_*_check` constraints individually.
+Validate `commission_settings_*_check`, `product_categories_*_check`,
+`products_*_check`, and `seller_profiles_*_check` constraints only after the
+corresponding rate audit reports zero invalid rows.
+Validate `order_items_seller_financial_snapshot_required_check` only after the
+financial audit reports zero missing seller snapshots.
+
 ---
 
 ## 5. PM2 (API only)
@@ -183,6 +226,14 @@ curl -s https://app.uniquemarketing.in/api/v1/categories | head
 
 Login in browser: `https://app.uniquemarketing.in`  
 Admin seed (if seeded): see backend seed output / `ADMIN_*` env.
+
+For shipment tracking, configure the Shiprocket webhook URL as
+`https://app.uniquemarketing.in/api/v1/webhooks/delivery/status` and use the same
+`SHIPROCKET_WEBHOOK_SECRET` as its security token (`x-api-key` header).
+Seller pickup origins can be configured on each seller profile in Admin → Sellers;
+orders without a seller origin use `SHIPROCKET_PICKUP_LOCATION` as the centralized warehouse.
+Set `SHIPROCKET_PICKUP_POSTCODE` to that warehouse's six-digit postal code to enable
+serviceability quotes for admin-owned products; seller products use their configured pickup pin code.
 
 ---
 

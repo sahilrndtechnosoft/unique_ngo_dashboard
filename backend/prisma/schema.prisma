@@ -465,6 +465,7 @@ model commission_settings {
   created_at     DateTime  @default(now()) @db.Timestamptz(6)
   updated_at     DateTime  @default(now()) @db.Timestamptz(6)
 
+  /// Manual NOT VALID foreign keys are installed in the commerce integrity migration.
   @@index([created_at])
   @@index([category_id])
   @@index([seller_id])
@@ -480,6 +481,7 @@ model coupon_usages {
   used_at   DateTime @default(now()) @db.Timestamptz(6)
 
   @@unique([coupon_id, user_id, order_id], map: "coupon_usages_unique")
+  @@index([order_id])
 }
 
 model coupons {
@@ -501,6 +503,7 @@ model coupons {
   created_at      DateTime  @default(now()) @db.Timestamptz(6)
   updated_at      DateTime  @default(now()) @db.Timestamptz(6)
 
+  /// Manual NOT VALID foreign key is installed in the commerce integrity migration.
   @@index([is_active])
   @@index([created_at])
   @@index([created_by_id])
@@ -529,9 +532,11 @@ model delivery_tracking_events {
   status      String   @db.VarChar(100)
   location    String?  @db.VarChar(255)
   description String?
+  provider_event_key String? @unique @db.VarChar(255)
   occurred_at DateTime @default(now()) @db.Timestamptz(6)
   created_at  DateTime @default(now()) @db.Timestamptz(6)
 
+  /// Manual NOT VALID foreign key to shipments preserves legacy tracking events.
   @@index([status])
   @@index([created_at])
   @@index([shipment_id])
@@ -912,12 +917,13 @@ model membership_subscriptions {
   @@index([payment_id])
 }
 
+/// This model also has manual database CHECK and NOT VALID FK constraints in commerce migrations.
 model order_items {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   order_id        String   @db.Uuid
   product_id      String   @db.Uuid
   variant_id      String?  @db.Uuid
-  seller_id       String   @db.Uuid
+  seller_id       String?  @db.Uuid
   product_name    String   @db.VarChar(500)
   variant_name    String?  @db.VarChar(255)
   sku             String?  @db.VarChar(255)
@@ -927,6 +933,13 @@ model order_items {
   tax_amount      Decimal  @default(0) @db.Decimal(10, 2)
   discount_amount Decimal  @default(0) @db.Decimal(10, 2)
   total_price     Decimal  @db.Decimal(12, 2)
+  commission_rate   Decimal? @db.Decimal(5, 2)
+  commission_amount Decimal? @db.Decimal(12, 2)
+  seller_payout      Decimal? @db.Decimal(12, 2)
+  weight_grams    Int?
+  length_cm       Decimal? @db.Decimal(8, 2)
+  width_cm        Decimal? @db.Decimal(8, 2)
+  height_cm       Decimal? @db.Decimal(8, 2)
   image_url       String?
   is_returnable   Boolean  @default(true)
   return_days     Int      @default(7)
@@ -978,11 +991,18 @@ model order_returns {
   @@index([reviewed_by_id])
 }
 
+/// This model also has manual database CHECK and NOT VALID FK constraints in commerce migrations.
 model orders {
   id                  String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   order_number        String         @unique @db.VarChar(100)
-  buyer_id            String         @db.Uuid
-  seller_id           String         @db.Uuid
+  buyer_id            String?        @db.Uuid
+  seller_id           String?        @db.Uuid
+  buyer_name          String?        @db.VarChar(255)
+  buyer_email         String?        @db.VarChar(255)
+  buyer_mobile        String?        @db.VarChar(20)
+  shipping_address_snapshot Json?
+  source              String         @default("ONLINE") @db.VarChar(30)
+  created_by_id       String?        @db.Uuid
   status              order_status   @default(PENDING)
   subtotal            Decimal        @db.Decimal(12, 2)
   discount_amount     Decimal        @default(0) @db.Decimal(12, 2)
@@ -994,7 +1014,7 @@ model orders {
   payment_status      payment_status @default(PENDING)
   coupon_id           String?        @db.Uuid
   coupon_discount     Decimal        @default(0) @db.Decimal(12, 2)
-  shipping_address_id String         @db.Uuid
+  shipping_address_id String?        @db.Uuid
   shipping_type       shipping_type  @default(STANDARD)
   estimated_delivery  DateTime?      @db.Date
   notes               String?
@@ -1009,6 +1029,7 @@ model orders {
   created_at          DateTime       @default(now()) @db.Timestamptz(6)
   updated_at          DateTime       @default(now()) @db.Timestamptz(6)
 
+  /// The manual NOT VALID FK uses ON DELETE SET NULL; the immutable address snapshot remains on the order.
   @@index([status])
   @@index([payment_status])
   @@index([created_at])
@@ -1017,6 +1038,8 @@ model orders {
   @@index([coupon_id])
   @@index([shipping_address_id])
   @@index([cancelled_by_id])
+  @@index([source, created_at])
+  @@index([created_by_id])
 }
 
 model otp_verifications {
@@ -1113,11 +1136,13 @@ model product_categories {
   created_at       DateTime @default(now()) @db.Timestamptz(6)
   updated_at       DateTime @default(now()) @db.Timestamptz(6)
 
+  /// Manual NOT VALID foreign keys are installed in the commerce integrity migration.
   @@index([is_active])
   @@index([created_at])
   @@index([parent_id])
 }
 
+/// A partial unique index and NOT VALID FK are installed in commerce migrations.
 model product_images {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   product_id String   @db.Uuid
@@ -1172,6 +1197,8 @@ model product_reviews {
 
   @@unique([order_id, reviewer_id, product_id], map: "product_reviews_unique")
   @@index([created_at])
+  @@index([product_id])
+  @@index([reviewer_id])
 }
 
 model product_variants {
@@ -1189,6 +1216,7 @@ model product_variants {
   created_at       DateTime @default(now()) @db.Timestamptz(6)
   updated_at       DateTime @default(now()) @db.Timestamptz(6)
 
+  /// Manual NOT VALID foreign key to products is installed in commerce migrations.
   @@index([is_active])
   @@index([created_at])
   @@index([product_id])
@@ -1196,7 +1224,7 @@ model product_variants {
 
 model products {
   id                  String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  seller_id           String         @db.Uuid
+  seller_id           String?        @db.Uuid
   category_id         String         @db.Uuid
   name                String         @db.VarChar(500)
   slug                String         @unique @db.VarChar(500)
@@ -1237,6 +1265,7 @@ model products {
   updated_at          DateTime       @default(now()) @db.Timestamptz(6)
   deleted_at          DateTime?      @db.Timestamptz(6)
 
+  /// Manual NOT VALID foreign keys are installed in the commerce integrity migration.
   @@index([status])
   @@index([created_at])
   @@index([deleted_at])
@@ -1516,7 +1545,14 @@ model seller_profiles {
   rating            Decimal       @default(0) @db.Decimal(3, 2)
   total_reviews     Int           @default(0)
   total_sales       Int           @default(0)
-  commission_rate   Decimal       @default(10.00) @db.Decimal(5, 2)
+  commission_rate   Decimal?      @db.Decimal(5, 2)
+  shiprocket_pickup_location String? @db.VarChar(36)
+  shiprocket_pickup_address  String?
+  shiprocket_pickup_address_2 String?
+  shiprocket_pickup_city     String? @db.VarChar(100)
+  shiprocket_pickup_state    String? @db.VarChar(100)
+  shiprocket_pickup_country  String? @db.VarChar(100)
+  shiprocket_pickup_pin_code String? @db.VarChar(10)
   bank_account_no   String?       @db.VarChar(50)
   bank_ifsc         String?       @db.VarChar(20)
   bank_name         String?       @db.VarChar(255)
@@ -1530,6 +1566,7 @@ model seller_profiles {
   updated_at        DateTime      @default(now()) @db.Timestamptz(6)
   deleted_at        DateTime?     @db.Timestamptz(6)
 
+  /// Manual NOT VALID foreign keys are installed in the commerce integrity migration.
   @@index([status])
   @@index([created_at])
   @@index([deleted_at])
@@ -1558,6 +1595,15 @@ model shipments {
   order_id        String    @unique @db.Uuid
   tracking_number String?   @db.VarChar(255)
   carrier         String?   @db.VarChar(255)
+  provider        String?   @db.VarChar(50)
+  provider_order_id    String? @unique @db.VarChar(100)
+  provider_reference_id String? @unique @db.VarChar(100)
+  provider_shipment_id String? @unique @db.VarChar(100)
+  courier_id      String?   @db.VarChar(100)
+  label_url       String?
+  manifest_url    String?
+  pickup_scheduled_at DateTime? @db.Timestamptz(6)
+  error_message   String?
   tracking_url    String?
   status          String    @default("PENDING") @db.VarChar(100)
   shipped_at      DateTime? @db.Timestamptz(6)
@@ -1567,8 +1613,10 @@ model shipments {
   created_at      DateTime  @default(now()) @db.Timestamptz(6)
   updated_at      DateTime  @default(now()) @db.Timestamptz(6)
 
+  /// Manual NOT VALID foreign key to orders is installed in commerce migrations.
   @@index([status])
   @@index([created_at])
+  @@index([provider, tracking_number])
 }
 
 model user_addresses {
@@ -1590,6 +1638,7 @@ model user_addresses {
   updated_at    DateTime  @default(now()) @db.Timestamptz(6)
   deleted_at    DateTime? @db.Timestamptz(6)
 
+  /// Manual NOT VALID foreign key is installed in the commerce integrity migration.
   @@index([created_at])
   @@index([deleted_at])
   @@index([user_id])
@@ -1967,6 +2016,7 @@ enum payment_method {
   REWARD_POINTS
   SUBSCRIPTION
   BANK_TRANSFER
+  CASH
 }
 
 enum payment_purpose {

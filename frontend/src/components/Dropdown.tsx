@@ -1,8 +1,9 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } from 'react';
 import { usePopper } from 'react-popper';
 
 const Dropdown = (props : any, forwardedRef: any) => {
     const [visibility, setVisibility] = useState<any>(false);
+    const popperId = useId();
 
     const referenceRef = useRef<any>();
     const popperRef = useRef<any>();
@@ -46,6 +47,8 @@ const Dropdown = (props : any, forwardedRef: any) => {
                 ref={referenceRef}
                 type="button"
                 className={props.btnClassName}
+                aria-expanded={visibility}
+                aria-controls={popperId}
                 onClick={() => setVisibility(!visibility)}
             >
                 {props.button}
@@ -55,7 +58,15 @@ const Dropdown = (props : any, forwardedRef: any) => {
                 ref={popperRef}
                 style={styles.popper}
                 {...attributes.popper}
+                id={popperId}
                 className="z-50"
+                onKeyDown={(event) => {
+                    if (event.key === 'Escape' && visibility) {
+                        event.preventDefault();
+                        setVisibility(false);
+                        referenceRef.current?.focus();
+                    }
+                }}
                 onClick={() => setVisibility(!visibility)}
                 >
                     {visibility && props.children}

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -101,6 +102,7 @@ export class AdminSellersService {
   }
 
   async createSeller(dto: CreateAdminSellerDto, actorId: string) {
+    this.validatePickupOrigin(dto);
     const email = dto.email.toLowerCase();
     const mobile = normalizeMobile(dto.mobile);
 
@@ -137,6 +139,7 @@ export class AdminSellersService {
           gst_number: dto.gstNumber,
           pan_number: dto.panNumber,
           ...(dto.commissionRate !== undefined && { commission_rate: dto.commissionRate }),
+          ...this.pickupOriginData(dto),
           status,
           verified_by_id:
             status === seller_status.ACTIVE ? actorId : undefined,
@@ -157,6 +160,15 @@ export class AdminSellersService {
     actorId: string,
   ) {
     const profile = await this.findSellerOrThrow(sellerId);
+    this.validatePickupOrigin({
+      shiprocketPickupLocation: dto.shiprocketPickupLocation !== undefined ? dto.shiprocketPickupLocation : profile.shiprocket_pickup_location,
+      shiprocketPickupAddress: dto.shiprocketPickupAddress !== undefined ? dto.shiprocketPickupAddress : profile.shiprocket_pickup_address,
+      shiprocketPickupAddress2: dto.shiprocketPickupAddress2 !== undefined ? dto.shiprocketPickupAddress2 : profile.shiprocket_pickup_address_2,
+      shiprocketPickupCity: dto.shiprocketPickupCity !== undefined ? dto.shiprocketPickupCity : profile.shiprocket_pickup_city,
+      shiprocketPickupState: dto.shiprocketPickupState !== undefined ? dto.shiprocketPickupState : profile.shiprocket_pickup_state,
+      shiprocketPickupCountry: dto.shiprocketPickupCountry !== undefined ? dto.shiprocketPickupCountry : profile.shiprocket_pickup_country,
+      shiprocketPickupPinCode: dto.shiprocketPickupPinCode !== undefined ? dto.shiprocketPickupPinCode : profile.shiprocket_pickup_pin_code,
+    });
     const user = await this.prisma.users.findFirst({
       where: { id: profile.user_id, deleted_at: null },
     });
@@ -201,6 +213,7 @@ export class AdminSellersService {
       ...(dto.commissionRate !== undefined && {
         commission_rate: dto.commissionRate,
       }),
+      ...this.pickupOriginData(dto),
       updated_at: new Date(),
     };
 
@@ -313,6 +326,54 @@ export class AdminSellersService {
     }
   }
 
+  private validatePickupOrigin(origin: {
+    shiprocketPickupLocation?: string | null;
+    shiprocketPickupAddress?: string | null;
+    shiprocketPickupAddress2?: string | null;
+    shiprocketPickupCity?: string | null;
+    shiprocketPickupState?: string | null;
+    shiprocketPickupCountry?: string | null;
+    shiprocketPickupPinCode?: string | null;
+  }) {
+    const fields = [origin.shiprocketPickupLocation, origin.shiprocketPickupAddress,
+      origin.shiprocketPickupCity, origin.shiprocketPickupState, origin.shiprocketPickupPinCode];
+    if (fields.every((value) => !value?.trim())) return;
+    if (fields.some((value) => !value?.trim())) {
+      throw new BadRequestException('Complete the Shiprocket pickup location, address, city, state and six-digit postal code, or leave them all blank');
+    }
+    if (origin.shiprocketPickupAddress!.trim().length < 10) {
+      throw new BadRequestException('Shiprocket pickup address must contain at least 10 characters');
+    }
+  }
+
+  private pickupOriginData(dto: {
+    shiprocketPickupLocation?: string | null;
+    shiprocketPickupAddress?: string | null;
+    shiprocketPickupAddress2?: string | null;
+    shiprocketPickupCity?: string | null;
+    shiprocketPickupState?: string | null;
+    shiprocketPickupCountry?: string | null;
+    shiprocketPickupPinCode?: string | null;
+  }): {
+    shiprocket_pickup_location?: string | null;
+    shiprocket_pickup_address?: string | null;
+    shiprocket_pickup_address_2?: string | null;
+    shiprocket_pickup_city?: string | null;
+    shiprocket_pickup_state?: string | null;
+    shiprocket_pickup_country?: string | null;
+    shiprocket_pickup_pin_code?: string | null;
+  } {
+    return {
+      ...(dto.shiprocketPickupLocation !== undefined && { shiprocket_pickup_location: dto.shiprocketPickupLocation?.trim() || null }),
+      ...(dto.shiprocketPickupAddress !== undefined && { shiprocket_pickup_address: dto.shiprocketPickupAddress?.trim() || null }),
+      ...(dto.shiprocketPickupAddress2 !== undefined && { shiprocket_pickup_address_2: dto.shiprocketPickupAddress2?.trim() || null }),
+      ...(dto.shiprocketPickupCity !== undefined && { shiprocket_pickup_city: dto.shiprocketPickupCity?.trim() || null }),
+      ...(dto.shiprocketPickupState !== undefined && { shiprocket_pickup_state: dto.shiprocketPickupState?.trim() || null }),
+      ...(dto.shiprocketPickupCountry !== undefined && { shiprocket_pickup_country: dto.shiprocketPickupCountry?.trim() || null }),
+      ...(dto.shiprocketPickupPinCode !== undefined && { shiprocket_pickup_pin_code: dto.shiprocketPickupPinCode?.trim() || null }),
+    };
+  }
+
   private toPublic(profile: seller_profiles, user: users | null) {
     return {
       id: profile.id,
@@ -330,7 +391,15 @@ export class AdminSellersService {
       isPremium: profile.is_premium,
       rating: Number(profile.rating),
       totalSales: profile.total_sales,
-      commissionRate: Number(profile.commission_rate),
+      commissionRate:
+        profile.commission_rate === null ? null : Number(profile.commission_rate),
+      shiprocketPickupLocation: profile.shiprocket_pickup_location,
+      shiprocketPickupAddress: profile.shiprocket_pickup_address,
+      shiprocketPickupAddress2: profile.shiprocket_pickup_address_2,
+      shiprocketPickupCity: profile.shiprocket_pickup_city,
+      shiprocketPickupState: profile.shiprocket_pickup_state,
+      shiprocketPickupCountry: profile.shiprocket_pickup_country,
+      shiprocketPickupPinCode: profile.shiprocket_pickup_pin_code,
       rejectionReason: profile.rejection_reason,
       verifiedAt: profile.verified_at,
       createdAt: profile.created_at,

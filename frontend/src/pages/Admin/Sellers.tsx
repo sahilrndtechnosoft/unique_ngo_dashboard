@@ -26,6 +26,13 @@ const emptyForm = {
     gstNumber: '',
     panNumber: '',
     commissionRate: '',
+    shiprocketPickupLocation: '',
+    shiprocketPickupAddress: '',
+    shiprocketPickupAddress2: '',
+    shiprocketPickupCity: '',
+    shiprocketPickupState: '',
+    shiprocketPickupCountry: 'India',
+    shiprocketPickupPinCode: '',
     profilePicture: '' as string | null,
 };
 
@@ -109,6 +116,13 @@ export default function AdminSellers() {
             gstNumber: seller.gstNumber ?? '',
             panNumber: seller.panNumber ?? '',
             commissionRate: seller.commissionRate != null ? String(seller.commissionRate) : '',
+            shiprocketPickupLocation: seller.shiprocketPickupLocation ?? '',
+            shiprocketPickupAddress: seller.shiprocketPickupAddress ?? '',
+            shiprocketPickupAddress2: seller.shiprocketPickupAddress2 ?? '',
+            shiprocketPickupCity: seller.shiprocketPickupCity ?? '',
+            shiprocketPickupState: seller.shiprocketPickupState ?? '',
+            shiprocketPickupCountry: seller.shiprocketPickupCountry || 'India',
+            shiprocketPickupPinCode: seller.shiprocketPickupPinCode ?? '',
             profilePicture: seller.profilePicture ?? null,
         });
         setPendingImage(null);
@@ -133,7 +147,8 @@ export default function AdminSellers() {
                     status: form.status,
                     gstNumber: form.gstNumber || undefined,
                     panNumber: form.panNumber || undefined,
-                    commissionRate: form.commissionRate ? Number(form.commissionRate) : undefined,
+                    commissionRate: form.commissionRate === '' ? null : Number(form.commissionRate),
+                    ...pickupOriginBody(),
                 })) as any;
                 id = created?.id;
                 showAlert('Seller created successfully');
@@ -149,7 +164,8 @@ export default function AdminSellers() {
                     rejectionReason: form.rejectionReason || undefined,
                     gstNumber: form.gstNumber || undefined,
                     panNumber: form.panNumber || undefined,
-                    commissionRate: form.commissionRate ? Number(form.commissionRate) : undefined,
+                    commissionRate: form.commissionRate === '' ? null : Number(form.commissionRate),
+                    ...pickupOriginBody(),
                 };
                 if (form.password) body.password = form.password;
                 await adminApi.updateSeller(editingId, body);
@@ -169,6 +185,16 @@ export default function AdminSellers() {
             setBusy(false);
         }
     };
+
+    const pickupOriginBody = () => ({
+        shiprocketPickupLocation: form.shiprocketPickupLocation.trim() || null,
+        shiprocketPickupAddress: form.shiprocketPickupAddress.trim() || null,
+        shiprocketPickupAddress2: form.shiprocketPickupAddress2.trim() || null,
+        shiprocketPickupCity: form.shiprocketPickupCity.trim() || null,
+        shiprocketPickupState: form.shiprocketPickupState.trim() || null,
+        shiprocketPickupCountry: form.shiprocketPickupLocation.trim() ? form.shiprocketPickupCountry.trim() || 'India' : null,
+        shiprocketPickupPinCode: form.shiprocketPickupPinCode.trim() || null,
+    });
 
     const remove = async (id: string) => {
         const ok = await confirmAction('Delete seller?', 'The seller profile will be soft-deleted.');
@@ -223,7 +249,7 @@ export default function AdminSellers() {
                 }
             />
 
-            {error ? <div className="mb-4 rounded bg-danger-light p-3 text-danger">{error}</div> : null}
+            {error ? <div className="mb-4 rounded bg-danger-light p-3 text-danger" role="alert">{error}</div> : null}
 
             <BulkActionsBar count={selection.selectedIds.length} onClear={selection.clear} onBulkDelete={bulkDelete} />
 
@@ -234,7 +260,7 @@ export default function AdminSellers() {
                         label: 'Photo',
                         render: (row) =>
                             row.profilePicture ? (
-                                <img src={mediaUrl(row.profilePicture)} alt={row.fullName} className="h-10 w-10 rounded-full object-cover" />
+                                <img src={mediaUrl(row.profilePicture)} alt={row.fullName} className="h-10 w-10 rounded-full object-cover" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/assets/images/auth/user.png'; }} />
                             ) : (
                                 <span className="text-xs text-white-dark">—</span>
                             ),
@@ -318,7 +344,7 @@ export default function AdminSellers() {
                         <FormField label="Profile Picture" className="md:col-span-2">
                             <div className="flex items-center gap-4">
                                 {form.profilePicture ? (
-                                    <img src={mediaUrl(form.profilePicture)} alt="" className="h-16 w-16 rounded-full object-cover" />
+                                    <img src={mediaUrl(form.profilePicture)} alt="" className="h-16 w-16 rounded-full object-cover" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/assets/images/auth/user.png'; }} />
                                 ) : null}
                                 <input
                                     type="file"
@@ -374,7 +400,7 @@ export default function AdminSellers() {
                         <FormField label="PAN Number">
                             <input className="form-input" value={form.panNumber} onChange={(e) => setForm({ ...form, panNumber: e.target.value })} />
                         </FormField>
-                        <FormField label="Commission Rate (%)" hint="Overrides the platform default for this seller">
+                        <FormField label="Commission Rate (%)" hint="Used when neither the product nor category has an override. Leave blank to use the platform rate; enter 0 for no commission.">
                             <input
                                 className="form-input"
                                 type="number"
@@ -386,6 +412,31 @@ export default function AdminSellers() {
                         </FormField>
                         <FormField label="Description" className="md:col-span-2">
                             <textarea className="form-textarea min-h-[100px]" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                        </FormField>
+                    </div>
+                </FormSection>
+                <FormSection title="Shiprocket pickup origin" description="Leave blank to use the platform warehouse. A configured origin is used for this seller's shipments." className="md:col-span-2">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <FormField label="Pickup location name" hint="Letters, numbers and spaces only; must be unique in Shiprocket.">
+                            <input maxLength={36} className="form-input" value={form.shiprocketPickupLocation} onChange={(e) => setForm({ ...form, shiprocketPickupLocation: e.target.value })} />
+                        </FormField>
+                        <FormField label="Address" hint="At least 10 characters when setting an origin.">
+                            <input className="form-input" value={form.shiprocketPickupAddress} onChange={(e) => setForm({ ...form, shiprocketPickupAddress: e.target.value })} />
+                        </FormField>
+                        <FormField label="Address line 2">
+                            <input className="form-input" value={form.shiprocketPickupAddress2} onChange={(e) => setForm({ ...form, shiprocketPickupAddress2: e.target.value })} />
+                        </FormField>
+                        <FormField label="City">
+                            <input className="form-input" value={form.shiprocketPickupCity} onChange={(e) => setForm({ ...form, shiprocketPickupCity: e.target.value })} />
+                        </FormField>
+                        <FormField label="State">
+                            <input className="form-input" value={form.shiprocketPickupState} onChange={(e) => setForm({ ...form, shiprocketPickupState: e.target.value })} />
+                        </FormField>
+                        <FormField label="Country">
+                            <input className="form-input" value={form.shiprocketPickupCountry} onChange={(e) => setForm({ ...form, shiprocketPickupCountry: e.target.value })} />
+                        </FormField>
+                        <FormField label="Postal code">
+                            <input inputMode="numeric" maxLength={6} className="form-input" value={form.shiprocketPickupPinCode} onChange={(e) => setForm({ ...form, shiprocketPickupPinCode: e.target.value.replace(/\D/g, '').slice(0, 6) })} />
                         </FormField>
                     </div>
                 </FormSection>
