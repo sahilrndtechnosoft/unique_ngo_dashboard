@@ -25,6 +25,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { RbacModule } from './admin/rbac.module';
 import { UsersModule } from './users/users.module';
 import { WishlistModule } from './wishlist/wishlist.module';
+import { SuggestionsModule } from './suggestions/suggestions.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { WishlistModule } from './wishlist/wishlist.module';
     OrdersModule,
     BloodBankModule,
     WishlistModule,
+    SuggestionsModule,
     NotificationsModule,
     CouponsModule,
     DonationItemsModule,

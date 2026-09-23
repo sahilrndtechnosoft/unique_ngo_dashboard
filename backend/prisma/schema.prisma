@@ -833,6 +833,27 @@ model inquiries {
   @@index([user_id])
 }
 
+model suggestions {
+  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id        String            @db.Uuid
+  customer_name  String            @db.VarChar(255)
+  customer_email String?           @db.VarChar(255)
+  customer_mobile String?          @db.VarChar(20)
+  category       String            @db.VarChar(50)
+  title          String            @db.VarChar(255)
+  details        String
+  status         suggestion_status @default(NEW)
+  admin_note     String?
+  reviewed_by_id String?           @db.Uuid
+  reviewed_at    DateTime?         @db.Timestamptz(6)
+  created_at     DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime          @default(now()) @db.Timestamptz(6)
+
+  @@index([user_id])
+  @@index([status])
+  @@index([created_at])
+}
+
 model invoices {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   invoice_number  String   @unique @db.VarChar(100)
@@ -1922,6 +1943,14 @@ enum inquiry_status {
   IN_PROGRESS
   RESOLVED
   CLOSED
+}
+
+enum suggestion_status {
+  NEW
+  REVIEWING
+  PLANNED
+  IMPLEMENTED
+  DECLINED
 }
 
 enum membership_status {

@@ -588,8 +588,8 @@ export class ShiprocketService {
         provider_order_id: String(remote.id),
         provider_shipment_id: String(providerShipment.id),
         tracking_number: awb,
-        courier_id: providerShipment.courier_id != null ? String(providerShipment.courier_id) : null,
-        carrier: providerShipment.courier || null,
+        ...(Number(providerShipment.courier_id) > 0 ? { courier_id: String(providerShipment.courier_id) } : {}),
+        ...(providerShipment.courier ? { carrier: providerShipment.courier } : {}),
         tracking_url: awb ? `https://shiprocket.co/tracking/${awb}` : null,
         status: awb ? 'AWB_ASSIGNED' : 'CREATED',
         error_message: null,
@@ -714,8 +714,12 @@ export class ShiprocketService {
         data: {
           status: awb ? 'AWB_ASSIGNED' : 'AWB_ASSIGNING',
           tracking_number: awb,
-          courier_id: result.courier_company_id != null ? String(result.courier_company_id) : null,
-          carrier: result.courier_name ?? null,
+          courier_id: result.courier_company_id != null
+            ? String(result.courier_company_id)
+            : selectedCourier != null
+              ? String(selectedCourier)
+              : shipment.courier_id,
+          carrier: result.courier_name ?? shipment.carrier,
           tracking_url: awb ? `https://shiprocket.co/tracking/${awb}` : null,
           label_url: result.label_url ?? null,
           manifest_url: result.manifest_url ?? null,

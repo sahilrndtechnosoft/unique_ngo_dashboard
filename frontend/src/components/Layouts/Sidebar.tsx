@@ -30,6 +30,7 @@ const menuIcons: Record<string, JSX.Element> = {
     '/admin/blood-requests': <IconMenuInvoice className="group-hover:!text-primary shrink-0" />,
     '/admin/notifications': <IconMenuNotes className="group-hover:!text-primary shrink-0" />,
     '/admin/inquiries': <IconMenuNotes className="group-hover:!text-primary shrink-0" />,
+    '/admin/suggestions': <IconMenuNotes className="group-hover:!text-primary shrink-0" />,
 };
 
 const Sidebar = () => {
@@ -45,6 +46,9 @@ const Sidebar = () => {
     const logoSrc = branding.logoUrl ? mediaUrl(branding.logoUrl) : '/assets/images/logo.svg';
     const brandName = branding.companyName || 'Unique NGO';
     const navigationExpanded = isMobileViewport ? themeConfig.sidebar : !themeConfig.sidebar;
+    const navigationHidden = isMobileViewport
+        ? !themeConfig.sidebar
+        : themeConfig.menu === 'horizontal' || (themeConfig.menu === 'vertical' && themeConfig.sidebar);
 
     useEffect(() => {
         const mediaQuery = window.matchMedia('(max-width: 1023px)');
@@ -70,9 +74,12 @@ const Sidebar = () => {
 
     useEffect(() => {
         if (navigationRef.current) {
-            navigationRef.current.inert = isMobileViewport && !themeConfig.sidebar;
+            if (navigationHidden && navigationRef.current.contains(document.activeElement)) {
+                document.querySelector<HTMLButtonElement>('header button[aria-controls="primary-navigation"]')?.focus();
+            }
+            navigationRef.current.inert = navigationHidden;
         }
-    }, [isMobileViewport, themeConfig.sidebar]);
+    }, [navigationHidden]);
 
     const visibleGroups = adminMenuGroups
         .map((group) => ({
@@ -87,8 +94,8 @@ const Sidebar = () => {
                 ref={navigationRef}
                 id="primary-navigation"
                 aria-label="Primary navigation"
-                aria-hidden={isMobileViewport && !themeConfig.sidebar}
-                className={`sidebar app-sidebar fixed min-h-screen h-full top-0 bottom-0 w-[260px] shadow-[5px_0_25px_0_rgba(94,92,154,0.1)] z-50 transition-all duration-300 ${semidark ? 'text-white-dark' : ''}`}
+                aria-hidden={navigationHidden}
+                className={`sidebar app-sidebar admin-sidebar fixed min-h-screen h-full top-0 bottom-0 w-[260px] shadow-[5px_0_25px_0_rgba(94,92,154,0.1)] z-50 transition-all duration-300 ${semidark ? 'text-white-dark' : ''}`}
             >
                 <div className="bg-white dark:bg-black h-full">
                     <div className="flex justify-between items-center px-3 py-4 gap-2">
@@ -108,8 +115,8 @@ const Sidebar = () => {
                             <IconCaretsDown className="m-auto rotate-90" />
                         </button>
                     </div>
-                    <PerfectScrollbar className="h-[calc(100vh-80px)] relative">
-                        <ul className="relative font-semibold space-y-0.5 p-4 py-0">
+                    <PerfectScrollbar className="h-[calc(100vh-80px)] relative pb-8">
+                        <ul className="relative font-semibold space-y-0.5 p-4 py-0 pb-8">
                             {visibleGroups.map((group) => (
                                 <Fragment key={group.label ?? 'root'}>
                                     {group.label ? (

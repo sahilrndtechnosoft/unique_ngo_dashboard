@@ -855,6 +855,335 @@ pre.hljs {
     }
 }
 
+/* Admindek-inspired admin shell: dark navigation, compact blue workspace, and dense data surfaces. */
+.app-workspace {
+    --workspace-bg: #f4f7fb;
+    --workspace-surface: #ffffff;
+    --workspace-ink: #17233b;
+    --workspace-muted: #718096;
+    --workspace-border: #e5eaf2;
+    --workspace-accent: #2563eb;
+    --workspace-accent-hover: #1d4ed8;
+    --workspace-accent-soft: #edf3ff;
+    --workspace-shadow-panel: 0 1px 2px rgb(20 36 64 / 3%), 0 10px 28px rgb(20 36 64 / 5%);
+}
+
+.app-workspace-content {
+    max-width: 1600px;
+    padding: 28px 32px 40px !important;
+}
+
+.admin-sidebar,
+.admin-sidebar > div,
+.admin-sidebar > div > div:first-child {
+    background: #111827 !important;
+    border-color: #26324a !important;
+}
+
+.admin-sidebar {
+    box-shadow: 10px 0 32px rgb(15 23 42 / 10%) !important;
+}
+
+.admin-sidebar .main-logo {
+    min-height: 68px;
+    padding-inline: 16px;
+    border-bottom: 1px solid #26324a;
+}
+
+.admin-sidebar .main-logo span,
+.admin-sidebar .collapse-icon {
+    color: #f8fafc !important;
+}
+
+.admin-sidebar .collapse-icon:hover {
+    background: #1e293b !important;
+}
+
+.admin-sidebar .nav-group-heading {
+    margin: 18px 0 6px !important;
+}
+
+.admin-sidebar .nav-group-heading h2 {
+    padding: 7px 14px !important;
+    color: #78869f !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    letter-spacing: .08em !important;
+}
+
+.admin-sidebar .nav-item > a {
+    min-height: 42px !important;
+    margin: 2px 10px !important;
+    padding-inline: 13px !important;
+    border-radius: 8px !important;
+    color: #b8c3d6 !important;
+    font-size: 13px !important;
+    transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.admin-sidebar .nav-item > a:hover {
+    background: #1b263b !important;
+    color: #fff !important;
+    transform: translateX(2px);
+}
+
+.admin-sidebar .nav-item > a.active {
+    background: #2563eb !important;
+    color: #fff !important;
+    box-shadow: 0 8px 18px rgb(37 99 235 / 24%);
+}
+
+.admin-sidebar .nav-item > a.active svg,
+.admin-sidebar .nav-item > a:hover svg {
+    color: #fff !important;
+}
+
+.app-topbar {
+    border-bottom-color: var(--workspace-border);
+    background: rgb(255 255 255 / 88%);
+    box-shadow: 0 1px 0 rgb(20 36 64 / 2%);
+}
+
+.app-topbar > div > div:first-child {
+    min-height: 68px;
+    padding-inline: 24px;
+    background: var(--workspace-surface);
+}
+
+.app-topbar .collapse-icon {
+    border: 1px solid var(--workspace-border);
+    background: #f8faff;
+    color: var(--workspace-muted);
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.app-topbar .collapse-icon:hover {
+    border-color: #bfcef1;
+    background: var(--workspace-accent-soft);
+    color: var(--workspace-accent);
+    transform: translateY(-1px);
+}
+
+.workspace-crumb-current {
+    color: var(--workspace-ink);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.app-workspace-content .admin-page-header h2 {
+    color: var(--workspace-ink);
+    font-size: 24px;
+    font-weight: 750;
+    letter-spacing: -.01em;
+}
+
+.app-workspace-content .admin-page-header > div:first-child > div > p {
+    color: var(--workspace-muted);
+}
+
+.app-workspace-content .panel,
+.app-workspace-content .admin-data-table {
+    border-radius: 10px;
+    box-shadow: var(--workspace-shadow-panel);
+}
+
+.app-workspace-content .admin-filter-bar.panel {
+    padding: 14px 16px !important;
+    background: #fff;
+}
+
+.admin-filter-bar .form-input {
+    min-height: 42px;
+    border-color: var(--workspace-border);
+    background: #f8faff;
+}
+
+.admin-filter-bar .form-input:focus {
+    background: #fff;
+    box-shadow: 0 0 0 3px rgb(37 99 235 / 10%);
+}
+
+.app-workspace-content .admin-data-table table {
+    min-width: 760px;
+}
+
+.app-workspace-content .admin-data-table thead th {
+    height: 48px;
+    padding: 0 16px;
+    background: #f8faff;
+    color: #7a879b;
+    font-size: 10px;
+    letter-spacing: .06em;
+}
+
+.app-workspace-content .admin-data-table tbody tr {
+    transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.app-workspace-content .admin-data-table tbody tr:hover > td {
+    background: #f5f8ff;
+}
+
+.app-workspace-content .admin-data-table tbody td {
+    min-height: 60px;
+    padding: 14px 16px;
+    color: #334155;
+    font-size: 13px;
+}
+
+.row-actions-trigger {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+}
+
+.admin-table-pagination {
+    min-height: 58px;
+    background: #fbfcff !important;
+}
+
+.app-workspace .btn {
+    min-height: 40px;
+    border-radius: 7px;
+    box-shadow: none;
+}
+
+.app-workspace .btn-primary {
+    box-shadow: 0 7px 16px -10px rgb(37 99 235 / 70%);
+}
+
+/* Existing kanban/list surfaces inherit the same spacing, depth, and blue focus language. */
+.app-workspace .scrumboard,
+.app-workspace .kanban-board,
+.app-workspace .list-view,
+.app-workspace .datatable {
+    color: var(--workspace-ink);
+}
+
+.app-workspace .scrumboard .sortable-placeholder,
+.app-workspace .kanban-board [data-rbd-placeholder-context-id] {
+    border-radius: 10px;
+    background: var(--workspace-accent-soft);
+}
+
+.app-workspace .scrumboard .task,
+.app-workspace .kanban-board .task,
+.app-workspace .list-view > * {
+    border: 1px solid var(--workspace-border);
+    border-radius: 9px;
+    box-shadow: 0 2px 8px rgb(20 36 64 / 4%);
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.app-workspace .scrumboard .task:hover,
+.app-workspace .kanban-board .task:hover,
+.app-workspace .list-view > *:hover {
+    border-color: #c5d4f3;
+    box-shadow: 0 10px 24px rgb(20 36 64 / 9%);
+    transform: translateY(-2px);
+}
+
+@media (max-width: 1023px) {
+    .app-workspace-content {
+        padding: 22px 18px 32px !important;
+    }
+
+    .app-topbar > div > div:first-child {
+        padding-inline: 16px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .admin-sidebar .nav-item > a,
+    .app-topbar .collapse-icon,
+    .app-workspace-content .admin-data-table tbody tr,
+    .app-workspace .scrumboard .task,
+    .app-workspace .kanban-board .task,
+    .app-workspace .list-view > * {
+        transition: none;
+    }
+}
+
+/* Final admin shell overrides keep the reference visual language above legacy theme rules. */
+.app-workspace {
+    --workspace-bg: #f4f7fb;
+    --workspace-surface: #ffffff;
+    --workspace-ink: #17233b;
+    --workspace-muted: #718096;
+    --workspace-border: #e5eaf2;
+    --workspace-accent: #2563eb;
+    --workspace-accent-hover: #1d4ed8;
+    --workspace-accent-soft: #edf3ff;
+    --workspace-shadow-panel: 0 1px 2px rgb(20 36 64 / 3%), 0 10px 28px rgb(20 36 64 / 5%);
+}
+.admin-sidebar,
+.admin-sidebar > div,
+.admin-sidebar > div > div:first-child { background: #111827 !important; border-color: #26324a !important; }
+.admin-sidebar { box-shadow: 10px 0 32px rgb(15 23 42 / 10%) !important; }
+.admin-sidebar .main-logo { min-height: 68px; padding-inline: 16px; border-bottom: 1px solid #26324a; }
+.admin-sidebar .main-logo span, .admin-sidebar .collapse-icon { color: #f8fafc !important; }
+.admin-sidebar .collapse-icon:hover { background: #1e293b !important; }
+.admin-sidebar .nav-group-heading { margin: 18px 0 6px !important; }
+.admin-sidebar .nav-group-heading h2 { padding: 7px 14px !important; color: #78869f !important; font-size: 10px !important; font-weight: 700 !important; letter-spacing: .08em !important; }
+.admin-sidebar .nav-item > a { min-height: 42px !important; margin: 2px 10px !important; padding-inline: 13px !important; border-radius: 8px !important; color: #b8c3d6 !important; font-size: 13px !important; font-weight: 550; transition: background-color 160ms ease, color 160ms ease, transform 160ms ease; }
+.admin-sidebar .nav-item > a:hover { background: #1b263b !important; color: #fff !important; transform: translateX(2px); }
+.admin-sidebar .nav-item > a.active { background: #2563eb !important; color: #fff !important; box-shadow: 0 8px 18px rgb(37 99 235 / 24%); }
+.admin-sidebar .nav-item > a.active svg, .admin-sidebar .nav-item > a:hover svg { color: #fff !important; }
+.app-workspace-content { max-width: 1600px; padding: 28px 32px 40px !important; }
+.app-topbar { border-bottom-color: var(--workspace-border); background: rgb(255 255 255 / 88%); }
+.app-topbar > div > div:first-child { min-height: 68px; padding-inline: 24px; background: var(--workspace-surface); }
+.app-topbar .collapse-icon { border: 1px solid var(--workspace-border); background: #f8faff; color: var(--workspace-muted); transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease; }
+.app-topbar .collapse-icon:hover { border-color: #bfcef1; background: var(--workspace-accent-soft); color: var(--workspace-accent); transform: translateY(-1px); }
+.workspace-crumb-current { color: var(--workspace-ink); font-size: 13px; font-weight: 700; }
+.app-workspace-content .admin-page-header h2 { color: var(--workspace-ink); font-size: 24px; font-weight: 750; }
+.app-workspace-content .panel, .app-workspace-content .admin-data-table { border-radius: 10px; box-shadow: var(--workspace-shadow-panel); }
+.app-workspace-content .admin-filter-bar.panel { padding: 14px 16px !important; background: #fff; }
+.admin-filter-bar .form-input { min-height: 42px; border-color: var(--workspace-border); background: #f8faff; }
+.admin-filter-bar .form-input:focus { background: #fff; box-shadow: 0 0 0 3px rgb(37 99 235 / 10%); }
+.app-workspace-content .admin-data-table table { min-width: 760px; }
+.app-workspace-content .admin-data-table thead th { height: 48px; padding: 0 16px; background: #f8faff; color: #7a879b; font-size: 10px; letter-spacing: .06em; }
+.app-workspace-content .admin-data-table tbody tr { transition: background-color 150ms ease, box-shadow 150ms ease; }
+.app-workspace-content .admin-data-table tbody tr:hover > td { background: #f5f8ff; }
+.app-workspace-content .admin-data-table tbody td { min-height: 60px; padding: 14px 16px; color: #334155; font-size: 13px; }
+.row-actions-trigger { width: 34px; height: 34px; border-radius: 8px; }
+.admin-table-pagination { min-height: 58px; background: #fbfcff !important; }
+.app-workspace .btn { min-height: 40px; border-radius: 7px; box-shadow: none; }
+.app-workspace .btn-primary { box-shadow: 0 7px 16px -10px rgb(37 99 235 / 70%); }
+.app-workspace .scrumboard .task, .app-workspace .kanban-board .task, .app-workspace .list-view > * { border: 1px solid var(--workspace-border); border-radius: 9px; box-shadow: 0 2px 8px rgb(20 36 64 / 4%); transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease; }
+.app-workspace .scrumboard .task:hover, .app-workspace .kanban-board .task:hover, .app-workspace .list-view > *:hover { border-color: #c5d4f3; box-shadow: 0 10px 24px rgb(20 36 64 / 9%); transform: translateY(-2px); }
+@media (max-width: 1023px) { .app-workspace-content { padding: 22px 18px 32px !important; } .app-topbar > div > div:first-child { padding-inline: 16px; } }
+
+.dark .app-workspace-content .admin-filter-bar.panel {
+    border-color: #29374b !important;
+    background: #151f30 !important;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+.dark .admin-filter-bar .form-input,
+.dark .admin-filter-bar .form-select {
+    border-color: #34445d !important;
+    background: #1b2940 !important;
+    color: #edf3fb !important;
+}
+
+.dark .admin-filter-bar .form-input::placeholder {
+    color: #a9b8cc !important;
+    opacity: 1;
+}
+
+.dark .admin-filter-bar .btn-outline-dark {
+    border-color: #34445d !important;
+    background: #1b2940 !important;
+    color: #c5d1e2 !important;
+}
+
+.dark .admin-filter-bar .btn-outline-dark:hover:not(:disabled) {
+    border-color: #5573a4 !important;
+    background: #253653 !important;
+    color: #fff !important;
+}
+@media (prefers-reduced-motion: reduce) { .admin-sidebar .nav-item > a, .app-topbar .collapse-icon, .app-workspace-content .admin-data-table tbody tr, .app-workspace .scrumboard .task, .app-workspace .kanban-board .task, .app-workspace .list-view > * { transition: none; } }
+
 /* Shared workspace system, applied to every authenticated page. */
 :root {
     --workspace-bg: #f5f7fb;
@@ -2333,3 +2662,41 @@ body {
         transition-duration: 0.01ms !important;
     }
 }
+
+/* Keep the final shell treatment after all legacy page styles. */
+.admin-sidebar,
+.admin-sidebar > div,
+.admin-sidebar > div > div:first-child { background: #111827 !important; border-color: #26324a !important; }
+.admin-sidebar { box-shadow: 10px 0 32px rgb(15 23 42 / 10%) !important; }
+.admin-sidebar .main-logo { min-height: 68px; padding-inline: 16px; border-bottom: 1px solid #26324a; }
+.admin-sidebar .main-logo span, .admin-sidebar .collapse-icon { color: #f8fafc !important; }
+.admin-sidebar .nav-group-heading h2 { color: #78869f !important; font-size: 10px !important; letter-spacing: .08em !important; }
+.admin-sidebar .nav-item > a { min-height: 42px !important; margin: 2px 10px !important; padding-inline: 13px !important; border-radius: 8px !important; color: #b8c3d6 !important; transition: background-color 160ms ease, color 160ms ease, transform 160ms ease; }
+.admin-sidebar .nav-item > a > div > span { color: #b8c3d6 !important; }
+.admin-sidebar .nav-item > a svg { color: #b8c3d6 !important; opacity: 1; }
+.admin-sidebar .nav-item > a:hover { background: #1b263b !important; color: #fff !important; transform: translateX(2px); }
+.admin-sidebar .nav-item > a:hover > div > span,
+.admin-sidebar .nav-item > a.active > div > span { color: #fff !important; }
+.admin-sidebar .nav-item > a:hover svg,
+.admin-sidebar .nav-item > a.active svg { color: #fff !important; }
+.admin-sidebar .nav-item > a.active { background: #2563eb !important; color: #fff !important; box-shadow: 0 8px 18px rgb(37 99 235 / 24%); }
+.admin-sidebar .nav-item > a.active svg, .admin-sidebar .nav-item > a:hover svg { color: #fff !important; }
+.app-workspace-content { max-width: 1600px; padding: 28px 32px 40px !important; }
+.app-topbar > div > div:first-child { min-height: 68px; padding-inline: 24px; background: #fff; }
+.app-topbar .collapse-icon { border: 1px solid #e5eaf2; background: #f8faff; color: #718096; transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease; }
+.app-topbar .collapse-icon:hover { border-color: #bfcef1; background: #edf3ff; color: #2563eb; transform: translateY(-1px); }
+.workspace-crumb-current { color: #17233b; font-size: 13px; font-weight: 700; }
+.app-workspace-content .admin-page-header h2 { color: #17233b; font-size: 24px; font-weight: 750; }
+.app-workspace-content .panel, .app-workspace-content .admin-data-table { border-radius: 10px; box-shadow: 0 1px 2px rgb(20 36 64 / 3%), 0 10px 28px rgb(20 36 64 / 5%); }
+.app-workspace-content .admin-filter-bar.panel { padding: 14px 16px !important; background: #fff; }
+.admin-filter-bar .form-input { min-height: 42px; border-color: #e5eaf2; background: #f8faff; }
+.app-workspace-content .admin-data-table table { min-width: 760px; }
+.app-workspace-content .admin-data-table thead th { height: 48px; padding: 0 16px; background: #f8faff; color: #7a879b; font-size: 10px; letter-spacing: .06em; }
+.app-workspace-content .admin-data-table tbody tr { transition: background-color 150ms ease, box-shadow 150ms ease; }
+.app-workspace-content .admin-data-table tbody tr:hover > td { background: #f5f8ff; }
+.app-workspace-content .admin-data-table tbody td { min-height: 60px; padding: 14px 16px; color: #334155; font-size: 13px; }
+.row-actions-trigger { width: 34px; height: 34px; border-radius: 8px; }
+.admin-table-pagination { min-height: 58px; background: #fbfcff !important; }
+.app-workspace .btn { min-height: 40px; border-radius: 7px; box-shadow: none; }
+.app-workspace .btn-primary { box-shadow: 0 7px 16px -10px rgb(37 99 235 / 70%); }
+@media (max-width: 1023px) { .app-workspace-content { padding: 22px 18px 32px !important; } .app-topbar > div > div:first-child { padding-inline: 16px; } }

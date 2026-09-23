@@ -104,8 +104,8 @@ export default function AdminOrders() {
         setSale(emptySale);
         setSaleOpen(true);
         try {
-            const products = await adminApi.listProducts({ page: 1, limit: 100, status: 'ACTIVE' });
-            setCatalog(products.items);
+            const products = await adminApi.listAllProducts({ status: 'ACTIVE' });
+            setCatalog(products);
         } catch (err) {
             setError(getErrorMessage(err));
         }

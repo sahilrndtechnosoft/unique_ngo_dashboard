@@ -1,4 +1,4 @@
-import { api, unwrap, unwrapArray, unwrapPaginated } from './api';
+import { api, fetchAllPages, unwrap, unwrapArray, unwrapPaginated } from './api';
 
 export interface Paginated<T> {
     items: T[];
@@ -27,6 +27,8 @@ export const adminApi = {
 
     listSellers: (params?: Record<string, unknown>) =>
         api.get('/admin/sellers', { params }).then((r) => unwrapPaginated<any>(r)),
+    listAllSellers: (params?: Record<string, unknown>) =>
+        fetchAllPages((pageParams) => adminApi.listSellers(pageParams), params),
     getSeller: (id: string) => api.get(`/admin/sellers/${id}`).then((r) => unwrap(r)),
     createSeller: (body: Record<string, unknown>) =>
         api.post('/admin/sellers', body).then((r) => unwrap(r)),
@@ -45,6 +47,8 @@ export const adminApi = {
 
     listCategories: (params?: Record<string, unknown>) =>
         api.get('/admin/categories', { params }).then((r) => unwrapPaginated<any>(r)),
+    listAllCategories: (params?: Record<string, unknown>) =>
+        fetchAllPages((pageParams) => adminApi.listCategories(pageParams), params),
     getCategory: (id: string) => api.get(`/admin/categories/${id}`).then((r) => unwrap(r)),
     createCategory: (body: Record<string, unknown>) =>
         api.post('/admin/categories', body).then((r) => unwrap(r)),
@@ -63,6 +67,8 @@ export const adminApi = {
 
     listProducts: (params?: Record<string, unknown>) =>
         api.get('/admin/products', { params }).then((r) => unwrapPaginated<any>(r)),
+    listAllProducts: (params?: Record<string, unknown>) =>
+        fetchAllPages((pageParams) => adminApi.listProducts(pageParams), params),
     getPlatformCommissionRate: () =>
         api.get('/admin/products/commission-settings/platform').then((r) => unwrap<{ rate: number; effectiveFrom: string | null }>(r)),
     updatePlatformCommissionRate: (rate: number) =>
@@ -120,6 +126,8 @@ export const adminApi = {
 
     listHospitals: (params?: Record<string, unknown>) =>
         api.get('/admin/hospitals', { params }).then((r) => unwrapPaginated<any>(r)),
+    listAllHospitals: (params?: Record<string, unknown>) =>
+        fetchAllPages((pageParams) => adminApi.listHospitals(pageParams), params),
     getHospital: (id: string) => api.get(`/admin/hospitals/${id}`).then((r) => unwrap(r)),
     createHospital: (body: Record<string, unknown>) =>
         api.post('/admin/hospitals', body).then((r) => unwrap(r)),
@@ -129,6 +137,8 @@ export const adminApi = {
 
     listCampaigns: (params?: Record<string, unknown>) =>
         api.get('/admin/campaigns', { params }).then((r) => unwrapPaginated<any>(r)),
+    listAllCampaigns: (params?: Record<string, unknown>) =>
+        fetchAllPages((pageParams) => adminApi.listCampaigns(pageParams), params),
     getCampaign: (id: string) => api.get(`/admin/campaigns/${id}`).then((r) => unwrap(r)),
     createCampaign: (body: Record<string, unknown>) =>
         api.post('/admin/campaigns', body).then((r) => unwrap(r)),
@@ -175,6 +185,8 @@ export const adminApi = {
 
     listDonationSheetRecords: (params?: Record<string, unknown>) =>
         api.get('/admin/donation-sheet-imports', { params }).then((r) => unwrapPaginated<any>(r)),
+    listAllDonationSheetRecords: (params?: Record<string, unknown>) =>
+        fetchAllPages((pageParams) => adminApi.listDonationSheetRecords(pageParams), params),
     importDonationSheet: (file: File, hospitalId?: string, campaignId?: string) => {
         const form = new FormData();
         form.append('file', file);
@@ -247,4 +259,8 @@ export const adminApi = {
     updateInquiry: (id: string, body: Record<string, unknown>) =>
         api.patch(`/admin/inquiries/${id}`, body).then((r) => unwrap(r)),
     deleteInquiry: (id: string) => api.delete(`/admin/inquiries/${id}`).then((r) => unwrap(r)),
+    listSuggestions: (params?: Record<string, unknown>) => api.get('/admin/suggestions', { params }).then((r) => unwrapPaginated<any>(r)),
+    getSuggestion: (id: string) => api.get(`/admin/suggestions/${id}`).then((r) => unwrap(r)),
+    updateSuggestion: (id: string, body: Record<string, unknown>) => api.patch(`/admin/suggestions/${id}`, body).then((r) => unwrap(r)),
+    deleteSuggestion: (id: string) => api.delete(`/admin/suggestions/${id}`).then((r) => unwrap(r)),
 };

@@ -4,6 +4,33 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { order_status, payment_status, shipping_type } from '../../../generated/prisma/client';
 import { AdminOrdersService } from './orders.service';
 
+test('legacy order details flag missing snapshots and linked records without replacing recorded amounts', async () => {
+  const order = {
+    id: 'legacy-order', buyer_id: 'missing-buyer', seller_id: 'missing-seller',
+    shipping_address_id: 'missing-address', shipping_address_snapshot: null,
+    commission_amount: 12, seller_payout: 88,
+  };
+  const item = {
+    seller_id: order.seller_id, commission_rate: null, commission_amount: null, seller_payout: null,
+  };
+  const prisma = {
+    orders: { findFirst: async () => order },
+    order_items: { findMany: async () => [item] },
+    users: { findUnique: async () => null },
+    seller_profiles: { findUnique: async () => null },
+    user_addresses: { findUnique: async () => null },
+    shipments: { findUnique: async () => null },
+  } as unknown as PrismaService;
+
+  const result = await new AdminOrdersService(prisma).getOrder(order.id);
+  assert.equal(result.reconciliationIssues.length, 4);
+  assert.match(result.reconciliationIssues[0], /snapshots are missing/);
+  assert.equal(result.commissionAmount, 12);
+  assert.equal(result.sellerPayout, 88);
+  assert.equal(result.items[0].commissionAmount, null);
+  assert.equal(result.items[0].sellerPayout, null);
+});
+
 test('delivery orders need an assigned Shiprocket AWB before manual shipped status', async () => {
   const tx = {
     orders: { findUnique: async () => ({ status: order_status.PROCESSING, shipping_type: shipping_type.STANDARD }) },

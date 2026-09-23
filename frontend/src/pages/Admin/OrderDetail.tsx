@@ -241,6 +241,16 @@ export default function OrderDetail() {
                 <StatusBadge status={order.status} />
             </div>
 
+            {order.reconciliationIssues?.length > 0 && (
+                <div role="status" className="mb-5 rounded-md border border-warning/40 bg-warning/10 p-4 text-sm dark:text-white-light">
+                    <h3 className="font-semibold">Reconciliation required</h3>
+                    <p className="mt-1">Recorded amounts are preserved. Financial totals may be incomplete until these issues are reviewed.</p>
+                    <ul className="mt-2 list-disc space-y-1 pl-5">
+                        {order.reconciliationIssues.map((issue: string) => <li key={issue}>{issue}</li>)}
+                    </ul>
+                </div>
+            )}
+
             <div className="panel mb-5">
                 <h5 className="font-semibold text-lg mb-4">Order information</h5>
                 <DetailFacts items={infoCards.map((card) => ({

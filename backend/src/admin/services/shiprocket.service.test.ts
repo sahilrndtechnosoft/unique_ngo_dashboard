@@ -300,7 +300,7 @@ test('Shiprocket reconciles an accepted create after a network failure and assig
             channel_order_id: orderId.replaceAll('-', '').slice(0, 20),
             shipments: [{ id: 99, awb: '', courier: '', courier_id: '' }],
           }] }
-        : { awb_assign_status: 1, response: { data: { awb_code: 'AWB-123', courier_company_id: 43, courier_name: 'Test Courier' } } };
+        : { awb_assign_status: 1, response: { data: { awb_code: 'AWB-123', courier_name: 'Test Courier' } } };
     return new Response(JSON.stringify(response), { status: 200, headers: { 'content-type': 'application/json' } });
   }) as typeof fetch;
 
@@ -744,7 +744,7 @@ test('stale Shiprocket creates reconcile by the stable local reference instead o
     provider_order_id: null,
     provider_shipment_id: null,
     tracking_number: null,
-    courier_id: null,
+    courier_id: '43',
     carrier: null,
     tracking_url: null,
     label_url: null,
@@ -784,9 +784,12 @@ test('stale Shiprocket creates reconcile by the stable local reference instead o
     } as Record<string, string>)[key],
   };
   const originalFetch = global.fetch;
-  global.fetch = (async (input) => {
+  global.fetch = (async (input, init) => {
     const url = String(input);
     requests.push(url);
+    if (url.endsWith('/courier/assign/awb')) {
+      assert.equal(JSON.parse(String(init?.body)).courier_id, 43);
+    }
     const response = url.endsWith('/auth/login')
       ? { token: 'test-token' }
       : url.includes('/orders')
@@ -797,7 +800,7 @@ test('stale Shiprocket creates reconcile by the stable local reference instead o
             channel_order_id: orderId.replaceAll('-', '').slice(0, 20),
             shipments: [{ id: 99, awb: '', courier: '', courier_id: '' }],
           }], meta: { pagination: { current_page: 2, total_pages: 2 } } }
-        : { awb_assign_status: 1, response: { data: { awb_code: 'AWB-RECOVERED', courier_company_id: 10, courier_name: 'Recovered Courier' } } };
+        : { awb_assign_status: 1, response: { data: { awb_code: 'AWB-RECOVERED', courier_name: 'Recovered Courier' } } };
     return new Response(JSON.stringify(response), { status: 200, headers: { 'content-type': 'application/json' } });
   }) as typeof fetch;
 
@@ -807,6 +810,7 @@ test('stale Shiprocket creates reconcile by the stable local reference instead o
     assert.equal(result.providerShipmentId, '99');
     assert.equal(result.trackingNumber, 'AWB-RECOVERED');
     assert.equal(shipment.status, 'AWB_ASSIGNED');
+    assert.equal(shipment.courier_id, '43');
     assert.ok(requests.some((url) => url.endsWith('/orders')));
     assert.ok(requests.some((url) => url.endsWith('/orders?page=2')));
     assert.ok(!requests.some((url) => url.endsWith('/shipments/create/forward-shipment')));

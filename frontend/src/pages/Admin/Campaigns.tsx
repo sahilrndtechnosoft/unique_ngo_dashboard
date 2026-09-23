@@ -86,7 +86,7 @@ export default function AdminCampaigns() {
     useEffect(() => {
         dispatch(setPageTitle('Blood Campaigns'));
         load();
-        adminApi.listHospitals({ page: 1, limit: 100, isActive: true }).then((data) => setHospitals(data.items));
+        adminApi.listAllHospitals({ isActive: true }).then(setHospitals);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

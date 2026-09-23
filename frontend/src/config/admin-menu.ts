@@ -49,7 +49,10 @@ export const adminMenuGroups: AdminMenuGroup[] = [
     },
     {
         label: 'Support',
-        items: [{ label: 'Inquiries', to: '/admin/inquiries', permission: 'INQUIRIES:VIEW' }],
+        items: [
+            { label: 'Inquiries', to: '/admin/inquiries', permission: 'INQUIRIES:VIEW' },
+            { label: 'Suggestions & Ideas', to: '/admin/suggestions', permission: 'SUGGESTIONS:VIEW' },
+        ],
     },
 ];
 

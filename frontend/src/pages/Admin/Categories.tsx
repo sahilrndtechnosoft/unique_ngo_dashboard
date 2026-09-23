@@ -68,7 +68,7 @@ export default function AdminCategories() {
     useEffect(() => {
         dispatch(setPageTitle('Categories'));
         load();
-        adminApi.listCategories({ page: 1, limit: 100 }).then((data) => setAllCategories(data.items));
+        adminApi.listAllCategories().then(setAllCategories);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

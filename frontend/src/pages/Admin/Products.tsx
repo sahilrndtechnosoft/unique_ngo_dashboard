@@ -108,11 +108,11 @@ export default function AdminProducts() {
 
     const loadLookups = async () => {
         const [cats, sellersData] = await Promise.all([
-            adminApi.listCategories({ page: 1, limit: 100 }),
-            adminApi.listSellers({ page: 1, limit: 100 }),
+            adminApi.listAllCategories(),
+            adminApi.listAllSellers(),
         ]);
-        setCategories(cats.items);
-        setSellers(sellersData.items);
+        setCategories(cats);
+        setSellers(sellersData);
     };
 
     const loadCommissionRate = async () => {

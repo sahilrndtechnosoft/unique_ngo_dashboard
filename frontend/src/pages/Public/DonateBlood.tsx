@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import axios from 'axios';
-import { api, getErrorMessage } from '../../services/api';
+import { api, fetchAllPages, getErrorMessage, unwrapPaginated } from '../../services/api';
 
 const BLOOD_GROUPS = ['A_POSITIVE', 'A_NEGATIVE', 'B_POSITIVE', 'B_NEGATIVE', 'AB_POSITIVE', 'AB_NEGATIVE', 'O_POSITIVE', 'O_NEGATIVE'];
 
@@ -28,8 +28,13 @@ export default function DonateBlood() {
     const [success, setSuccess] = useState<any>(null);
 
     useEffect(() => {
-        api.get('/hospitals', { params: { limit: 100 } }).then((r) => setHospitals(r.data?.data?.items ?? []));
-        api.get('/campaigns', { params: { limit: 100 } }).then((r) => setCampaigns(r.data?.data?.items ?? []));
+        Promise.all([
+            fetchAllPages((params) => api.get('/hospitals', { params }).then((r) => unwrapPaginated<any>(r))),
+            fetchAllPages((params) => api.get('/campaigns', { params }).then((r) => unwrapPaginated<any>(r))),
+        ]).then(([nextHospitals, nextCampaigns]) => {
+            setHospitals(nextHospitals);
+            setCampaigns(nextCampaigns);
+        }).catch((err) => setError(getErrorMessage(err)));
     }, []);
 
     const submit = async (event: FormEvent) => {

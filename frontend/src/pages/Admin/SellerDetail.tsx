@@ -139,8 +139,8 @@ export default function SellerDetail() {
     };
 
     const loadCategories = async () => {
-        const data = await adminApi.listCategories({ page: 1, limit: 100 });
-        setCategories(data.items ?? []);
+        const data = await adminApi.listAllCategories();
+        setCategories(data);
     };
 
     const loadOrders = async (page = 1, size = ordersPageSize, status?: string) => {
@@ -264,8 +264,8 @@ export default function SellerDetail() {
         loadProducts(1, pageSize);
         loadOrders(1, ordersPageSize);
         loadCategories().catch((err) => showAlert(getErrorMessage(err), 'error'));
-        adminApi.listHospitals({ page: 1, limit: 100, isActive: true }).then((data) => setHospitals(data.items));
-        adminApi.listCampaigns({ page: 1, limit: 100 }).then((data) => setCampaigns(data.items));
+        adminApi.listAllHospitals({ isActive: true }).then(setHospitals);
+        adminApi.listAllCampaigns().then(setCampaigns);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 

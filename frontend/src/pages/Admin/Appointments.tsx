@@ -96,8 +96,8 @@ export default function AdminAppointments() {
     useEffect(() => {
         dispatch(setPageTitle('Appointments'));
         load();
-        adminApi.listHospitals({ page: 1, limit: 100, isActive: true }).then((data) => setHospitals(data.items));
-        adminApi.listCampaigns({ page: 1, limit: 100 }).then((data) => setCampaigns(data.items));
+        adminApi.listAllHospitals({ isActive: true }).then(setHospitals);
+        adminApi.listAllCampaigns().then(setCampaigns);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

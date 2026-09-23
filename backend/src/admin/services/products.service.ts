@@ -194,7 +194,7 @@ export class ProductsService {
     yesterday.setUTCDate(yesterday.getUTCDate() - 1);
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('platform-commission-settings'))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('platform-commission-settings'))`;
       const active = await tx.commission_settings.findMany({
         where: {
           is_default: true,
@@ -268,7 +268,8 @@ export class ProductsService {
         seller = await this.ensureSellerExists(adminDto.sellerId);
       }
       sellerId = adminDto.sellerId;
-      isAdminProduct = true;
+      // An admin can create on behalf of a seller; ownership follows sellerId.
+      isAdminProduct = !adminDto.sellerId;
       status = adminDto.status ?? product_status.ACTIVE;
       if (status === product_status.ACTIVE && seller && seller.status !== seller_status.ACTIVE) {
         throw new BadRequestException('Activate the seller account before activating its products');

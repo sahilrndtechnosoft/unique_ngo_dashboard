@@ -5,6 +5,29 @@ import { product_status } from '../../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ProductsService } from './products.service';
 
+test('platform commission saves a zero rate after executing its transaction lock without decoding void rows', async () => {
+  let locked = false;
+  let saved: any;
+  const tx = {
+    $executeRaw: async () => { locked = true; return 1; },
+    commission_settings: {
+      findMany: async () => { assert.equal(locked, true); return []; },
+      findFirst: async () => null,
+      create: async ({ data }: { data: any }) => { saved = data; return data; },
+    },
+  };
+  const prisma = {
+    $transaction: async (callback: (transaction: typeof tx) => Promise<unknown>) => callback(tx),
+    commission_settings: { findFirst: async () => saved },
+  } as unknown as PrismaService;
+
+  const result = await new ProductsService(prisma).updatePlatformCommissionRate(0, 'admin-id');
+  assert.equal(result.rate, 0);
+  assert.equal(saved.is_default, true);
+  assert.equal(saved.created_by_id, 'admin-id');
+  assert.equal(saved.effective_to, null);
+});
+
 test('admin edits cannot approve or reject a pending product outside the review actions', async () => {
   const pendingProduct = {
     id: 'product-id',
@@ -50,6 +73,33 @@ test('admin cannot create an active product for an inactive seller', async () =>
     price: 100,
   }, { isAdmin: true, actorId: 'admin-id' }), BadRequestException);
   assert.equal(productCreates, 0);
+});
+
+test('admin-created seller products retain seller ownership for commission', async () => {
+  let created: any;
+  const prisma = {
+    products: {
+      findFirst: async () => null,
+      create: async ({ data }: any) => { created = data; return { ...data, id: 'product-id' }; },
+    },
+    product_categories: {
+      findUnique: async () => ({ id: 'category-id', is_active: true, name: 'Category', slug: 'category' }),
+    },
+    seller_profiles: {
+      findFirst: async () => ({ id: 'seller-id', status: 'ACTIVE', deleted_at: null }),
+      findUnique: async () => null,
+    },
+  } as unknown as PrismaService;
+  const service = new ProductsService(prisma);
+
+  await service.createProduct({
+    name: 'Seller product', categoryId: 'category-id', sellerId: 'seller-id',
+    description: 'Created by admin for an active seller', price: 100,
+  }, { isAdmin: true, actorId: 'admin-id' });
+
+  assert.equal(created.is_admin_product, false);
+  assert.equal(created.seller_id, 'seller-id');
+  assert.equal(created.commission_rate, undefined);
 });
 
 test('seller edits always return the product to review', async () => {

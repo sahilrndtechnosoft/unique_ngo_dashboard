@@ -155,12 +155,13 @@ Repair only with a reviewed mapping/retention decision. Once the corresponding
 relationship reports zero orphans, validate its named constraint individually
 with `ALTER TABLE ... VALIDATE CONSTRAINT ...`.
 
-Order-level financial snapshot checks are also installed as `NOT VALID` so
-existing snapshots remain reviewable. Order-item rate, commission, and payout
-checks are also `NOT VALID`; this preserves legacy rows while enforcing the
-rules for new writes. Seller-owned order items must also include immutable
-commission and payout snapshots. Commission rate bounds for products, categories, sellers,
-and platform settings are enforced the same way. Run the read-only financial audit:
+Order-level financial snapshot checks and order-item payout reconciliation
+checks are installed as `NOT VALID` so historical rows remain reviewable while
+new writes are checked. The required seller-item snapshot check also defers
+historical validation. Rate bounds and nonnegative item commission/payout
+checks from the initial commerce migration validate existing rows immediately,
+as do commission rate bounds for products, categories, sellers, and platform
+settings. Run the read-only financial audit:
 
 ```bash
 psql "$DATABASE_URL" -f backend/prisma/audit_commerce_financial_integrity.sql
@@ -174,6 +175,19 @@ Validate `commission_settings_*_check`, `product_categories_*_check`,
 corresponding rate audit reports zero invalid rows.
 Validate `order_items_seller_financial_snapshot_required_check` only after the
 financial audit reports zero missing seller snapshots.
+
+Do not reconstruct missing historical commission snapshots from today's rates.
+Use the original sale records or a reviewed accounting reconciliation.
+
+If migration status reports pending migrations but deployment fails because a
+column already exists, inspect the live schema before proceeding. A prior
+`prisma db push` can create columns and indexes without installing migration-only
+check constraints or recording migration history. Back up the database, verify
+all column types, nullability, defaults, indexes, and enum values against the
+specific migration, install any missing effects, then use `prisma migrate resolve
+--applied <migration>` only for that verified migration. Apply the remaining
+migrations with `prisma migrate deploy`. Do not reset the database or mark all
+pending migrations applied merely because their columns exist.
 
 ---
 

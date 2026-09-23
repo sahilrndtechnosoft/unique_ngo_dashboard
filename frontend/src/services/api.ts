@@ -131,6 +131,24 @@ export function unwrapPaginated<T>(response: { data?: unknown }): {
     };
 }
 
+const PAGINATION_BATCH_SIZE = 20;
+
+export async function fetchAllPages<T>(
+    request: (params: Record<string, unknown>) => Promise<{ items: T[]; meta: { totalPages: number } }>,
+    params: Record<string, unknown> = {},
+): Promise<T[]> {
+    const items: T[] = [];
+    let page = 1;
+    let totalPages = 1;
+    do {
+        const result = await request({ ...params, page, limit: PAGINATION_BATCH_SIZE });
+        items.push(...result.items);
+        totalPages = Math.max(result.meta.totalPages || 1, 1);
+        page += 1;
+    } while (page <= totalPages);
+    return items;
+}
+
 export function mediaUrl(path: string | null | undefined): string {
     if (!path) return '';
     if (path.startsWith('http')) return path;

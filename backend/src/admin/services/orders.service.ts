@@ -137,6 +137,14 @@ export class AdminOrdersService {
         seller: seller ?? undefined,
       }),
       items: items.map((item) => this.toPublicItem(item)),
+      reconciliationIssues: [
+        ...(items.some((item) => (item.seller_id || order.seller_id) &&
+          (item.commission_rate === null || item.commission_amount === null || item.seller_payout === null))
+          ? ['Historical item commission or payout snapshots are missing. Verify the original sale records before settling payouts.'] : []),
+        ...(order.buyer_id && !buyer ? ['The linked customer record is missing.'] : []),
+        ...(order.seller_id && !seller ? ['The linked seller record is missing.'] : []),
+        ...(order.shipping_address_id && !address ? ['The linked delivery address is missing; check the saved order address before fulfillment.'] : []),
+      ],
       shippingAddress: order.shipping_address_snapshot ?? (address ? this.toPublicAddress(address) : null),
       tracking: shipment
         ? {

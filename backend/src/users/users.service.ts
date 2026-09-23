@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { seller_profiles, users } from '../../generated/prisma/client';
+import { seller_profiles, seller_status, users } from '../../generated/prisma/client';
 import { UserRole } from '../common/constants';
 import { compareHash, hashValue } from '../common/utils/crypto.util';
 import { deleteUploadedFile } from '../common/utils/image-upload.util';
@@ -169,6 +169,9 @@ export class UsersService {
     this.ensureSellerRole(role);
     const profile = await this.findSellerProfileOrThrow(userId);
 
+    const shouldResubmit =
+      profile.status === seller_status.PENDING ||
+      profile.status === seller_status.REJECTED;
     const updated = await this.prisma.seller_profiles.update({
       where: { id: profile.id },
       data: {
@@ -192,6 +195,13 @@ export class UsersService {
           bank_account_name: dto.bankAccountName,
         }),
         ...(dto.upiId !== undefined && { upi_id: dto.upiId }),
+        ...(shouldResubmit && {
+          status: seller_status.UNDER_REVIEW,
+          rejection_reason: null,
+          verified_by_id: null,
+          verified_at: null,
+        }),
+        updated_at: new Date(),
       },
     });
 
