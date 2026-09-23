@@ -95,7 +95,7 @@ export default function AdminInquiries() {
                 }
             />
 
-            {error ? <div className="mb-4 rounded bg-danger-light p-3 text-danger">{error}</div> : null}
+            {error ? <div className="mb-4 rounded bg-danger-light p-3 text-danger" role="alert">{error}</div> : null}
 
             <AdminDataTable
                 selectable={false}

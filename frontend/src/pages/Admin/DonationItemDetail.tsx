@@ -6,7 +6,7 @@ import { adminApi } from '../../services/admin.service';
 import { getErrorMessage, mediaUrl } from '../../services/api';
 import { AdminDataTable } from '../../components/Admin/AdminTable';
 import AdminFormModal from '../../components/Admin/AdminFormModal';
-import { FormField, FormSection, StatusBadge } from '../../components/Admin/FormPrimitives';
+import { DetailFacts, FormField, FormSection, StatusBadge } from '../../components/Admin/FormPrimitives';
 import { confirmAction, showAlert } from '../../utils/alerts';
 import IconArrowLeft from '../../components/Icon/IconArrowLeft';
 
@@ -192,7 +192,7 @@ export default function DonationItemDetail() {
                 </div>
             ) : null}
 
-            {item.images?.length ? (
+            {Array.isArray(item.images) && item.images.length ? (
                 <div className="panel mb-5">
                     <h5 className="font-semibold text-lg mb-4">Photos</h5>
                     <div className="flex flex-wrap gap-3">
@@ -205,14 +205,7 @@ export default function DonationItemDetail() {
 
             <div className="panel mb-5">
                 <h5 className="font-semibold text-lg mb-4">Item information</h5>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {infoCards.map((card) => (
-                        <div key={card.label} className="rounded border border-[#ebedf2] dark:border-[#191e3a] p-4">
-                            <div className="text-xs uppercase tracking-wide text-white-dark mb-1">{card.label}</div>
-                            <div className="font-semibold break-all">{card.value}</div>
-                        </div>
-                    ))}
-                </div>
+                <DetailFacts items={infoCards} />
             </div>
 
             {transfers.length > 0 ? (

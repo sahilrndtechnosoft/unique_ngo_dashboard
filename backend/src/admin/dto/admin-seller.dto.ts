@@ -102,10 +102,52 @@ export class CreateAdminSellerDto {
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @Max(100)
-  commissionRate?: number;
+  commissionRate?: number | null;
+
+  @ApiPropertyOptional({ example: 'Pune Store' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(36)
+  @Matches(/^[a-zA-Z0-9 ]+$/)
+  shiprocketPickupLocation?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  shiprocketPickupAddress?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  shiprocketPickupAddress2?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  shiprocketPickupCity?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  shiprocketPickupState?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  shiprocketPickupCountry?: string | null;
+
+  @ApiPropertyOptional({ example: '411001' })
+  @IsOptional()
+  @Matches(/^\d{6}$/)
+  shiprocketPickupPinCode?: string | null;
 }
 
 export class UpdateAdminSellerDto {
@@ -175,8 +217,50 @@ export class UpdateAdminSellerDto {
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @Max(100)
-  commissionRate?: number;
+  commissionRate?: number | null;
+
+  @ApiPropertyOptional({ example: 'Pune Store' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(36)
+  @Matches(/^[a-zA-Z0-9 ]+$/)
+  shiprocketPickupLocation?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  shiprocketPickupAddress?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  shiprocketPickupAddress2?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  shiprocketPickupCity?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  shiprocketPickupState?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  shiprocketPickupCountry?: string | null;
+
+  @ApiPropertyOptional({ example: '411001' })
+  @IsOptional()
+  @Matches(/^\d{6}$/)
+  shiprocketPickupPinCode?: string | null;
 }

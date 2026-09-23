@@ -53,8 +53,9 @@ const initialState = {
     navbar: themeConfig.navbar,
     locale: normalizeLocaleCode(localStorage.getItem('i18nextLng') || themeConfig.locale),
     isDarkMode: false,
-    sidebar: localStorage.getItem('sidebar') || defaultState.sidebar,
-    semidark: localStorage.getItem('semidark') || themeConfig.semidark,
+    sidebar: localStorage.getItem('sidebar') === 'true',
+    pageTitle: defaultState.pageTitle,
+    semidark: localStorage.getItem('semidark') === 'true',
     languageList: [
         { code: 'zh', name: 'Chinese' },
         { code: 'da', name: 'Danish' },
@@ -138,13 +139,16 @@ const themeConfigSlice = createSlice({
         toggleSidebar(state) {
             state.sidebar = !state.sidebar;
         },
+        setSidebar(state, { payload }: { payload: boolean }) {
+            state.sidebar = payload;
+        },
 
         setPageTitle(state, { payload }) {
-            document.title = `${payload} | Unique NGO Dashboard`;
+            state.pageTitle = payload;
         },
     },
 });
 
-export const { toggleTheme, toggleMenu, toggleLayout, toggleRTL, toggleAnimation, toggleNavbar, toggleSemidark, toggleLocale, toggleSidebar, setPageTitle } = themeConfigSlice.actions;
+export const { toggleTheme, toggleMenu, toggleLayout, toggleRTL, toggleAnimation, toggleNavbar, toggleSemidark, toggleLocale, toggleSidebar, setSidebar, setPageTitle } = themeConfigSlice.actions;
 
 export default themeConfigSlice.reducer;

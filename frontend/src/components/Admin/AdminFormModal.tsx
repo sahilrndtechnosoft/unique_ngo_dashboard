@@ -1,5 +1,5 @@
 import { FormEvent, ReactNode } from 'react';
-import { Dialog, DialogPanel, Transition, TransitionChild } from '@headlessui/react';
+import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { Fragment } from 'react';
 import IconX from '../Icon/IconX';
 
@@ -52,7 +52,7 @@ export default function AdminFormModal({
                     <div className="fixed inset-0 bg-[black]/60" />
                 </TransitionChild>
                 <div className="fixed inset-0 overflow-y-auto">
-                    <div className="flex min-h-full items-start justify-center px-4 py-8 sm:items-center">
+                    <div className="flex min-h-full items-end justify-center px-0 py-0 sm:items-center sm:px-4 sm:py-8">
                         <TransitionChild
                             as={Fragment}
                             enter="ease-out duration-300"
@@ -63,18 +63,20 @@ export default function AdminFormModal({
                             leaveTo="opacity-0 scale-95"
                         >
                             <DialogPanel
-                                className={`panel border-0 p-0 rounded-lg overflow-hidden w-full ${sizeClass[size]} text-black dark:text-white-dark flex flex-col max-h-[min(92vh,880px)]`}
+                                className={`admin-form-modal panel border-0 p-0 rounded-t-xl sm:rounded-lg overflow-hidden w-full ${sizeClass[size]} text-black dark:text-white-dark flex flex-col max-h-[min(92vh,880px)]`}
                             >
                                 <button
                                     type="button"
                                     onClick={onClose}
-                                    className="absolute top-4 ltr:right-4 rtl:left-4 z-10 text-gray-400 hover:text-gray-800 dark:hover:text-gray-600 outline-none"
+                                    aria-label="Close dialog"
+                                    title="Close dialog"
+                                    className="absolute top-2 ltr:right-2 rtl:left-2 z-10 grid h-10 w-10 place-items-center rounded text-gray-500 hover:bg-black/5 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
                                 >
                                     <IconX />
                                 </button>
-                                <div className="shrink-0 text-lg font-medium bg-[#fbfbfb] dark:bg-[#121c2c] ltr:pl-5 rtl:pr-5 py-3.5 ltr:pr-[50px] rtl:pl-[50px] border-b border-[#ebedf2] dark:border-[#191e3a]">
+                                <DialogTitle as="h2" className="admin-form-modal-header shrink-0 text-lg font-medium ltr:pl-5 rtl:pr-5 py-3.5 ltr:pr-[50px] rtl:pl-[50px] border-b">
                                     {title}
-                                </div>
+                                </DialogTitle>
                                 <form
                                     className="flex min-h-0 flex-1 flex-col"
                                     onSubmit={(event) => {
@@ -92,7 +94,7 @@ export default function AdminFormModal({
                                     {footer !== undefined ? (
                                         footer
                                     ) : (
-                                        <div className="shrink-0 flex justify-end items-center gap-3 border-t border-[#ebedf2] dark:border-[#191e3a] bg-[#fbfbfb] dark:bg-[#121c2c] px-5 py-3.5 sm:px-6">
+                                        <div className="admin-form-modal-footer shrink-0 flex justify-end items-center gap-3 border-t px-5 py-3.5 sm:px-6">
                                             <button type="button" className="btn btn-outline-danger" onClick={onClose}>
                                                 {readOnly ? 'Close' : 'Cancel'}
                                             </button>

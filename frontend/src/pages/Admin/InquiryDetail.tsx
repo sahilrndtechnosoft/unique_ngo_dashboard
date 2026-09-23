@@ -4,7 +4,7 @@ import { useDispatch } from 'react-redux';
 import { setPageTitle } from '../../store/themeConfigSlice';
 import { adminApi } from '../../services/admin.service';
 import { getErrorMessage } from '../../services/api';
-import { FormField, FormSection, StatusBadge } from '../../components/Admin/FormPrimitives';
+import { DetailFacts, FormField, FormSection, StatusBadge } from '../../components/Admin/FormPrimitives';
 import { confirmAction, showAlert } from '../../utils/alerts';
 import IconArrowLeft from '../../components/Icon/IconArrowLeft';
 
@@ -123,14 +123,7 @@ export default function InquiryDetail() {
 
             <div className="panel mb-5">
                 <h5 className="font-semibold text-lg mb-4">Inquiry information</h5>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {infoCards.map((card) => (
-                        <div key={card.label} className="rounded border border-[#ebedf2] dark:border-[#191e3a] p-4">
-                            <div className="text-xs uppercase tracking-wide text-white-dark mb-1">{card.label}</div>
-                            <div className="font-semibold break-all">{card.value}</div>
-                        </div>
-                    ))}
-                </div>
+                <DetailFacts items={infoCards} />
             </div>
 
             <form className="panel" onSubmit={submit}>

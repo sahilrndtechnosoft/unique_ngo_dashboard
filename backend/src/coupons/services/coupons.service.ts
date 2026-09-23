@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { coupons, Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { calculateProductCouponDiscount, productCouponEligibilityError } from '../coupon-validation';
 import { CreateCouponDto, ListCouponsQueryDto, UpdateCouponDto } from '../dto/coupon.dto';
 
 @Injectable()
@@ -143,33 +144,24 @@ export class CouponsService {
   }
 
   /** Validates a coupon for a given user/order value and returns the discount to apply. Does not record usage. */
-  async validateForOrder(code: string, userId: string, orderValue: number) {
+  async validateForOrder(code: string, userId: string, orderValue: Prisma.Decimal) {
     const coupon = await this.prisma.coupons.findUnique({ where: { code: code.trim().toUpperCase() } });
     if (!coupon || !coupon.is_active) {
       throw new NotFoundException('Coupon not found or inactive');
     }
 
-    const now = new Date();
-    if (coupon.starts_at > now || (coupon.expires_at && coupon.expires_at <= now)) {
-      throw new BadRequestException('Coupon is not currently valid');
-    }
-    if (coupon.usage_limit !== null && coupon.used_count >= coupon.usage_limit) {
-      throw new BadRequestException('Coupon usage limit has been reached');
-    }
-    if (Number(coupon.min_order_value) > orderValue) {
-      throw new BadRequestException(`Order value must be at least ${coupon.min_order_value} to use this coupon`);
-    }
+    const eligibilityError = productCouponEligibilityError(coupon, orderValue, new Date());
+    if (eligibilityError) throw new BadRequestException(eligibilityError);
 
     const userUsageCount = await this.prisma.coupon_usages.count({ where: { coupon_id: coupon.id, user_id: userId } });
     if (userUsageCount >= coupon.per_user_limit) {
       throw new BadRequestException('You have already used this coupon the maximum number of times');
     }
 
-    const rawDiscount =
-      coupon.discount_type === 'FLAT' ? Number(coupon.discount_value) : (orderValue * Number(coupon.discount_value)) / 100;
-    const discount = coupon.max_discount ? Math.min(rawDiscount, Number(coupon.max_discount)) : rawDiscount;
-
-    return { couponId: coupon.id, discount: Math.min(discount, orderValue) };
+    return {
+      couponId: coupon.id,
+      discount: calculateProductCouponDiscount(coupon, orderValue),
+    };
   }
 
   /** Records a coupon's use against an order. Call after validateForOrder, inside the same order-creation transaction. */
@@ -210,7 +202,7 @@ export class CouponsService {
       discountType: coupon.discount_type,
       discountValue: Number(coupon.discount_value),
       minOrderValue: Number(coupon.min_order_value),
-      maxDiscount: coupon.max_discount ? Number(coupon.max_discount) : null,
+      maxDiscount: coupon.max_discount === null ? null : Number(coupon.max_discount),
       usageLimit: coupon.usage_limit,
       usedCount: coupon.used_count,
       perUserLimit: coupon.per_user_limit,

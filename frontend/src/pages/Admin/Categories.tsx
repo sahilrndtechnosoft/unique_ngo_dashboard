@@ -68,7 +68,7 @@ export default function AdminCategories() {
     useEffect(() => {
         dispatch(setPageTitle('Categories'));
         load();
-        adminApi.listCategories({ page: 1, limit: 100 }).then((data) => setAllCategories(data.items));
+        adminApi.listAllCategories().then(setAllCategories);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -107,7 +107,7 @@ export default function AdminCategories() {
                 slug: form.slug || undefined,
                 description: form.description || undefined,
                 parentId: form.parentId || undefined,
-                commissionRate: form.commissionRate ? Number(form.commissionRate) : undefined,
+                commissionRate: form.commissionRate === '' ? null : Number(form.commissionRate),
                 sortOrder: Number(form.sortOrder),
                 isActive: form.isActive,
                 isFeatured: form.isFeatured,
@@ -177,7 +177,7 @@ export default function AdminCategories() {
                 createLabel="Add Category"
             />
 
-            {error ? <div className="mb-4 rounded bg-danger-light p-3 text-danger">{error}</div> : null}
+            {error ? <div className="mb-4 rounded bg-danger-light p-3 text-danger" role="alert">{error}</div> : null}
 
             <BulkActionsBar count={selection.selectedIds.length} onClear={selection.clear} onBulkDelete={bulkDelete} />
 
@@ -291,7 +291,7 @@ export default function AdminCategories() {
                                 onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })}
                             />
                         </FormField>
-                        <FormField label="Commission Rate (%)" hint="Overrides the platform default for products in this category">
+                        <FormField label="Commission Rate (%)" hint="Used when a product has no override. Leave blank to use the seller rate, then platform rate; enter 0 for no commission.">
                             <input
                                 className="form-input"
                                 type="number"

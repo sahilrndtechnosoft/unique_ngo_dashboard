@@ -16,6 +16,11 @@ export class CheckoutDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ example: 'WELCOME10' })
+  @IsOptional()
+  @IsString()
+  couponCode?: string;
 }
 
 export class ListOrdersQueryDto {

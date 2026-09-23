@@ -52,11 +52,14 @@ export default function AdminUsers() {
     const [form, setForm] = useState(emptyForm);
     const [pendingImage, setPendingImage] = useState<File | null>(null);
 
-    const ids = useMemo(() => items.map((item) => item.id), [items]);
+    const ids = useMemo(
+        () => (Array.isArray(items) ? items : []).map((item) => item.id),
+        [items],
+    );
     const selection = useRowSelection(ids);
     const isStaffAccount = STAFF_ACCOUNT_TYPES.has(form.role);
     const activeRbacRoles = useMemo(
-        () => rbacRoles.filter((role) => role.isActive !== false),
+        () => (Array.isArray(rbacRoles) ? rbacRoles : []).filter((role) => role.isActive !== false),
         [rbacRoles],
     );
 
@@ -84,8 +87,20 @@ export default function AdminUsers() {
                 rbacRoleId: nextRbacRoleId || undefined,
                 status: nextStatus || undefined,
             });
-            setItems(data.items);
-            setMeta(data.meta);
+            // Keep the table usable even if an older API returns an unpaged array
+            // or a malformed/empty payload.
+            const rows = Array.isArray(data?.items)
+                ? data.items
+                : Array.isArray(data)
+                    ? data
+                    : [];
+            const responseMeta = data?.meta;
+            setItems(rows);
+            setMeta({
+                page: Number(responseMeta?.page) || page,
+                total: Number(responseMeta?.total) || rows.length,
+                totalPages: Number(responseMeta?.totalPages) || 1,
+            });
         } catch (err) {
             showAlert(getErrorMessage(err), 'error');
         } finally {
@@ -281,7 +296,7 @@ export default function AdminUsers() {
                         label: 'Photo',
                         render: (row) =>
                             row.profilePicture ? (
-                                <img src={mediaUrl(row.profilePicture)} alt={row.fullName} className="h-10 w-10 rounded-full object-cover" />
+                                <img src={mediaUrl(row.profilePicture)} alt={row.fullName} className="h-10 w-10 rounded-full object-cover" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/assets/images/auth/user.png'; }} />
                             ) : (
                                 <span className="text-xs text-white-dark">—</span>
                             ),
@@ -376,7 +391,7 @@ export default function AdminUsers() {
                         <FormField label="Profile Picture" className="md:col-span-2">
                             <div className="flex items-center gap-4">
                                 {form.profilePicture ? (
-                                    <img src={mediaUrl(form.profilePicture)} alt="" className="h-16 w-16 rounded-full object-cover" />
+                                    <img src={mediaUrl(form.profilePicture)} alt="" className="h-16 w-16 rounded-full object-cover" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/assets/images/auth/user.png'; }} />
                                 ) : null}
                                 <input
                                     type="file"

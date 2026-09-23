@@ -39,6 +39,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import {
   buildUploadedFilePath,
   createImageUploadOptions,
+  deleteUploadedFile,
 } from '../../common/utils/image-upload.util';
 import {
   CreateProductDto,
@@ -46,6 +47,8 @@ import {
   ListProductsQueryDto,
   RejectProductDto,
   UpdateProductDto,
+  UpdateSellerProductDto,
+  UpdatePlatformCommissionDto,
 } from '../dto/product.dto';
 import { ProductsService } from '../services/products.service';
 
@@ -62,6 +65,30 @@ export class AdminProductsController {
   @ResponseMessage('Products fetched successfully')
   list(@Query() query: ListProductsQueryDto) {
     return this.productsService.listProducts(query);
+  }
+
+  @Get('commission-settings/platform')
+  @RequirePermissions(AppModule.PRODUCTS, PermissionAction.VIEW)
+  @ResponseMessage('Platform commission setting fetched successfully')
+  getPlatformCommissionRate() {
+    return this.productsService.getPlatformCommissionRate();
+  }
+
+  @Patch('commission-settings/platform')
+  @RequirePermissions(AppModule.PRODUCTS, PermissionAction.EDIT)
+  @ResponseMessage('Platform commission setting updated successfully')
+  updatePlatformCommissionRate(
+    @Body() dto: UpdatePlatformCommissionDto,
+    @CurrentUser() actor: JwtPayload,
+  ) {
+    return this.productsService.updatePlatformCommissionRate(dto.rate, actor.sub);
+  }
+
+  @Get(':id/variants')
+  @RequirePermissions(AppModule.PRODUCTS, PermissionAction.VIEW)
+  @ResponseMessage('Product variants fetched successfully')
+  listVariants(@Param('id') id: string) {
+    return this.productsService.listVariants(id);
   }
 
   @Get(':id')
@@ -84,8 +111,12 @@ export class AdminProductsController {
   @Patch(':id')
   @RequirePermissions(AppModule.PRODUCTS, PermissionAction.EDIT)
   @ResponseMessage('Product updated successfully')
-  update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
-    return this.productsService.updateProduct(id, dto, { isAdmin: true });
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateProductDto,
+    @CurrentUser() actor: JwtPayload,
+  ) {
+    return this.productsService.updateProduct(id, dto, { isAdmin: true, actorId: actor.sub });
   }
 
   @Post(':id/approve')
@@ -132,11 +163,15 @@ export class AdminProductsController {
     if (!file) {
       throw new BadRequestException('Product image file is required');
     }
-    return this.productsService.addProductImage(
-      id,
-      buildUploadedFilePath('products', file.filename),
-      { isPrimary: isPrimary === 'true' || isPrimary === '1' },
-    );
+    const imagePath = buildUploadedFilePath('products', file.filename);
+    try {
+      return await this.productsService.addProductImage(id, imagePath, {
+        isPrimary: isPrimary === 'true' || isPrimary === '1',
+      });
+    } catch (error) {
+      deleteUploadedFile(imagePath);
+      throw error;
+    }
   }
 
   @Delete(':id/images/:imageId')
@@ -205,7 +240,7 @@ export class SellerProductsController {
   @ResponseMessage('Product updated successfully')
   async update(
     @Param('id') id: string,
-    @Body() dto: UpdateProductDto,
+    @Body() dto: UpdateSellerProductDto,
     @CurrentUser() user: JwtPayload,
   ) {
     const sellerId = await this.productsService.resolveSellerProfileId(user.sub);
@@ -240,15 +275,17 @@ export class SellerProductsController {
     if (!file) {
       throw new BadRequestException('Product image file is required');
     }
-    const sellerId = await this.productsService.resolveSellerProfileId(user.sub);
-    return this.productsService.addProductImage(
-      id,
-      buildUploadedFilePath('products', file.filename),
-      {
+    const imagePath = buildUploadedFilePath('products', file.filename);
+    try {
+      const sellerId = await this.productsService.resolveSellerProfileId(user.sub);
+      return await this.productsService.addProductImage(id, imagePath, {
         sellerId,
         isPrimary: isPrimary === 'true' || isPrimary === '1',
-      },
-    );
+      });
+    } catch (error) {
+      deleteUploadedFile(imagePath);
+      throw error;
+    }
   }
 
   @Delete(':id/images/:imageId')

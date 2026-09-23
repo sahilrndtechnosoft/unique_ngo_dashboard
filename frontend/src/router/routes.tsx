@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-const Index = lazy(() => import('../pages/Index'));
+const AdminDashboard = lazy(() => import('../pages/Admin/Dashboard'));
 const Analytics = lazy(() => import('../pages/Analytics'));
 const Finance = lazy(() => import('../pages/Finance'));
 const Crypto = lazy(() => import('../pages/Crypto'));
@@ -122,13 +122,15 @@ const AdminDonationItems = lazy(() => import('../pages/Admin/DonationItems'));
 const AdminDonationItemDetail = lazy(() => import('../pages/Admin/DonationItemDetail'));
 const AdminInquiries = lazy(() => import('../pages/Admin/Inquiries'));
 const AdminInquiryDetail = lazy(() => import('../pages/Admin/InquiryDetail'));
+const AdminSuggestions = lazy(() => import('../pages/Admin/Suggestions'));
+const AdminSuggestionDetail = lazy(() => import('../pages/Admin/SuggestionDetail'));
 const DonateBlood = lazy(() => import('../pages/Public/DonateBlood'));
 
 const routes = [
     // dashboard
     {
         path: '/',
-        element: <Index />,
+        element: <AdminDashboard />,
     },
     {
         path: '/admin/users',
@@ -225,6 +227,14 @@ const routes = [
     {
         path: '/admin/inquiries/:id',
         element: <AdminInquiryDetail />,
+    },
+    {
+        path: '/admin/suggestions',
+        element: <AdminSuggestions />,
+    },
+    {
+        path: '/admin/suggestions/:id',
+        element: <AdminSuggestionDetail />,
     },
     {
         path: '/donate',

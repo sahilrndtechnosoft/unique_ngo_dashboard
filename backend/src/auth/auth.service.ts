@@ -254,7 +254,8 @@ export class AuthService {
         data: {
           user_id: user.id,
           business_name: `Seller ${mobile.slice(-4)}`,
-          status: seller_status.ACTIVE,
+          // New sellers must be reviewed before they can list or sell products.
+          status: seller_status.PENDING,
         },
       });
 
@@ -272,7 +273,7 @@ export class AuthService {
         data: {
           user_id: userId,
           business_name: `Seller ${mobile.slice(-4)}`,
-          status: seller_status.ACTIVE,
+          status: seller_status.PENDING,
         },
       });
     }

@@ -214,9 +214,8 @@ export class CategoriesService {
       imageUrl: category.image_url,
       iconUrl: category.icon_url,
       parentId: category.parent_id,
-      commissionRate: category.commission_rate
-        ? Number(category.commission_rate)
-        : null,
+      commissionRate:
+        category.commission_rate === null ? null : Number(category.commission_rate),
       sortOrder: category.sort_order,
       isActive: category.is_active,
       isFeatured: category.is_featured,

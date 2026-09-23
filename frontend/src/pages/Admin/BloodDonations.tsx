@@ -121,13 +121,11 @@ export default function AdminBloodDonations() {
     const loadRecords = async (unmatchedOnly = recordsUnmatchedOnly, searchValue = recordsSearch) => {
         setRecordsLoading(true);
         try {
-            const data = await adminApi.listDonationSheetRecords({
-                page: 1,
-                limit: 50,
+            const data = await adminApi.listAllDonationSheetRecords({
                 unmatchedOnly: unmatchedOnly || undefined,
                 search: searchValue || undefined,
             });
-            setRecords(data.items);
+            setRecords(data);
         } catch (err) {
             showAlert(getErrorMessage(err), 'error');
         } finally {
@@ -139,8 +137,8 @@ export default function AdminBloodDonations() {
         dispatch(setPageTitle('Blood Donations'));
         load();
         loadRecords();
-        adminApi.listHospitals({ page: 1, limit: 100, isActive: true }).then((data) => setHospitals(data.items));
-        adminApi.listCampaigns({ page: 1, limit: 100 }).then((data) => setCampaigns(data.items));
+        adminApi.listAllHospitals({ isActive: true }).then(setHospitals);
+        adminApi.listAllCampaigns().then(setCampaigns);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -529,7 +527,7 @@ export default function AdminBloodDonations() {
                 }
             />
 
-            {error ? <div className="mb-4 rounded bg-danger-light p-3 text-danger">{error}</div> : null}
+            {error ? <div className="mb-4 rounded bg-danger-light p-3 text-danger" role="alert">{error}</div> : null}
 
             <BulkActionsBar
                 count={selection.selectedIds.length}
