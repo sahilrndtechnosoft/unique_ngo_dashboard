@@ -6,6 +6,11 @@ export default registerAs('app', () => ({
   appUrl: process.env.APP_URL ?? 'http://localhost:3000',
   corsOrigins: process.env.CORS_ORIGIN?.split(',').map((origin) => origin.trim()),
   uploadDir: process.env.UPLOAD_DIR ?? 'uploads',
+  razorpay: {
+    keyId: process.env.RAZORPAY_KEY_ID,
+    keySecret: process.env.RAZORPAY_KEY_SECRET,
+    webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET,
+  },
   bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS ?? '12', 10),
   otpExpiryMinutes: parseInt(process.env.OTP_EXPIRY_MINUTES ?? '5', 10),
   exposeOtpInResponse: process.env.EXPOSE_OTP_IN_RESPONSE === 'true',

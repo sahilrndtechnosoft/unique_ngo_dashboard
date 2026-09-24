@@ -1,11 +1,13 @@
-import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType, PartialType } from '@nestjs/swagger';
 import {
   IsArray,
   IsBoolean,
   IsEnum,
   IsInt,
+  IsIn,
   IsNumber,
   IsOptional,
+  IsObject,
   IsString,
   IsUUID,
   Max,
@@ -51,6 +53,44 @@ export class ListProductsQueryDto {
   @IsOptional()
   @IsUUID()
   sellerId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  brand?: string;
+
+  @ApiPropertyOptional({ minimum: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  minPrice?: number;
+
+  @ApiPropertyOptional({ minimum: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  maxPrice?: number;
+
+  @ApiPropertyOptional({ minimum: 0, maximum: 5 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(5)
+  minRating?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  available?: boolean;
+
+  @ApiPropertyOptional({ enum: ['newest', 'price_asc', 'price_desc', 'rating'] })
+  @IsOptional()
+  @IsIn(['newest', 'price_asc', 'price_desc', 'rating'])
+  sort?: 'newest' | 'price_asc' | 'price_desc' | 'rating';
 }
 
 export class CreateProductDto {
@@ -187,6 +227,24 @@ export class CreateProductDto {
   @IsInt()
   @Min(0)
   returnDays?: number;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  isTaxable?: boolean;
+
+  @ApiPropertyOptional({ example: 5, minimum: 0, maximum: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  taxRate?: number;
+
+  @ApiPropertyOptional({ type: Object })
+  @IsOptional()
+  @IsObject()
+  specifications?: Record<string, unknown>;
 }
 
 /**
@@ -330,6 +388,24 @@ export class UpdateProductDto {
   @Min(0)
   returnDays?: number;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isTaxable?: boolean;
+
+  @ApiPropertyOptional({ minimum: 0, maximum: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  taxRate?: number;
+
+  @ApiPropertyOptional({ type: Object })
+  @IsOptional()
+  @IsObject()
+  specifications?: Record<string, unknown>;
+
 }
 
 export class UpdateSellerProductDto extends OmitType(UpdateProductDto, [
@@ -337,6 +413,64 @@ export class UpdateSellerProductDto extends OmitType(UpdateProductDto, [
   'commissionRate',
   'isFeatured',
 ] as const) {}
+
+export class CreateProductVariantDto {
+  @ApiProperty({ example: 'Blue / M' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(255)
+  name!: string;
+
+  @ApiPropertyOptional({ example: 'TSHIRT-BLU-M' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  sku?: string;
+
+  @ApiProperty({ example: 799 })
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  price!: number;
+
+  @ApiPropertyOptional({ minimum: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  compareAtPrice?: number | null;
+
+  @ApiPropertyOptional({ minimum: 0, default: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  stockQuantity?: number;
+
+  @ApiPropertyOptional({ minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  weightGrams?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  imageUrl?: string | null;
+
+  @ApiPropertyOptional({ type: Object })
+  @IsOptional()
+  @IsObject()
+  attributes?: Record<string, unknown>;
+}
+
+export class UpdateProductVariantDto extends PartialType(CreateProductVariantDto) {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
 
 export class RejectProductDto {
   @ApiProperty({ example: 'Incomplete product details' })

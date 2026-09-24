@@ -31,6 +31,13 @@ export class CartService {
       throw new NotFoundException('Product not found or unavailable');
     }
     await this.ensureSellerIsActive(product.seller_id);
+    const hasActiveVariants = !!(await this.prisma.product_variants.findFirst({
+      where: { product_id: product.id, is_active: true },
+      select: { id: true },
+    }));
+    if (hasActiveVariants && !dto.variantId) {
+      throw new BadRequestException('Select a product variant before adding it to the cart');
+    }
 
     let variant: product_variants | null = null;
     if (dto.variantId) {
@@ -95,6 +102,9 @@ export class CartService {
         })
       : null;
     if (item.variant_id && !variant) throw new BadRequestException('Product variant in cart is no longer available');
+    if (!item.variant_id && await this.hasActiveVariants(item.product_id)) {
+      throw new BadRequestException('Select a product variant before updating this cart item');
+    }
     const availableStock = variant?.stock_quantity ?? product.stock_quantity;
 
     if (dto.quantity > availableStock) {
@@ -153,11 +163,18 @@ export class CartService {
       ...new Set(items.map((item) => item.variant_id).filter((id): id is string => !!id)),
     ];
 
-    const [productsById, variantsById, imagesByProduct] = await Promise.all([
+    const [productsById, variantsById, imagesByProduct, activeVariants] = await Promise.all([
       this.getProductsById(productIds),
       this.getVariantsById(variantIds),
       this.getPrimaryImagesByProduct(productIds),
+      productIds.length
+        ? this.prisma.product_variants.findMany({
+            where: { product_id: { in: productIds }, is_active: true },
+            select: { product_id: true },
+          })
+        : Promise.resolve([]),
     ]);
+    const variantProductIds = new Set(activeVariants.map((variant) => variant.product_id));
     const sellerIds = [...new Set([...productsById.values()].flatMap((product) => product.seller_id ? [product.seller_id] : []))];
     const sellers = sellerIds.length
       ? await this.prisma.seller_profiles.findMany({
@@ -178,6 +195,7 @@ export class CartService {
         productsById.get(item.product_id)?.seller_id
           ? activeSellerIds.has(productsById.get(item.product_id)!.seller_id!)
           : true,
+        variantProductIds.has(item.product_id),
       ),
     );
 
@@ -203,9 +221,10 @@ export class CartService {
     variant?: product_variants,
     image?: product_images,
     sellerActive = true,
+    hasActiveVariants = false,
   ) {
     const currentPrice = variant ? Number(variant.price) : product ? Number(product.price) : 0;
-    const availableStock = variant ? variant.stock_quantity : product?.stock_quantity ?? 0;
+    const availableStock = variant ? variant.stock_quantity : hasActiveVariants ? 0 : product?.stock_quantity ?? 0;
 
     return {
       id: item.id,
@@ -215,7 +234,8 @@ export class CartService {
       priceAtAdd: Number(item.price_at_add),
       currentPrice,
       lineTotal: currentPrice * item.quantity,
-      isAvailable: !!product && product.status === product_status.ACTIVE && sellerActive && (!item.variant_id || variant?.is_active === true),
+      isAvailable: !!product && product.status === product_status.ACTIVE && sellerActive &&
+        (!!item.variant_id ? variant?.is_active === true : !hasActiveVariants),
       availableStock,
       product: product
         ? {
@@ -250,6 +270,13 @@ export class CartService {
       select: { id: true },
     });
     if (!seller) throw new BadRequestException('Seller is no longer active');
+  }
+
+  private async hasActiveVariants(productId: string) {
+    return !!(await this.prisma.product_variants.findFirst({
+      where: { product_id: productId, is_active: true },
+      select: { id: true },
+    }));
   }
 
   private async getVariantsById(variantIds: string[]) {

@@ -67,7 +67,7 @@ export class WishlistService {
 
     if (dto.variantId) {
       const variant = await this.prisma.product_variants.findFirst({
-        where: { id: dto.variantId, product_id: product.id },
+        where: { id: dto.variantId, product_id: product.id, is_active: true },
       });
       if (!variant) {
         throw new NotFoundException('Product variant not found');

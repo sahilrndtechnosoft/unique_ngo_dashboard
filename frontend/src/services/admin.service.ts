@@ -109,6 +109,9 @@ export const adminApi = {
         api.post(`/admin/orders/${id}/shiprocket`, courierCompanyId ? { courierCompanyId } : {}).then((r) => unwrap(r)),
     refreshShiprocketTracking: (id: string) => api.post(`/admin/orders/${id}/shiprocket/refresh`).then((r) => unwrap(r)),
     cancelShiprocketShipment: (id: string) => api.post(`/admin/orders/${id}/shiprocket/cancel`).then((r) => unwrap(r)),
+    createRazorpayOrder: (id: string) => api.post(`/payments/orders/${id}/razorpay`).then((r) => unwrap<{ keyId: string; orderId: string; amount: number; currency: string }>(r)),
+    verifyRazorpayPayment: (body: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string }) =>
+        api.post('/payments/razorpay/verify', body).then((r) => unwrap(r)),
 
     listRoles: () => api.get('/admin/roles').then((r) => unwrapArray<any>(r)),
     getRole: (id: string) => api.get(`/admin/roles/${id}`).then((r) => unwrap(r)),

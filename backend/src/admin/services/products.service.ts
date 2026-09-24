@@ -20,9 +20,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateProductDto,
   CreateSellerProductDto,
+  CreateProductVariantDto,
   ListProductsQueryDto,
   RejectProductDto,
   UpdateProductDto,
+  UpdateProductVariantDto,
 } from '../dto/product.dto';
 
 const UUID_REGEX =
@@ -59,6 +61,23 @@ export class ProductsService {
           select: { id: true },
         })).map((category) => category.id)
       : undefined;
+    const categoryIds = query.categoryId
+      ? [
+          query.categoryId,
+          ...(options?.forcedStatus === product_status.ACTIVE
+            ? (await this.prisma.product_categories.findMany({
+                where: { parent_id: query.categoryId, is_active: true },
+                select: { id: true },
+              })).map((category) => category.id)
+            : []),
+        ]
+      : undefined;
+    const availableVariantProductIds = query.available
+      ? (await this.prisma.product_variants.findMany({
+          where: { is_active: true, stock_quantity: { gt: 0 } },
+          select: { product_id: true },
+        })).map((variant) => variant.product_id)
+      : undefined;
 
     const where: Prisma.productsWhereInput = {
       deleted_at: null,
@@ -66,7 +85,17 @@ export class ProductsService {
       ...(query.sellerId && !options?.sellerId
         ? { seller_id: query.sellerId }
         : {}),
-      ...(query.categoryId ? { category_id: query.categoryId } : {}),
+      ...(categoryIds ? { category_id: { in: categoryIds } } : {}),
+      ...(query.brand ? { brand: { contains: query.brand, mode: 'insensitive' } } : {}),
+      ...(query.minPrice !== undefined || query.maxPrice !== undefined
+        ? {
+            price: {
+              ...(query.minPrice !== undefined ? { gte: query.minPrice } : {}),
+              ...(query.maxPrice !== undefined ? { lte: query.maxPrice } : {}),
+            },
+          }
+        : {}),
+      ...(query.minRating !== undefined ? { rating: { gte: query.minRating } } : {}),
       ...(options?.forcedStatus
         ? { status: options.forcedStatus }
         : query.status
@@ -77,9 +106,14 @@ export class ProductsService {
             AND: [
               { OR: [{ seller_id: null }, { seller_id: { in: activeSellerIds } }] },
               { category_id: { in: activeCategoryIds } },
+              ...(query.available
+                ? [{ OR: [{ stock_quantity: { gt: 0 } }, { id: { in: availableVariantProductIds } }] }]
+                : []),
             ],
           }
-        : {}),
+        : query.available
+          ? { stock_quantity: { gt: 0 } }
+          : {}),
       ...(query.search
         ? {
             OR: [
@@ -97,7 +131,13 @@ export class ProductsService {
         where,
         skip,
         take: limit,
-        orderBy: { created_at: 'desc' },
+        orderBy: query.sort === 'price_asc'
+          ? { price: 'asc' }
+          : query.sort === 'price_desc'
+            ? { price: 'desc' }
+            : query.sort === 'rating'
+              ? { rating: 'desc' }
+              : { created_at: 'desc' },
       }),
     ]);
 
@@ -158,7 +198,131 @@ export class ProductsService {
       sku: variant.sku,
       price: Number(variant.price),
       stockQuantity: variant.stock_quantity,
+      compareAtPrice: variant.compare_at_price === null ? null : Number(variant.compare_at_price),
+      imageUrl: variant.image_url,
+      attributes: variant.attributes,
     }));
+  }
+
+  async createVariant(
+    productId: string,
+    dto: CreateProductVariantDto,
+    options: { sellerId?: string } = {},
+  ) {
+    const product = await this.findProductOrThrow(productId, options.sellerId);
+    this.ensurePriceIntegrity(dto.price, dto.compareAtPrice);
+    await this.ensureSkuAvailable(dto.sku);
+
+    const variant = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.product_variants.create({
+        data: {
+          product_id: product.id,
+          name: dto.name.trim(),
+          sku: this.normalizeSku(dto.sku),
+          price: dto.price,
+          compare_at_price: dto.compareAtPrice,
+          stock_quantity: dto.stockQuantity ?? 0,
+          weight_grams: dto.weightGrams,
+          image_url: dto.imageUrl,
+          attributes: (dto.attributes ?? {}) as Prisma.InputJsonValue,
+        },
+      });
+      if (options.sellerId) {
+        await tx.products.update({
+          where: { id: product.id },
+          data: {
+            status: product_status.PENDING_REVIEW,
+            rejection_reason: null,
+            verified_by_id: null,
+            verified_at: null,
+            updated_at: new Date(),
+          },
+        });
+      }
+      return created;
+    });
+
+    return this.toPublicVariant(variant);
+  }
+
+  async updateVariant(
+    productId: string,
+    variantId: string,
+    dto: UpdateProductVariantDto,
+    options: { sellerId?: string } = {},
+  ) {
+    const product = await this.findProductOrThrow(productId, options.sellerId);
+    const existing = await this.prisma.product_variants.findFirst({
+      where: { id: variantId, product_id: product.id },
+    });
+    if (!existing) throw new NotFoundException('Product variant not found');
+    this.ensurePriceIntegrity(
+      dto.price ?? Number(existing.price),
+      dto.compareAtPrice !== undefined
+        ? dto.compareAtPrice
+        : existing.compare_at_price === null ? null : Number(existing.compare_at_price),
+    );
+    if (dto.sku !== undefined) await this.ensureSkuAvailable(dto.sku, undefined, variantId);
+
+    const variant = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.product_variants.update({
+        where: { id: variantId },
+        data: {
+          ...(dto.name !== undefined && { name: dto.name.trim() }),
+          ...(dto.sku !== undefined && { sku: this.normalizeSku(dto.sku) }),
+          ...(dto.price !== undefined && { price: dto.price }),
+          ...(dto.compareAtPrice !== undefined && { compare_at_price: dto.compareAtPrice }),
+          ...(dto.stockQuantity !== undefined && { stock_quantity: dto.stockQuantity }),
+          ...(dto.weightGrams !== undefined && { weight_grams: dto.weightGrams }),
+          ...(dto.imageUrl !== undefined && { image_url: dto.imageUrl }),
+          ...(dto.attributes !== undefined && { attributes: dto.attributes as Prisma.InputJsonValue }),
+          ...(dto.isActive !== undefined && { is_active: dto.isActive }),
+          updated_at: new Date(),
+        },
+      });
+      if (options.sellerId) {
+        await tx.products.update({
+          where: { id: product.id },
+          data: {
+            status: product_status.PENDING_REVIEW,
+            rejection_reason: null,
+            verified_by_id: null,
+            verified_at: null,
+            updated_at: new Date(),
+          },
+        });
+      }
+      return updated;
+    });
+    return this.toPublicVariant(variant);
+  }
+
+  async deleteVariant(productId: string, variantId: string, options: { sellerId?: string } = {}) {
+    const product = await this.findProductOrThrow(productId, options.sellerId);
+    const existing = await this.prisma.product_variants.findFirst({
+      where: { id: variantId, product_id: product.id },
+    });
+    if (!existing) throw new NotFoundException('Product variant not found');
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.product_variants.update({
+        where: { id: variantId },
+        data: { is_active: false, updated_at: new Date() },
+      });
+      if (options.sellerId) {
+        await tx.products.update({
+          where: { id: product.id },
+          data: {
+            status: product_status.PENDING_REVIEW,
+            rejection_reason: null,
+            verified_by_id: null,
+            verified_at: null,
+            updated_at: new Date(),
+          },
+        });
+      }
+    });
+    return { id: variantId };
   }
 
   async getPublicProduct(idOrSlug: string) {
@@ -324,9 +488,12 @@ export class ProductsService {
         description: dto.description,
         short_description: dto.shortDescription,
         brand: dto.brand,
-        sku: dto.sku,
+        sku: this.normalizeSku(dto.sku),
         price: dto.price,
         compare_at_price: dto.compareAtPrice,
+        is_taxable: dto.isTaxable ?? true,
+        tax_rate: dto.taxRate ?? 0,
+        specifications: dto.specifications as Prisma.InputJsonValue | undefined,
         commission_rate: isAdminProduct ? (dto as CreateProductDto).commissionRate : undefined,
         weight_grams: dto.weightGrams,
         length_cm: dto.lengthCm,
@@ -420,11 +587,14 @@ export class ProductsService {
         }),
         ...(dto.categoryId !== undefined && { category_id: dto.categoryId }),
         ...(dto.brand !== undefined && { brand: dto.brand }),
-        ...(dto.sku !== undefined && { sku: dto.sku }),
+        ...(dto.sku !== undefined && { sku: this.normalizeSku(dto.sku) }),
         ...(dto.price !== undefined && { price: dto.price }),
         ...(dto.compareAtPrice !== undefined && {
           compare_at_price: dto.compareAtPrice,
         }),
+        ...(dto.isTaxable !== undefined && { is_taxable: dto.isTaxable }),
+        ...(dto.taxRate !== undefined && { tax_rate: dto.taxRate }),
+        ...(dto.specifications !== undefined && { specifications: dto.specifications as Prisma.InputJsonValue }),
         ...(options.isAdmin && dto.commissionRate !== undefined && {
           commission_rate: dto.commissionRate,
         }),
@@ -754,14 +924,36 @@ export class ProductsService {
     }
   }
 
-  private async ensureSkuAvailable(sku?: string | null, excludeProductId?: string) {
-    const normalized = sku?.trim();
+  private async ensureSkuAvailable(
+    sku?: string | null,
+    excludeProductId?: string,
+    excludeVariantId?: string,
+  ) {
+    const normalized = this.normalizeSku(sku);
     if (!normalized) return;
     const [product, variant] = await Promise.all([
-      this.prisma.products.findFirst({ where: { sku: normalized, deleted_at: null, ...(excludeProductId ? { NOT: { id: excludeProductId } } : {}) }, select: { id: true } }),
-      this.prisma.product_variants.findFirst({ where: { sku: normalized }, select: { id: true } }),
+      this.prisma.products.findFirst({
+        where: {
+          sku: { equals: normalized, mode: 'insensitive' },
+          deleted_at: null,
+          ...(excludeProductId ? { NOT: { id: excludeProductId } } : {}),
+        },
+        select: { id: true },
+      }),
+      this.prisma.product_variants.findFirst({
+        where: {
+          sku: { equals: normalized, mode: 'insensitive' },
+          ...(excludeVariantId ? { NOT: { id: excludeVariantId } } : {}),
+        },
+        select: { id: true },
+      }),
     ]);
     if (product || variant) throw new ConflictException(`SKU "${normalized}" is already in use`);
+  }
+
+  private normalizeSku(sku?: string | null) {
+    const normalized = sku?.trim().toUpperCase();
+    return normalized || null;
   }
 
   private async ensureSellerExists(sellerId: string): Promise<seller_profiles> {
@@ -839,7 +1031,22 @@ export class ProductsService {
       where: { product_id: productId, is_active: true },
       orderBy: { created_at: 'asc' },
     });
-    return variants.map((variant) => ({
+    return variants.map((variant) => this.toPublicVariant(variant));
+  }
+
+  private toPublicVariant(variant: {
+    id: string;
+    name: string;
+    sku: string | null;
+    price: Prisma.Decimal;
+    compare_at_price: Prisma.Decimal | null;
+    stock_quantity: number;
+    weight_grams: number | null;
+    image_url: string | null;
+    attributes: Prisma.JsonValue;
+    is_active?: boolean;
+  }) {
+    return {
       id: variant.id,
       name: variant.name,
       sku: variant.sku,
@@ -849,7 +1056,8 @@ export class ProductsService {
       weightGrams: variant.weight_grams,
       imageUrl: variant.image_url,
       attributes: variant.attributes,
-    }));
+      ...(variant.is_active === undefined ? {} : { isActive: variant.is_active }),
+    };
   }
 
   private async getCategoriesById(categoryIds: string[]) {
@@ -978,10 +1186,14 @@ export class ProductsService {
       sku: product.sku,
       status: product.status,
       price: Number(product.price),
-      compareAtPrice: product.compare_at_price
-        ? Number(product.compare_at_price)
-        : null,
+      mrp: product.compare_at_price === null ? Number(product.price) : Number(product.compare_at_price),
+      sellingPrice: Number(product.price),
+      discountPercent: product.compare_at_price && Number(product.compare_at_price) > 0
+        ? Math.max(0, Math.round((1 - Number(product.price) / Number(product.compare_at_price)) * 10000) / 100)
+        : 0,
+      compareAtPrice: product.compare_at_price === null ? null : Number(product.compare_at_price),
       stockQuantity: product.stock_quantity,
+      specifications: product.specifications,
       weightGrams: product.weight_grams,
       lengthCm: product.length_cm === null ? null : Number(product.length_cm),
       widthCm: product.width_cm === null ? null : Number(product.width_cm),

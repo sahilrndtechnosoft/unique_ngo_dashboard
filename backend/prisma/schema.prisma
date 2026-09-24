@@ -1143,6 +1143,7 @@ model payments {
   gateway_signature  String?
   gateway_response   Json?
   failure_reason     String?
+  verified_at        DateTime?        @db.Timestamptz(6)
   refunded_amount    Decimal         @default(0) @db.Decimal(12, 2)
   metadata           Json?
   created_at         DateTime        @default(now()) @db.Timestamptz(6)
@@ -1153,6 +1154,8 @@ model payments {
   @@index([user_id])
   @@index([reference_id])
   @@index([reference_type, reference_id])
+  @@unique([gateway_order_id], map: "payments_gateway_order_id_unique")
+  @@unique([gateway_payment_id], map: "payments_gateway_payment_id_unique")
 }
 
 model product_categories {

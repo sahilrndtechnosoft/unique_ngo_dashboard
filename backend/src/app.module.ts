@@ -26,6 +26,7 @@ import { RbacModule } from './admin/rbac.module';
 import { UsersModule } from './users/users.module';
 import { WishlistModule } from './wishlist/wishlist.module';
 import { SuggestionsModule } from './suggestions/suggestions.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { SuggestionsModule } from './suggestions/suggestions.module';
     BloodBankModule,
     WishlistModule,
     SuggestionsModule,
+    PaymentsModule,
     NotificationsModule,
     CouponsModule,
     DonationItemsModule,

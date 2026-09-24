@@ -43,10 +43,12 @@ import {
 } from '../../common/utils/image-upload.util';
 import {
   CreateProductDto,
+  CreateProductVariantDto,
   CreateSellerProductDto,
   ListProductsQueryDto,
   RejectProductDto,
   UpdateProductDto,
+  UpdateProductVariantDto,
   UpdateSellerProductDto,
   UpdatePlatformCommissionDto,
 } from '../dto/product.dto';
@@ -89,6 +91,32 @@ export class AdminProductsController {
   @ResponseMessage('Product variants fetched successfully')
   listVariants(@Param('id') id: string) {
     return this.productsService.listVariants(id);
+  }
+
+  @Post(':id/variants')
+  @RequirePermissions(AppModule.PRODUCTS, PermissionAction.EDIT)
+  @ResponseMessage('Product variant created successfully')
+  createVariant(@Param('id') id: string, @Body() dto: CreateProductVariantDto) {
+    return this.productsService.createVariant(id, dto);
+  }
+
+  @Patch(':id/variants/:variantId')
+  @RequirePermissions(AppModule.PRODUCTS, PermissionAction.EDIT)
+  @ResponseMessage('Product variant updated successfully')
+  updateVariant(
+    @Param('id') id: string,
+    @Param('variantId') variantId: string,
+    @Body() dto: UpdateProductVariantDto,
+  ) {
+    return this.productsService.updateVariant(id, variantId, dto);
+  }
+
+  @Delete(':id/variants/:variantId')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(AppModule.PRODUCTS, PermissionAction.EDIT)
+  @ResponseMessage('Product variant deactivated successfully')
+  deleteVariant(@Param('id') id: string, @Param('variantId') variantId: string) {
+    return this.productsService.deleteVariant(id, variantId);
   }
 
   @Get(':id/moderation-history')
@@ -221,6 +249,45 @@ export class SellerProductsController {
   async get(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     const sellerId = await this.productsService.resolveSellerProfileId(user.sub);
     return this.productsService.getProduct(id, sellerId);
+  }
+
+  @Get(':id/variants')
+  async listVariants(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    const sellerId = await this.productsService.resolveSellerProfileId(user.sub);
+    await this.productsService.getProduct(id, sellerId);
+    return this.productsService.listVariants(id);
+  }
+
+  @Post(':id/variants')
+  async createVariant(
+    @Param('id') id: string,
+    @Body() dto: CreateProductVariantDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    const sellerId = await this.productsService.resolveSellerProfileId(user.sub);
+    return this.productsService.createVariant(id, dto, { sellerId });
+  }
+
+  @Patch(':id/variants/:variantId')
+  async updateVariant(
+    @Param('id') id: string,
+    @Param('variantId') variantId: string,
+    @Body() dto: UpdateProductVariantDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    const sellerId = await this.productsService.resolveSellerProfileId(user.sub);
+    return this.productsService.updateVariant(id, variantId, dto, { sellerId });
+  }
+
+  @Delete(':id/variants/:variantId')
+  @HttpCode(HttpStatus.OK)
+  async deleteVariant(
+    @Param('id') id: string,
+    @Param('variantId') variantId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    const sellerId = await this.productsService.resolveSellerProfileId(user.sub);
+    return this.productsService.deleteVariant(id, variantId, { sellerId });
   }
 
   @Post()

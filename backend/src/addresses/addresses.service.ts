@@ -16,70 +16,81 @@ export class AddressesService {
   }
 
   async createAddress(userId: string, dto: CreateAddressDto) {
-    if (dto.isDefault) {
-      await this.clearDefault(userId);
-    }
+    const address = await this.prisma.$transaction(async (tx) => {
+      if (dto.isDefault) {
+        await this.clearDefault(userId, tx);
+      }
 
-    const existingCount = await this.prisma.user_addresses.count({
-      where: { user_id: userId, deleted_at: null },
-    });
+      const existingCount = await tx.user_addresses.count({
+        where: { user_id: userId, deleted_at: null },
+      });
 
-    const address = await this.prisma.user_addresses.create({
-      data: {
-        user_id: userId,
-        label: dto.label,
-        full_name: dto.fullName,
-        mobile: dto.mobile,
-        address_line1: dto.addressLine1,
-        address_line2: dto.addressLine2,
-        city: dto.city,
-        state: dto.state,
-        postal_code: dto.postalCode,
-        country: dto.country ?? 'India',
-        is_default: dto.isDefault ?? existingCount === 0,
-      },
+      return tx.user_addresses.create({
+        data: {
+          user_id: userId,
+          label: dto.label,
+          full_name: dto.fullName,
+          mobile: dto.mobile,
+          address_line1: dto.addressLine1,
+          address_line2: dto.addressLine2,
+          city: dto.city,
+          state: dto.state,
+          postal_code: dto.postalCode,
+          country: dto.country ?? 'India',
+          is_default: dto.isDefault ?? existingCount === 0,
+        },
+      });
     });
 
     return this.toPublic(address);
   }
 
   async updateAddress(userId: string, addressId: string, dto: UpdateAddressDto) {
-    await this.findAddressOrThrow(userId, addressId);
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await this.findAddressOrThrow(userId, addressId, tx);
 
-    if (dto.isDefault) {
-      await this.clearDefault(userId);
-    }
+      if (dto.isDefault) {
+        await this.clearDefault(userId, tx);
+      }
 
-    const updated = await this.prisma.user_addresses.update({
-      where: { id: addressId },
-      data: {
-        ...(dto.label !== undefined && { label: dto.label }),
-        ...(dto.fullName !== undefined && { full_name: dto.fullName }),
-        ...(dto.mobile !== undefined && { mobile: dto.mobile }),
-        ...(dto.addressLine1 !== undefined && {
-          address_line1: dto.addressLine1,
-        }),
-        ...(dto.addressLine2 !== undefined && {
-          address_line2: dto.addressLine2,
-        }),
-        ...(dto.city !== undefined && { city: dto.city }),
-        ...(dto.state !== undefined && { state: dto.state }),
-        ...(dto.postalCode !== undefined && { postal_code: dto.postalCode }),
-        ...(dto.country !== undefined && { country: dto.country }),
-        ...(dto.isDefault !== undefined && { is_default: dto.isDefault }),
-        updated_at: new Date(),
-      },
+      return tx.user_addresses.update({
+        where: { id: addressId },
+        data: {
+          ...(dto.label !== undefined && { label: dto.label }),
+          ...(dto.fullName !== undefined && { full_name: dto.fullName }),
+          ...(dto.mobile !== undefined && { mobile: dto.mobile }),
+          ...(dto.addressLine1 !== undefined && { address_line1: dto.addressLine1 }),
+          ...(dto.addressLine2 !== undefined && { address_line2: dto.addressLine2 }),
+          ...(dto.city !== undefined && { city: dto.city }),
+          ...(dto.state !== undefined && { state: dto.state }),
+          ...(dto.postalCode !== undefined && { postal_code: dto.postalCode }),
+          ...(dto.country !== undefined && { country: dto.country }),
+          ...(dto.isDefault !== undefined && { is_default: dto.isDefault }),
+          updated_at: new Date(),
+        },
+      });
     });
 
     return this.toPublic(updated);
   }
 
   async deleteAddress(userId: string, addressId: string) {
-    const address = await this.findAddressOrThrow(userId, addressId);
-
-    await this.prisma.user_addresses.update({
-      where: { id: addressId },
-      data: { deleted_at: new Date(), updated_at: new Date() },
+    const address = await this.prisma.$transaction(async (tx) => {
+      const existing = await this.findAddressOrThrow(userId, addressId, tx);
+      await tx.user_addresses.update({
+        where: { id: addressId },
+        data: { deleted_at: new Date(), is_default: false, updated_at: new Date() },
+      });
+      if (existing.is_default) {
+        const next = await tx.user_addresses.findFirst({
+          where: { user_id: userId, deleted_at: null, id: { not: addressId } },
+          orderBy: { created_at: 'asc' },
+        });
+        if (next) {
+          await tx.user_addresses.update({ where: { id: next.id }, data: { is_default: true, updated_at: new Date() } });
+        }
+      }
+      return existing;
     });
 
     return { id: address.id };
@@ -89,8 +100,12 @@ export class AddressesService {
     return this.findAddressOrThrow(userId, addressId);
   }
 
-  private async findAddressOrThrow(userId: string, addressId: string) {
-    const address = await this.prisma.user_addresses.findFirst({
+  private async findAddressOrThrow(
+    userId: string,
+    addressId: string,
+    client: Pick<PrismaService, 'user_addresses'> = this.prisma,
+  ) {
+    const address = await client.user_addresses.findFirst({
       where: { id: addressId, user_id: userId, deleted_at: null },
     });
     if (!address) {
@@ -99,8 +114,8 @@ export class AddressesService {
     return address;
   }
 
-  private async clearDefault(userId: string) {
-    await this.prisma.user_addresses.updateMany({
+  private async clearDefault(userId: string, client: Pick<PrismaService, 'user_addresses'> = this.prisma) {
+    await client.user_addresses.updateMany({
       where: { user_id: userId, deleted_at: null, is_default: true },
       data: { is_default: false },
     });
