@@ -122,6 +122,7 @@ export class CouponsService {
     const coupons = await this.prisma.coupons.findMany({
       where: {
         is_active: true,
+        applicable_to: { in: ['ALL', 'PRODUCTS'] },
         starts_at: { lte: now },
         OR: [{ expires_at: null }, { expires_at: { gt: now } }],
       },

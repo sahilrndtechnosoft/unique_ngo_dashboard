@@ -1,131 +1,99 @@
 import { PropsWithChildren, Suspense, useEffect, useState } from 'react';
+import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import App from '../../App';
 import { IRootState } from '../../store';
-import { setSidebar } from '../../store/themeConfigSlice';
+import { clearAuth } from '../../store/authSlice';
 import { useAppBranding } from '../../hooks/useAppBranding';
-import Footer from './Footer';
-import Header from './Header';
-import Setting from './Setting';
-import Sidebar from './Sidebar';
-import Portals from '../../components/Portals';
+import { adminMenuGroups, canAccess } from '../../config/admin-menu';
+import { adminApi } from '../../services/admin.service';
+import { mediaUrl } from '../../services/api';
+import { logout } from '../../services/auth.service';
+import Icon from '../Admin/WorkspaceIcon';
+import '../../assets/css/workspace.css';
 
-const DefaultLayout = ({ children }: PropsWithChildren) => {
-    const themeConfig = useSelector((state: IRootState) => state.themeConfig);
-    const dispatch = useDispatch();
-    useAppBranding();
+const icons: Record<string, string> = { '/': 'overview', users: 'users', sellers: 'users', orders: 'box', products: 'tag', categories: 'overview', coupons: 'tag', hospitals: 'hospital', campaigns: 'flag', appointments: 'calendar', 'blood-donations': 'drop', 'blood-requests': 'heart', 'donation-items': 'heart', inquiries: 'message', suggestions: 'message', notifications: 'bell' };
+const iconFor = (path: string) => icons[path.split('/').pop() || '/'] || 'box';
+type Result = { label: string; to: string; kind: string };
 
-    const [showLoader, setShowLoader] = useState(true);
-    const [showTopButton, setShowTopButton] = useState(false);
-
-    const goToTop = () => {
-        document.body.scrollTop = 0;
-        document.documentElement.scrollTop = 0;
-    };
-
-    const onScrollHandler = () => {
-        if (document.body.scrollTop > 50 || document.documentElement.scrollTop > 50) {
-            setShowTopButton(true);
-        } else {
-            setShowTopButton(false);
-        }
-    };
-
-    useEffect(() => {
-        window.addEventListener('scroll', onScrollHandler);
-
-        const screenLoader = document.getElementsByClassName('screen_loader');
-        if (screenLoader?.length) {
-            screenLoader[0].classList.add('animate__fadeOut');
-            setTimeout(() => {
-                setShowLoader(false);
-            }, 200);
-        }
-
-        return () => {
-            window.removeEventListener('scroll', onScrollHandler);
-        };
-    }, []);
-
-    useEffect(() => {
-        if (!themeConfig.sidebar || window.innerWidth >= 1024) return;
-        const closeOnEscape = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') dispatch(setSidebar(false));
-        };
-        window.addEventListener('keydown', closeOnEscape);
-        return () => window.removeEventListener('keydown', closeOnEscape);
-    }, [dispatch, themeConfig.sidebar]);
-
-    return (
-        <App>
-            {/* BEGIN MAIN CONTAINER */}
-            <div className="relative">
-                <a className="workspace-skip-link" href="#main-content">Skip to content</a>
-                {/* sidebar menu overlay */}
-                <button
-                    type="button"
-                    aria-label="Close navigation"
-                    className={`${(!themeConfig.sidebar && 'hidden') || ''} fixed inset-0 bg-[black]/60 z-50 lg:hidden`}
-                    onClick={() => dispatch(setSidebar(false))}
-                />
-                {/* screen loader */}
-                {showLoader && (
-                    <div className="screen_loader fixed inset-0 bg-[#fafafa] dark:bg-[#060818] z-[60] grid place-content-center animate__animated">
-                        <svg width="64" height="64" viewBox="0 0 135 135" xmlns="http://www.w3.org/2000/svg" fill="#4361ee">
-                            <path d="M67.447 58c5.523 0 10-4.477 10-10s-4.477-10-10-10-10 4.477-10 10 4.477 10 10 10zm9.448 9.447c0 5.523 4.477 10 10 10 5.522 0 10-4.477 10-10s-4.478-10-10-10c-5.523 0-10 4.477-10 10zm-9.448 9.448c-5.523 0-10 4.477-10 10 0 5.522 4.477 10 10 10s10-4.478 10-10c0-5.523-4.477-10-10-10zM58 67.447c0-5.523-4.477-10-10-10s-10 4.477-10 10 4.477 10 10 10 10-4.477 10-10z">
-                                <animateTransform attributeName="transform" type="rotate" from="0 67 67" to="-360 67 67" dur="2.5s" repeatCount="indefinite" />
-                            </path>
-                            <path d="M28.19 40.31c6.627 0 12-5.374 12-12 0-6.628-5.373-12-12-12-6.628 0-12 5.372-12 12 0 6.626 5.372 12 12 12zm30.72-19.825c4.686 4.687 12.284 4.687 16.97 0 4.686-4.686 4.686-12.284 0-16.97-4.686-4.687-12.284-4.687-16.97 0-4.687 4.686-4.687 12.284 0 16.97zm35.74 7.705c0 6.627 5.37 12 12 12 6.626 0 12-5.373 12-12 0-6.628-5.374-12-12-12-6.63 0-12 5.372-12 12zm19.822 30.72c-4.686 4.686-4.686 12.284 0 16.97 4.687 4.686 12.285 4.686 16.97 0 4.687-4.686 4.687-12.284 0-16.97-4.685-4.687-12.283-4.687-16.97 0zm-7.704 35.74c-6.627 0-12 5.37-12 12 0 6.626 5.373 12 12 12s12-5.374 12-12c0-6.63-5.373-12-12-12zm-30.72 19.822c-4.686-4.686-12.284-4.686-16.97 0-4.686 4.687-4.686 12.285 0 16.97 4.686 4.687 12.284 4.687 16.97 0 4.687-4.685 4.687-12.283 0-16.97zm-35.74-7.704c0-6.627-5.372-12-12-12-6.626 0-12 5.373-12 12s5.374 12 12 12c6.628 0 12-5.373 12-12zm-19.823-30.72c4.687-4.686 4.687-12.284 0-16.97-4.686-4.686-12.284-4.686-16.97 0-4.687 4.686-4.687 12.284 0 16.97 4.686 4.687 12.284 4.687 16.97 0z">
-                                <animateTransform attributeName="transform" type="rotate" from="0 67 67" to="360 67 67" dur="8s" repeatCount="indefinite" />
-                            </path>
-                        </svg>
-                    </div>
-                )}
-                <div className="fixed bottom-6 ltr:right-6 rtl:left-6 z-50">
-                    {showTopButton && (
-                        <button
-                            type="button"
-                            aria-label="Back to top"
-                            title="Back to top"
-                            className="btn btn-outline-primary rounded-full p-2 bg-[#fafafa] dark:bg-[#060818] dark:hover:bg-primary"
-                            onClick={goToTop}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7l4-4m0 0l4 4m-4-4v18" />
-                            </svg>
-                        </button>
-                    )}
-                </div>
-
-                {/* BEGIN APP SETTING LAUNCHER */}
-                {/* <Setting /> */}
-                {/* END APP SETTING LAUNCHER */}
-
-                <div className={`${themeConfig.navbar} main-container app-workspace text-black dark:text-white-dark min-h-screen`}>
-                    {/* BEGIN SIDEBAR */}
-                    <Sidebar />
-                    {/* END SIDEBAR */}
-
-                    <div className="main-content flex flex-col min-h-screen">
-                        {/* BEGIN TOP NAVBAR */}
-                        <Header />
-                        {/* END TOP NAVBAR */}
-
-                        {/* BEGIN CONTENT AREA */}
-                        <Suspense fallback={<div className="workspace-loading" role="status">Loading page...</div>}>
-                            <div id="main-content" className={`${themeConfig.animation} app-workspace-content animate__animated`}>{children}</div>
-                        </Suspense>
-                        {/* END CONTENT AREA */}
-
-                        {/* BEGIN FOOTER */}
-                        <Footer />
-                        {/* END FOOTER */}
-                        <Portals />
-                    </div>
-                </div>
-            </div>
-        </App>
-    );
-};
-
-export default DefaultLayout;
+export default function DefaultLayout({ children }: PropsWithChildren) {
+ const branding = useAppBranding();
+ const auth = useSelector((s: IRootState) => s.auth);
+ const dispatch = useDispatch();
+ const location = useLocation();
+ const navigate = useNavigate();
+ const [collapsed, setCollapsed] = useState(() => localStorage.getItem('workspace-rail') === 'true');
+ const [mobile, setMobile] = useState(false);
+ const [palette, setPalette] = useState(false);
+ const [help, setHelp] = useState(false);
+ const [query, setQuery] = useState('');
+ const [records, setRecords] = useState<Result[]>([]);
+ const [searching, setSearching] = useState(false);
+ const [searchError, setSearchError] = useState(false);
+ const groups = adminMenuGroups.map(g => ({ ...g, items: g.items.filter(i => canAccess(auth.isSuperAdmin, auth.permissions, i.permission)) })).filter(g => g.items.length);
+ const pages = groups.flatMap(g => g.items);
+ const current = pages.find(i => i.to === location.pathname || (i.to !== '/' && location.pathname.startsWith(i.to + '/')));
+ const group = groups.find(g => g.items.includes(current!));
+ const can = (p: `${string}:${string}`) => canAccess(auth.isSuperAdmin, auth.permissions, p);
+ useEffect(() => { setMobile(false); setPalette(false); }, [location.pathname, location.search]);
+ useEffect(() => {
+  const handler = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPalette(p => !p); } };
+  window.addEventListener('keydown', handler); return () => window.removeEventListener('keydown', handler);
+ }, []);
+ useEffect(() => {
+  if (!palette || query.trim().length < 2) { setRecords([]); setSearching(false); return; }
+  let cancelled = false;
+  setSearching(true); setSearchError(false); setRecords([]);
+  const timer = window.setTimeout(async () => {
+   const sources = [
+    { permission: 'USERS:VIEW' as const, fetch: adminApi.listUsers, path: 'users', kind: 'Member', title: (r: any) => r.fullName || r.email },
+    { permission: 'PRODUCTS:VIEW' as const, fetch: adminApi.listProducts, path: 'products', kind: 'Product', title: (r: any) => r.name },
+    { permission: 'ORDERS:VIEW' as const, fetch: adminApi.listOrders, path: 'orders', kind: 'Order', title: (r: any) => r.orderNumber },
+    { permission: 'BLOOD_BANK:VIEW' as const, fetch: adminApi.listCampaigns, path: 'campaigns', kind: 'Campaign', title: (r: any) => r.title || r.name },
+   ].filter(s => can(s.permission));
+   const results = await Promise.allSettled(sources.map(async s => {
+    const data = await s.fetch({ search: query.trim(), limit: 5, page: 1 });
+    return (data.items || []).map((r: any) => ({ label: s.title(r) || r.id, to: `/admin/${s.path}/${r.id}`, kind: s.kind }));
+   }));
+   if (!cancelled) { setRecords(results.flatMap(r => r.status === 'fulfilled' ? r.value : [])); setSearchError(results.some(r => r.status === 'rejected')); setSearching(false); }
+  }, 300);
+  return () => { cancelled = true; clearTimeout(timer); };
+ }, [palette, query, auth.isSuperAdmin, auth.permissions]);
+ const navigation = <>
+  <Link to="/" className="ws-brand"><img className="ws-brand-logo" src={branding.logoUrl ? mediaUrl(branding.logoUrl) : '/assets/images/logo.svg'} alt={branding.companyName || 'Unique NGO'}/><span className="ws-nav-label"><strong>{branding.companyName || 'Unique NGO'}</strong><small>Operations workspace</small></span></Link>
+  <button className="ws-nav-search" onClick={() => { setMobile(false); setPalette(true); }} title="Search workspace"><Icon name="search"/><span className="ws-nav-label">Find anything</span><kbd className="ws-nav-label">⌘ K</kbd></button>
+  <nav aria-label="Main navigation" className="ws-nav">
+   {groups.map(g => <div className="ws-nav-group" key={g.label || 'home'}>
+    {g.label && <p className="ws-nav-label">{g.label}</p>}
+    {g.items.map(i => <NavLink key={i.to} end={i.to === '/'} to={i.to} title={i.label} className={({isActive}) => `ws-nav-item ${isActive ? 'is-active' : ''}`}><Icon name={iconFor(i.to)}/><span className="ws-nav-label">{i.label}</span>{i.to === '/' && <span className="ws-nav-label ws-home-dot"/>}</NavLink>)}
+   </div>)}
+  </nav>
+  <div className="ws-sidebar-bottom">
+   <button className="ws-nav-item" onClick={() => {setMobile(false); setHelp(true);}} title="Workspace guide"><Icon name="help"/><span className="ws-nav-label">Workspace guide</span></button>
+   <Link className="ws-account" to="/users/profile" title="Your profile"><span className="ws-avatar">{auth.user?.fullName?.slice(0, 1) || 'A'}</span><span className="ws-nav-label"><strong>{auth.user?.fullName || 'Administrator'}</strong><small>{auth.isSuperAdmin ? 'Super administrator' : 'Administrator'}</small></span><Icon name="chevron"/></Link>
+  </div>
+ </>;
+ return <div className={`ws-app ${collapsed ? 'ws-collapsed' : ''}`}>
+  <a href="#workspace-content" className="ws-skip">Skip to content</a>
+  <aside className="ws-sidebar">{navigation}</aside>
+  <Dialog open={mobile} onClose={setMobile} className="ws-overlay ws-mobile-dialog"><div className="ws-backdrop"/><DialogPanel className="ws-mobile-nav"><DialogTitle className="sr-only">Navigation</DialogTitle><button className="ws-icon-button ws-mobile-close" aria-label="Close navigation" onClick={() => setMobile(false)}><Icon name="close"/></button>{navigation}</DialogPanel></Dialog>
+  <div className="ws-main">
+   <header className="ws-topbar">
+    <button className="ws-icon-button ws-desktop-toggle" aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'} onClick={() => { setCollapsed(!collapsed); localStorage.setItem('workspace-rail', String(!collapsed)); }}><Icon name="panel"/></button>
+    <button className="ws-icon-button ws-mobile-toggle" aria-label="Open navigation" onClick={() => setMobile(true)}><Icon name="panel"/></button>
+    <div className="ws-breadcrumb"><span>{group?.label || 'Workspace'}</span><Icon name="chevron"/><strong>{current?.label || 'Account'}</strong>{location.pathname.split('/').length > 3 && <><Icon name="chevron"/><span>Details</span></>}</div>
+    <div className="ws-top-actions"><button className="ws-icon-button" onClick={() => setPalette(true)} aria-label="Global search"><Icon name="search"/></button><button className="ws-icon-button" onClick={() => setHelp(true)} aria-label="Help"><Icon name="help"/></button><span className="ws-top-divider"/><details className="ws-profile"><summary aria-label="Account menu"><span className="ws-avatar">{auth.user?.fullName?.slice(0, 1) || 'A'}</span></summary><div className="ws-popover"><strong>{auth.user?.fullName || 'Administrator'}</strong><Link to="/users/profile">Account & profile</Link><button onClick={async () => { try { if(auth.refreshToken) await logout(auth.refreshToken); } finally { dispatch(clearAuth()); navigate('/auth/boxed-signin'); } }}>Sign out</button></div></details></div>
+   </header>
+   <main id="workspace-content" className={`ws-content ${location.pathname.split('/').length > 3 ? 'ws-detail-page' : ''}`}>
+    <Suspense fallback={<div className="ws-page-skeleton" role="status" aria-label="Loading page"><i/><i/><i/></div>}>{children}</Suspense>
+   </main>
+   <footer className="ws-footer"><span>{branding.companyName || 'Unique NGO'} <span> / </span> Every action makes a difference.</span><span>Operations workspace</span></footer>
+  </div>
+  <Dialog open={palette} onClose={setPalette} className="ws-overlay"><div className="ws-backdrop"/><DialogPanel className="ws-command"><DialogTitle className="sr-only">Search workspace</DialogTitle><div className="ws-command-input"><Icon name="search"/><input data-autofocus autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search pages, members, products, orders…" aria-label="Search workspace"/><button className="ws-key" onClick={() => setPalette(false)}>Esc</button></div><div className="ws-command-results">
+   <p className="ws-eyebrow">Go to</p>{pages.filter(p => p.label.toLowerCase().includes(query.toLowerCase())).map(p => <Link key={p.to} to={p.to} onClick={() => setPalette(false)}><Icon name={iconFor(p.to)}/><span>{p.label}</span><Icon name="arrow"/></Link>)}
+   {!query && can('ORDERS:CREATE') && <Link to="/admin/orders?action=create" onClick={() => setPalette(false)}><Icon name="plus"/><span>Record a sale</span><small>Quick action</small></Link>}
+   {query.trim().length >= 2 && <><p className="ws-eyebrow">Records</p>{searching && <p role="status" className="ws-search-note">Searching your workspace…</p>}{searchError && <p role="alert" className="ws-search-note">Some records could not be searched. Change your search to retry.</p>}{!searching && !records.length && !searchError && <p className="ws-search-note">No matching records. Try a name or order number.</p>}{records.map(r => <Link key={r.to} to={r.to} onClick={() => setPalette(false)}><Icon name="search"/><span>{r.label}</span><small>{r.kind}</small></Link>)}</>}
+  </div><div className="ws-command-footer">Tab to navigate <span>↵ to open</span></div></DialogPanel></Dialog>
+  <Dialog open={help} onClose={setHelp} className="ws-overlay"><div className="ws-backdrop"/><DialogPanel className="ws-guide"><button className="ws-icon-button" aria-label="Close guide" onClick={() => setHelp(false)}><Icon name="close"/></button><span className="ws-eyebrow">Your workspace, explained</span><DialogTitle>Less searching. More impact.</DialogTitle><p>Use <kbd>Ctrl / ⌘ K</kbd> to find a page, member, product, campaign, or order from anywhere.</p><h3>Impact & community</h3><p>Coordinate blood requests, appointments, donations, and your hospital network.</p><h3>Marketplace</h3><p>Review products, fulfill orders, and manage seller relationships.</p><h3>Working with records</h3><p>Use filters to narrow a list, select rows for bulk actions, and open the row menu for editing. Table sorting applies to the current page.</p></DialogPanel></Dialog>
+ </div>;
+}

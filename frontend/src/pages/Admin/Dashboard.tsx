@@ -1,15 +1,11 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { adminApi } from '../../services/admin.service';
 import { getErrorMessage } from '../../services/api';
 import { setPageTitle } from '../../store/themeConfigSlice';
-import IconShoppingCart from '../../components/Icon/IconShoppingCart';
-import IconDollarSign from '../../components/Icon/IconDollarSign';
-import IconDollarSignCircle from '../../components/Icon/IconDollarSignCircle';
-import IconBox from '../../components/Icon/IconBox';
-import IconCashBanknotes from '../../components/Icon/IconCashBanknotes';
-import IconClipboardText from '../../components/Icon/IconClipboardText';
+import Icon from '../../components/Admin/WorkspaceIcon';
+import { StatusBadge } from '../../components/Admin/FormPrimitives';
 
 const ReactApexChart = lazy(() => import('react-apexcharts'));
 
@@ -49,6 +45,8 @@ const Dashboard = () => {
     const [overview, setOverview] = useState<Overview | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [metric, setMetric] = useState<'revenue' | 'orders'>('revenue');
+    const [days, setDays] = useState(7);
     const loadOverview = useCallback(async () => {
         setLoading(true);
         setError('');
@@ -61,11 +59,6 @@ const Dashboard = () => {
             setLoading(false);
         }
     }, []);
-    const greeting = useMemo(() => {
-        const hour = new Date().getHours();
-        return hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-    }, []);
-
     useEffect(() => {
         dispatch(setPageTitle('Dashboard'));
         void loadOverview();
@@ -74,146 +67,50 @@ const Dashboard = () => {
     const summary = overview?.summary;
     const recentOrders = Array.isArray(overview?.recentOrders) ? overview.recentOrders : [];
     const hasSalesActivity = (overview?.salesTrend ?? []).some((point) => point.revenue > 0);
+    const trend = (overview?.salesTrend ?? []).slice(-days);
     const series = [
-        { name: 'Gross sales', data: (overview?.salesTrend ?? []).map((point) => point.revenue) },
+        { name: metric === 'revenue' ? 'Gross sales' : 'Orders', data: trend.map((point) => point[metric]) },
     ];
     const chartOptions: ApexCharts.ApexOptions = {
-        chart: { type: 'area', toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Inter, sans-serif', animations: { speed: 350 } },
+        chart: { type: 'area', toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Arial, sans-serif', animations: { speed: 350 } },
         colors: ['#2563eb'],
         dataLabels: { enabled: false },
         stroke: { curve: 'smooth', width: 2.5 },
         fill: { type: 'gradient', gradient: { opacityFrom: 0.2, opacityTo: 0.015, stops: [0, 90, 100] } },
         grid: { borderColor: '#e7ede9', strokeDashArray: 4, padding: { left: 6, right: 12 } },
-        xaxis: { categories: (overview?.salesTrend ?? []).map((point) => shortDate(point.date)), axisBorder: { show: false }, axisTicks: { show: false }, labels: { style: { colors: '#78877f', fontSize: '11px' } } },
+        xaxis: { categories: trend.map((point) => shortDate(point.date)), axisBorder: { show: false }, axisTicks: { show: false }, labels: { style: { colors: '#78877f', fontSize: '11px' } } },
         yaxis: { labels: { formatter: (value) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : `${value}`, style: { colors: '#78877f', fontSize: '11px' } } },
-        tooltip: { y: { formatter: (value) => money(value) } },
+        tooltip: { y: { formatter: (value) => metric === 'revenue' ? money(value) : `${value} orders` } },
         noData: { text: loading ? 'Loading sales activity…' : 'No paid orders in the last 7 days', style: { color: '#78877f', fontSize: '13px' } },
     };
 
     const stats = [
-        { scope: 'orders', label: 'Gross sales this month', value: summary?.grossSalesThisMonth == null ? '—' : money(summary.grossSalesThisMonth), note: summary?.grossSalesChange == null ? 'Paid orders this month' : `${summary.grossSalesChange >= 0 ? '+' : ''}${summary.grossSalesChange}% vs last month`, icon: <IconDollarSign className="h-5 w-5" />, tone: 'mint' },
-        { scope: 'orders', label: 'Platform commission', value: summary?.platformCommissionThisMonth == null ? '—' : money(summary.platformCommissionThisMonth), note: 'Earned from paid orders this month', icon: <IconDollarSignCircle className="h-5 w-5" />, tone: 'sky' },
-        { scope: 'orders', label: 'Seller payouts', value: summary?.sellerPayoutsThisMonth == null ? '—' : money(summary.sellerPayoutsThisMonth), note: 'Order payout snapshots on paid sales', icon: <IconCashBanknotes className="h-5 w-5" />, tone: 'rose' },
-        { scope: 'orders', label: 'Orders this month', value: summary?.ordersThisMonth ?? '—', note: 'Excluding cancelled and returned', icon: <IconShoppingCart className="h-5 w-5" />, tone: 'sky' },
-        { scope: 'orders', label: 'Awaiting fulfillment', value: summary?.awaitingFulfillment ?? '—', note: 'Payment cleared or COD eligible', icon: <IconClipboardText className="h-5 w-5" />, tone: 'amber' },
-        { scope: 'products', label: 'Products to review', value: summary?.productsAwaitingApproval ?? '—', note: `${summary?.activeProducts ?? '—'} active listings`, icon: <IconBox className="h-5 w-5" />, tone: 'rose' },
+        { label: 'Gross sales', value: summary?.grossSalesThisMonth == null ? '—' : money(summary.grossSalesThisMonth), note: summary?.grossSalesChange == null ? 'From paid orders' : `${summary.grossSalesChange >= 0 ? '+' : ''}${summary.grossSalesChange}% vs previous month` },
+        { label: 'Orders placed', value: summary?.ordersThisMonth ?? '—', note: 'Excludes cancelled & returned' },
+        { label: 'Platform earnings', value: summary?.platformCommissionThisMonth == null ? '—' : money(summary.platformCommissionThisMonth), note: 'Commission earned this month' },
+        { label: 'Seller payouts', value: summary?.sellerPayoutsThisMonth == null ? '—' : money(summary.sellerPayoutsThisMonth), note: 'Supporting your seller network' },
     ];
-    const visibleStats = overview
-        ? stats.filter((stat) => overview.visibility[stat.scope as 'orders' | 'products'])
-        : loading ? stats : [];
     const canViewOrders = overview?.visibility.orders ?? false;
     const canViewProducts = overview?.visibility.products ?? false;
     const canViewSellers = overview?.visibility.sellers ?? false;
-
-    return (
-        <main className="commerce-dashboard">
-            <header className="dashboard-heading">
-                <div>
-                    <p className="dashboard-eyebrow">UNIQUE NGO · COMMERCE</p>
-                    <h1>{greeting}, welcome back</h1>
-                    <p className="dashboard-subtitle">A clear view of sales, fulfillment, and catalog activity.</p>
-                </div>
-                <div className="dashboard-heading-actions">
-                    {overview?.visibility.canReviewProducts ? <Link to="/admin/products" className="btn btn-outline-dark">Review catalog</Link> : null}
-                    {overview?.visibility.canCreateSale ? <Link to="/admin/orders?action=create" className="btn btn-primary">Record a sale</Link> : null}
-                </div>
-            </header>
-
-            {error ? (
-                <div className="dashboard-alert" role="alert">
-                    <span>{error}</span>
-                    <button type="button" className="dashboard-alert-retry" onClick={() => void loadOverview()} disabled={loading}>
-                        {loading ? 'Retrying…' : 'Retry'}
-                    </button>
-                </div>
-            ) : null}
-
-            <section className="dashboard-stats" aria-label="Commerce summary">
-                {visibleStats.map((stat) => (
-                    <article className="dashboard-stat" key={stat.label}>
-                        <div className={`dashboard-stat-icon ${stat.tone}`}>{stat.icon}</div>
-                        <p>{stat.label}</p>
-                        <strong>{loading ? <span className="dashboard-skeleton" /> : stat.value}</strong>
-                        <span>{stat.note}</span>
-                    </article>
-                ))}
-            </section>
-
-            {canViewOrders || canViewProducts || canViewSellers ? <section className={`dashboard-main-grid ${!canViewOrders || !(canViewProducts || canViewSellers) ? 'dashboard-main-grid-single' : ''}`}>
-                {canViewOrders ? <article className="dashboard-surface dashboard-trend">
-                    <div className="dashboard-section-heading">
-                        <div>
-                            <h2>Sales activity</h2>
-                            <p>Paid order value over the last seven days</p>
-                        </div>
-                    </div>
-                    {loading ? (
-                        <div className="dashboard-chart-loading" role="status">Loading sales activity</div>
-                    ) : hasSalesActivity ? (
-                        <Suspense fallback={<div className="dashboard-chart-loading" role="status">Loading chart</div>}>
-                            <ReactApexChart type="area" height={270} options={chartOptions} series={series} />
-                        </Suspense>
-                    ) : (
-                        <div className="dashboard-chart-empty" role="status">
-                            <span>No paid sales in the last 7 days</span>
-                            <p>Sales activity will appear here when an order is paid.</p>
-                        </div>
-                    )}
-                </article> : null}
-
-                {canViewOrders || canViewProducts || canViewSellers ? <aside className="dashboard-surface dashboard-operations">
-                    <div className="dashboard-section-heading">
-                        <div><h2>Needs attention</h2><p>Keep the marketplace moving</p></div>
-                    </div>
-                    {canViewProducts ? <Link to="/admin/products?status=PENDING_REVIEW" className="dashboard-task">
-                        <span className="dashboard-task-dot warm" />
-                        <span><strong>Product approvals</strong><small>Review seller submissions</small></span>
-                        <b>{summary?.productsAwaitingApproval ?? '—'}</b>
-                    </Link> : null}
-                    {canViewOrders ? <Link to="/admin/orders?status=PROCESSING" className="dashboard-task">
-                        <span className="dashboard-task-dot green" />
-                        <span><strong>Order fulfillment</strong><small>Ready for the next step</small></span>
-                        <b>{summary?.awaitingFulfillment ?? '—'}</b>
-                    </Link> : null}
-                    {canViewSellers ? <div className="dashboard-seller-note">
-                        <span className="dashboard-seller-mark">S</span>
-                        <span><strong>{summary?.activeSellers ?? '—'} active sellers</strong><small>Contributing to the marketplace</small></span>
-                        <Link to="/admin/sellers" aria-label="View sellers">View</Link>
-                    </div> : null}
-                </aside> : null}
-            </section> : null}
-
-            {canViewOrders ? <section className="dashboard-surface dashboard-recent">
-                <div className="dashboard-section-heading">
-                    <div><h2>Recent orders</h2><p>Latest customer and counter sales</p></div>
-                    <Link to="/admin/orders" className="dashboard-text-link">All orders <span aria-hidden="true">→</span></Link>
-                </div>
-                {loading ? (
-                    <div className="dashboard-loading-rows"><i /><i /><i /></div>
-                ) : recentOrders.length ? (
-                    <div className="dashboard-table-wrap">
-                        <table className="dashboard-orders-table">
-                            <thead><tr><th>Order</th><th>Customer</th><th>Date</th><th>Payment</th><th>Status</th><th className="align-right">Total</th></tr></thead>
-                            <tbody>
-                                {recentOrders.map((order) => (
-                                    <tr key={order.id}>
-                                        <td><Link to={`/admin/orders/${order.id}`} className="dashboard-order-id">{order.orderNumber}</Link></td>
-                                        <td>{order.buyer?.fullName ?? 'Counter customer'}</td>
-                                        <td>{new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</td>
-                                        <td><span className={`dashboard-payment ${order.paymentStatus === 'SUCCESS' ? 'paid' : 'pending'}`}>{order.paymentStatus === 'SUCCESS' ? 'Paid' : order.paymentStatus}</span></td>
-                                        <td><span className={`dashboard-order-status ${String(order.status).toLowerCase()}`}>{String(order.status).replaceAll('_', ' ')}</span></td>
-                                        <td className="align-right font-semibold">{money(order.totalAmount)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                ) : (
-                    <div className="dashboard-empty"><span>Nothing to review yet</span><p>New online and counter orders will appear here.</p></div>
-                )}
-            </section> : null}
-        </main>
-    );
+    const attention = (summary?.awaitingFulfillment || 0) + (summary?.productsAwaitingApproval || 0);
+    return <div className="ws-overview">
+        <div className="ws-page-heading"><div><p className="ws-eyebrow">THE BIG PICTURE</p><h1>Everyday actions. Lasting impact.</h1><p>Your operations at a glance. Here’s where you can make a difference today.</p></div><div className="ws-heading-actions"><span className="ws-date"><Icon name="calendar"/>{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>{overview?.visibility.canCreateSale && <Link className="btn btn-primary" to="/admin/orders?action=create"><Icon name="plus"/>Record a sale</Link>}</div></div>
+        <div className="ws-overview-tabs"><span className="is-active">Overview</span><span className="ws-period">Month to date <span>·</span> {new Date().toLocaleDateString('en-IN', {month: 'long', year: 'numeric'})}</span></div>
+        {error && <div className="ws-error" role="alert"><div><strong>We couldn’t load your overview</strong><p>{error}</p></div><button className="btn btn-outline-dark" disabled={loading} onClick={() => void loadOverview()}>Try again</button></div>}
+        {(loading || canViewOrders) && <section className="ws-metrics" aria-label="Monthly performance">{stats.map((s, i) => <article key={s.label}><span className="ws-metric-label">{s.label}<span>0{i+1}</span></span><strong>{loading ? <i className="ws-skeleton"/> : s.value}</strong><small>{s.note}</small></article>)}</section>}
+        {loading ? <div className="ws-page-skeleton" role="status" aria-label="Loading operations"><i/><i/></div> : <>
+        <div className="ws-overview-grid">
+          {canViewOrders && <section className="ws-trend"><div className="ws-section-heading"><div><p className="ws-eyebrow">PERFORMANCE</p><h2>Marketplace activity</h2></div><select aria-label="Chart period" value={days} onChange={e => setDays(Number(e.target.value))}><option value={7}>Last 7 days</option><option value={3}>Last 3 days</option></select></div><div className="ws-chart-toolbar"><div className="ws-segment"><button aria-pressed={metric === 'revenue'} onClick={() => setMetric('revenue')}>Sales revenue</button><button aria-pressed={metric === 'orders'} onClick={() => setMetric('orders')}>Orders</button></div><span><i/> {metric === 'revenue' ? 'Paid order value' : 'Order count'}</span></div><Suspense fallback={<div className="ws-chart-placeholder"/>}><ReactApexChart type="area" height={250} options={chartOptions} series={series}/></Suspense>{!hasSalesActivity && <p className="ws-chart-note">Paid sales will appear here as your marketplace grows.</p>}</section>}
+          <aside className="ws-attention"><div className="ws-section-heading"><div><p className="ws-eyebrow">YOUR NEXT STEPS</p><h2>Needs attention</h2></div><span className="ws-count">{attention}</span></div><p className="ws-muted">A little action goes a long way.</p>
+            {canViewProducts && <Link className="ws-task" to="/admin/products?status=PENDING_REVIEW"><span className="ws-task-icon"><Icon name="tag"/></span><span><strong>Review product submissions</strong><small>{summary?.productsAwaitingApproval || 0} products waiting for approval</small></span><Icon name="arrow"/></Link>}
+            {canViewOrders && <Link className="ws-task" to="/admin/orders?status=PROCESSING"><span className="ws-task-icon"><Icon name="box"/></span><span><strong>Move orders forward</strong><small>{summary?.awaitingFulfillment || 0} orders awaiting fulfillment</small></span><Icon name="arrow"/></Link>}
+            {canViewSellers && <Link className="ws-network" to="/admin/sellers"><span className="ws-network-avatars"><b>S</b><b>U</b><b>+</b></span><strong>{summary?.activeSellers || 0} active sellers<small>One connected community</small></strong><Icon name="arrow"/></Link>}
+            {!canViewOrders && !canViewProducts && !canViewSellers && <p className="ws-search-note">Use the navigation to open the workflows available to your role.</p>}
+          </aside>
+        </div>
+        {canViewOrders && <section className="ws-recent"><div className="ws-section-heading"><div><p className="ws-eyebrow">LATEST MOVEMENT</p><h2>Recent orders</h2></div><Link to="/admin/orders" className="ws-text-link">View all orders <Icon name="arrow"/></Link></div>{recentOrders.length ? <div className="ws-table-scroll"><table><thead><tr><th>Order reference</th><th>Customer</th><th>Date</th><th>Payment</th><th>Fulfillment</th><th className="ws-number">Amount</th><th><span className="sr-only">Details</span></th></tr></thead><tbody>{recentOrders.map(order => <tr key={order.id}><td><Link className="ws-record-link" to={`/admin/orders/${order.id}`}>{order.orderNumber}</Link></td><td><div className="ws-person"><span className="ws-avatar">{(order.buyer?.fullName || 'C').slice(0,1)}</span>{order.buyer?.fullName || 'Counter customer'}</div></td><td>{shortDate(order.createdAt)}</td><td><StatusBadge status={order.paymentStatus === 'SUCCESS' ? 'SUCCESS' : order.paymentStatus}/></td><td><StatusBadge status={order.status}/></td><td className="ws-number">{money(order.totalAmount)}</td><td><Link className="ws-icon-button" aria-label={`View order ${order.orderNumber}`} to={`/admin/orders/${order.id}`}><Icon name="arrow"/></Link></td></tr>)}</tbody></table></div> : <div className="ws-empty"><Icon name="box"/><h3>Your next chapter starts with an order</h3><p>Online and counter sales will appear here. Open orders to get started.</p><Link className="btn btn-outline-dark" to="/admin/orders">Go to orders <Icon name="arrow"/></Link></div>}</section>}
+        </>}
+    </div>;
 };
-
 export default Dashboard;

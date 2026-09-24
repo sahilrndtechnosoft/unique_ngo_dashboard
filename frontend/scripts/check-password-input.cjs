@@ -1,0 +1,32 @@
+// Run: node frontend/scripts/check-password-input.cjs
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const ts = require('typescript');
+const path = require('node:path');
+let visible = false;
+const source = fs.readFileSync(path.join(__dirname, '../src/components/Auth/PasswordInput.tsx'), 'utf8');
+const code = ts.transpileModule(source, { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS } }).outputText;
+const output = { exports: {} };
+new Function('require', 'module', 'exports', code)(name => {
+    if (name === 'react') return { useId: () => 'password', useState: () => [visible, update => { visible = update(visible); }] };
+    if (name.includes('IconEye')) return { default: () => null };
+    return require(name);
+}, output, output.exports);
+const render = () => output.exports.default({ id: 'login-password', value: 'test-value', autoComplete: 'current-password' }).props.children;
+let [input, button] = render();
+assert.equal(input.props.type, 'password');
+assert.equal(button.props.type, 'button');
+assert.equal(button.props['aria-controls'], input.props.id);
+assert.equal(button.props['aria-label'], 'Show password');
+button.props.onClick();
+[input, button] = render();
+assert.equal(input.props.type, 'text');
+assert.equal(input.props.value, 'test-value');
+assert.equal(button.props['aria-label'], 'Hide password');
+assert.equal(button.props['aria-pressed'], true);
+button.props.onClick();
+[input, button] = render();
+assert.equal(input.props.type, 'password');
+assert.equal(input.props.value, 'test-value');
+assert.equal(button.props['aria-pressed'], false);
+console.log('Password visibility, accessible labels, value preservation, and non-submit toggle passed.');

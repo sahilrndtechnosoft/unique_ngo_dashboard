@@ -154,13 +154,13 @@ export function StatusBadge({ status }: { status: string }) {
     const normalizedStatus = status.toUpperCase();
     const tone = ['ACTIVE', 'APPROVED', 'COMPLETED', 'DELIVERED', 'FULFILLED', 'PUBLISHED', 'SUCCESS', 'TRANSFERRED', 'VERIFIED'].includes(normalizedStatus)
         ? 'badge-outline-success'
-        : ['PENDING', 'PENDING_REVIEW', 'PENDING_VERIFICATION', 'PENDING_APPROVAL', 'UNDER_REVIEW', 'PROCESSING', 'OUT_FOR_DELIVERY', 'PARTIALLY_FULFILLED', 'PARTIALLY_REFUNDED', 'OUT_OF_STOCK', 'REQUESTED', 'AVAILABLE', 'PAUSED'].includes(normalizedStatus)
+        : ['PENDING', 'PENDING_REVIEW', 'PENDING_VERIFICATION', 'PENDING_APPROVAL', 'UNDER_REVIEW', 'PROCESSING', 'OUT_FOR_DELIVERY', 'PARTIALLY_FULFILLED', 'PARTIALLY_REFUNDED', 'OUT_OF_STOCK', 'REQUESTED', 'AVAILABLE', 'PAUSED', 'SCHEDULED'].includes(normalizedStatus)
           ? 'badge-outline-warning'
-          : ['REJECTED', 'SUSPENDED', 'BANNED', 'INACTIVE', 'CANCELLED', 'REFUNDED', 'FAILED', 'EXPIRED', 'NO_SHOW', 'NEEDS_REPAIR', 'OUT_OF_SERVICE'].includes(normalizedStatus)
+          : ['REJECTED', 'SUSPENDED', 'BANNED', 'INACTIVE', 'CANCELLED', 'REFUNDED', 'FAILED', 'EXPIRED', 'EXHAUSTED', 'NO_SHOW', 'NEEDS_REPAIR', 'OUT_OF_SERVICE'].includes(normalizedStatus)
             ? 'badge-outline-danger'
             : 'badge-outline-primary';
 
-    return <span className={`badge ${tone}`}>{status}</span>;
+    return <span className={`badge ${tone}`}>{status.toLowerCase().replaceAll('_', ' ')}</span>;
 }
 
 export function FormField({
@@ -215,7 +215,7 @@ export function FormSection({
     className?: string;
 }) {
     return (
-        <div className={`space-y-4 ${className}`}>
+        <div className={`ws-form-section space-y-4 ${className}`}>
             <div className="border-b border-[#ebedf2] pb-2 dark:border-[#191e3a]">
                 <h6 className="text-sm font-semibold dark:text-white-light">{title}</h6>
                 {description ? <p className="mt-1 text-xs text-white-dark">{description}</p> : null}

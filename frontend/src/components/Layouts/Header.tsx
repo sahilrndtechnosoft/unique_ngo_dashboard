@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { IRootState } from '../../store';
@@ -15,6 +15,8 @@ import IconLogout from '../Icon/IconLogout';
 import IconCaretDown from '../Icon/IconCaretDown';
 import { mediaUrl } from '../../services/api';
 import { logout } from '../../services/auth.service';
+import IconSearch from '../Icon/IconSearch';
+import { adminMenuGroups, canAccess } from '../../config/admin-menu';
 
 const Header = () => {
     const location = useLocation();
@@ -23,11 +25,13 @@ const Header = () => {
     const themeConfig = useSelector((state: IRootState) => state.themeConfig);
     const pageTitle = themeConfig.pageTitle || 'Dashboard';
     const isRtl = themeConfig.rtlClass === 'rtl';
-    const { user, refreshToken } = useSelector((state: IRootState) => state.auth);
+    const { user, refreshToken, permissions, isSuperAdmin } = useSelector((state: IRootState) => state.auth);
     const branding = useSelector((state: IRootState) => state.settings);
     const logoSrc = branding.logoUrl ? mediaUrl(branding.logoUrl) : '/assets/images/logo.svg';
     const brandName = branding.companyName || 'Unique NGO';
     const [flag, setFlag] = useState(themeConfig.locale);
+    const [quickSearch, setQuickSearch] = useState('');
+    const [quickSearchOpen, setQuickSearchOpen] = useState(false);
     const [isMobileViewport, setIsMobileViewport] = useState(() => window.matchMedia('(max-width: 1023px)').matches);
 
     useEffect(() => {
@@ -49,9 +53,34 @@ const Header = () => {
         document.title = `${pageTitle} | Unique NGO Dashboard`;
     }, [pageTitle]);
 
+    useEffect(() => {
+        const onShortcut = (event: KeyboardEvent) => {
+            if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+                event.preventDefault();
+                document.getElementById('workspace-quick-search')?.focus();
+                setQuickSearchOpen(true);
+            }
+        };
+        window.addEventListener('keydown', onShortcut);
+        return () => window.removeEventListener('keydown', onShortcut);
+    }, []);
+
     const setLocale = (nextFlag: string) => {
         setFlag(nextFlag);
         dispatch(toggleRTL(nextFlag.toLowerCase() === 'ae' ? 'rtl' : 'ltr'));
+    };
+
+    const quickLinks = useMemo(
+        () => adminMenuGroups.flatMap((group) => group.items.filter((item) => canAccess(isSuperAdmin, permissions, item.permission))),
+        [isSuperAdmin, permissions],
+    );
+    const quickMatches = quickLinks
+        .filter((item) => `${item.label} ${item.to}`.toLowerCase().includes(quickSearch.trim().toLowerCase()))
+        .slice(0, 6);
+    const goToQuickMatch = (to: string) => {
+        navigate(to);
+        setQuickSearch('');
+        setQuickSearchOpen(false);
     };
 
     const handleLogout = async () => {
@@ -95,6 +124,56 @@ const Header = () => {
                                 <li className="workspace-crumb-current truncate" aria-current="page" aria-live="polite">{pageTitle}</li>
                             </ol>
                         </nav>
+                    </div>
+
+                    <div className="workspace-global-search relative hidden lg:block ltr:ml-8 rtl:mr-8">
+                        <form
+                            role="search"
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                if (quickMatches[0]) goToQuickMatch(quickMatches[0].to);
+                            }}
+                        >
+                            <label className="sr-only" htmlFor="workspace-quick-search">Jump to a page</label>
+                            <IconSearch className="pointer-events-none absolute top-1/2 ltr:left-3 rtl:right-3 h-4 w-4 -translate-y-1/2 text-white-dark" />
+                            <input
+                                id="workspace-quick-search"
+                                className="workspace-quick-search-input form-input w-[min(28vw,280px)] ltr:pl-9 rtl:pr-9"
+                                placeholder="Jump to a page"
+                                value={quickSearch}
+                                onFocus={() => setQuickSearchOpen(true)}
+                                onBlur={() => setQuickSearchOpen(false)}
+                                onChange={(event) => {
+                                    setQuickSearch(event.target.value);
+                                    setQuickSearchOpen(true);
+                                }}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Escape') {
+                                        setQuickSearchOpen(false);
+                                        event.currentTarget.blur();
+                                    }
+                                }}
+                                aria-expanded={quickSearchOpen && Boolean(quickSearch.trim())}
+                                aria-controls="workspace-quick-search-results"
+                            />
+                        </form>
+                        {quickSearchOpen && quickSearch.trim() ? (
+                            <div id="workspace-quick-search-results" className="workspace-quick-search-results absolute top-[calc(100%+8px)] z-50 w-full overflow-hidden rounded-lg border bg-white shadow-lg dark:bg-[#151f30]" role="listbox">
+                                {quickMatches.length ? quickMatches.map((item) => (
+                                    <button
+                                        key={item.to}
+                                        type="button"
+                                        className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm hover:bg-primary/10 hover:text-primary"
+                                        role="option"
+                                        onMouseDown={(event) => event.preventDefault()}
+                                        onClick={() => goToQuickMatch(item.to)}
+                                    >
+                                        <span>{item.label}</span>
+                                        <span className="text-xs text-white-dark">{item.to}</span>
+                                    </button>
+                                )) : <p className="px-3 py-3 text-sm text-white-dark">No matching page</p>}
+                            </div>
+                        ) : null}
                     </div>
 
                     <div className="ltr:ml-auto rtl:mr-auto flex items-center space-x-1.5 lg:space-x-2 rtl:space-x-reverse dark:text-[#d0d2d6]">
