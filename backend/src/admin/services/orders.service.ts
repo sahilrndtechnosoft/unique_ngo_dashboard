@@ -183,7 +183,6 @@ export class AdminOrdersService {
       if (!allowedOrderTransitions[order.status].includes(dto.status) && !pickupDelivery) {
         throw new ConflictException(`Cannot move an order from ${order.status} to ${dto.status}`);
       }
-
       const shipment = await tx.shipments.findUnique({ where: { order_id: orderId } });
       if (dto.status === order_status.SHIPPED && order.shipping_type === 'PICKUP') {
         throw new ConflictException('Mark a counter pickup as delivered instead of shipped');
@@ -206,6 +205,13 @@ export class AdminOrdersService {
         !['PENDING', 'FAILED', 'CANCELLED'].includes(shipment.status)
       ) {
         throw new ConflictException('Cancel the active Shiprocket shipment before cancelling this order');
+      }
+      if (
+        order.payment_method !== 'COD' &&
+        order.payment_status !== payment_status.SUCCESS &&
+        ([order_status.PROCESSING, order_status.SHIPPED, order_status.OUT_FOR_DELIVERY, order_status.DELIVERED] as order_status[]).includes(dto.status)
+      ) {
+        throw new ConflictException('Resolve the payment before fulfilling this order');
       }
 
       const changed = await tx.orders.updateMany({

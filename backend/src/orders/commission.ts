@@ -7,6 +7,16 @@ type CommissionRates = {
   platform: Prisma.Decimal;
 };
 
+export function calculateLineTax(
+  subtotal: Prisma.Decimal,
+  isTaxable: boolean,
+  taxRate: Prisma.Decimal,
+) {
+  return isTaxable
+    ? subtotal.mul(taxRate).div(100).toDecimalPlaces(2)
+    : new Prisma.Decimal(0);
+}
+
 export function allocateDiscountByLine(
   lines: Array<{ id: string; subtotal: Prisma.Decimal }>,
   discount: Prisma.Decimal,

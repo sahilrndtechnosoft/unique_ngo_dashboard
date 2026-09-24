@@ -91,6 +91,13 @@ export class AdminProductsController {
     return this.productsService.listVariants(id);
   }
 
+  @Get(':id/moderation-history')
+  @RequirePermissions(AppModule.PRODUCTS, PermissionAction.VIEW)
+  @ResponseMessage('Product moderation history fetched successfully')
+  getModerationHistory(@Param('id') id: string) {
+    return this.productsService.getModerationHistory(id);
+  }
+
   @Get(':id')
   @RequirePermissions(AppModule.PRODUCTS, PermissionAction.VIEW)
   @ResponseMessage('Product fetched successfully')
@@ -247,6 +254,7 @@ export class SellerProductsController {
     return this.productsService.updateProduct(id, dto, {
       isAdmin: false,
       sellerProfileId: sellerId,
+      actorId: user.sub,
     });
   }
 

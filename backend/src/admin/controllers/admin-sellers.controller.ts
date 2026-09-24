@@ -71,6 +71,13 @@ export class AdminSellersController {
     return this.adminSellersService.getSeller(id);
   }
 
+  @Get(':id/moderation-history')
+  @RequirePermissions(AppModule.SELLERS, PermissionAction.VIEW)
+  @ResponseMessage('Seller moderation history fetched successfully')
+  getModerationHistory(@Param('id') id: string) {
+    return this.adminSellersService.getModerationHistory(id);
+  }
+
   @Post()
   @RequirePermissions(AppModule.SELLERS, PermissionAction.CREATE)
   @ResponseMessage('Seller created successfully')

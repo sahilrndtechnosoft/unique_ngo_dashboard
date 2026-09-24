@@ -47,6 +47,18 @@ export class ProductsService {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
+    const activeSellerIds = options?.forcedStatus === product_status.ACTIVE
+      ? (await this.prisma.seller_profiles.findMany({
+          where: { status: seller_status.ACTIVE, deleted_at: null },
+          select: { id: true },
+        })).map((seller) => seller.id)
+      : undefined;
+    const activeCategoryIds = options?.forcedStatus === product_status.ACTIVE
+      ? (await this.prisma.product_categories.findMany({
+          where: { is_active: true },
+          select: { id: true },
+        })).map((category) => category.id)
+      : undefined;
 
     const where: Prisma.productsWhereInput = {
       deleted_at: null,
@@ -60,6 +72,14 @@ export class ProductsService {
         : query.status
           ? { status: query.status }
           : {}),
+      ...(options?.forcedStatus === product_status.ACTIVE
+        ? {
+            AND: [
+              { OR: [{ seller_id: null }, { seller_id: { in: activeSellerIds } }] },
+              { category_id: { in: activeCategoryIds } },
+            ],
+          }
+        : {}),
       ...(query.search
         ? {
             OR: [
@@ -102,7 +122,7 @@ export class ProductsService {
         this.toPublic(row, imagesByProduct.get(row.id) ?? [], {
           category: categoriesById.get(row.category_id),
           seller: row.seller_id ? sellersById.get(row.seller_id) : undefined,
-        }),
+        }, [], options?.forcedStatus !== product_status.ACTIVE),
       ),
       meta: {
         page,
@@ -115,14 +135,15 @@ export class ProductsService {
 
   async getProduct(productId: string, sellerId?: string) {
     const product = await this.findProductOrThrow(productId, sellerId);
-    const [images, relations] = await Promise.all([
+    const [images, relations, variants] = await Promise.all([
       this.prisma.product_images.findMany({
         where: { product_id: productId },
         orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }],
       }),
       this.getRelationsFor(product),
+      this.getPublicVariants(product.id),
     ]);
-    return this.toPublic(product, images, relations);
+    return this.toPublic(product, images, relations, variants, true);
   }
 
   async listVariants(productId: string) {
@@ -162,15 +183,21 @@ export class ProductsService {
       });
       if (!seller) throw new NotFoundException('Product not found');
     }
+    const category = await this.prisma.product_categories.findFirst({
+      where: { id: product.category_id, is_active: true },
+      select: { id: true },
+    });
+    if (!category) throw new NotFoundException('Product not found');
 
-    const [images, relations] = await Promise.all([
+    const [images, relations, variants] = await Promise.all([
       this.prisma.product_images.findMany({
         where: { product_id: product.id },
         orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }],
       }),
       this.getRelationsFor(product),
+      this.getPublicVariants(product.id),
     ]);
-    return this.toPublic(product, images, relations);
+    return this.toPublic(product, images, relations, variants, false);
   }
 
   async getPlatformCommissionRate() {
@@ -256,6 +283,8 @@ export class ProductsService {
     options: { isAdmin: boolean; sellerProfileId?: string; actorId: string },
   ) {
     await this.ensureCategoryExists(dto.categoryId);
+    this.ensurePriceIntegrity(dto.price, dto.compareAtPrice);
+    await this.ensureSkuAvailable(dto.sku);
 
     let sellerId = options.sellerProfileId;
     let isAdminProduct = false;
@@ -270,9 +299,12 @@ export class ProductsService {
       sellerId = adminDto.sellerId;
       // An admin can create on behalf of a seller; ownership follows sellerId.
       isAdminProduct = !adminDto.sellerId;
-      status = adminDto.status ?? product_status.ACTIVE;
-      if (status === product_status.ACTIVE && seller && seller.status !== seller_status.ACTIVE) {
-        throw new BadRequestException('Activate the seller account before activating its products');
+      if (seller && seller.status !== seller_status.ACTIVE) {
+        throw new BadRequestException('Activate the seller account before creating its products');
+      }
+      status = adminDto.sellerId ? product_status.PENDING_REVIEW : (adminDto.status ?? product_status.ACTIVE);
+      if (adminDto.sellerId && adminDto.status === product_status.ACTIVE) {
+        throw new BadRequestException('Seller products must be approved through the product review action');
       }
     } else {
       if (!sellerId) {
@@ -338,6 +370,13 @@ export class ProductsService {
       throw new BadRequestException('Use the explicit approve or reject action to complete product review');
     }
 
+    if (options.isAdmin && product.seller_id && dto.status === product_status.ACTIVE && product.status !== product_status.ACTIVE) {
+      throw new BadRequestException('Use the explicit approve action to publish a seller product');
+    }
+    if (options.isAdmin && product.seller_id && dto.status === product_status.REJECTED) {
+      throw new BadRequestException('Use the explicit reject action to reject a seller product');
+    }
+
     if (options.isAdmin && dto.status === product_status.ACTIVE && product.seller_id) {
       const seller = await this.prisma.seller_profiles.findFirst({
         where: { id: product.seller_id, status: seller_status.ACTIVE, deleted_at: null },
@@ -349,6 +388,13 @@ export class ProductsService {
     if (dto.categoryId) {
       await this.ensureCategoryExists(dto.categoryId);
     }
+    this.ensurePriceIntegrity(
+      dto.price ?? Number(product.price),
+      dto.compareAtPrice !== undefined
+        ? dto.compareAtPrice
+        : product.compare_at_price === null ? null : Number(product.compare_at_price),
+    );
+    if (dto.sku !== undefined) await this.ensureSkuAvailable(dto.sku, productId);
 
     let slug: string | undefined;
     if (dto.slug || dto.name) {
@@ -416,6 +462,15 @@ export class ProductsService {
         updated_at: new Date(),
       },
     });
+    if (status !== undefined && status !== product.status && options.actorId) {
+      await this.recordModerationEvent({
+        entityType: 'PRODUCT',
+        entityId: productId,
+        previousStatus: product.status,
+        newStatus: status,
+        actorId: options.actorId,
+      });
+    }
     const [images, relations] = await Promise.all([
       this.prisma.product_images.findMany({
         where: { product_id: productId },
@@ -462,6 +517,13 @@ export class ProductsService {
       },
     });
     if (!approved.count) throw new ConflictException('Product review was already completed');
+    await this.recordModerationEvent({
+      entityType: 'PRODUCT',
+      entityId: productId,
+      previousStatus: product_status.PENDING_REVIEW,
+      newStatus: product_status.ACTIVE,
+      actorId,
+    });
     const updated = await this.prisma.products.findUniqueOrThrow({ where: { id: productId } });
 
     const [images, relations] = await Promise.all([
@@ -502,6 +564,14 @@ export class ProductsService {
       },
     });
     if (!rejected.count) throw new ConflictException('Product review was already completed');
+    await this.recordModerationEvent({
+      entityType: 'PRODUCT',
+      entityId: productId,
+      previousStatus: product_status.PENDING_REVIEW,
+      newStatus: product_status.REJECTED,
+      actorId,
+      reason: dto.reason,
+    });
     const updated = await this.prisma.products.findUniqueOrThrow({ where: { id: productId } });
 
     const [images, relations] = await Promise.all([
@@ -511,6 +581,14 @@ export class ProductsService {
       this.getRelationsFor(updated),
     ]);
     return this.toPublic(updated, images, relations);
+  }
+
+  async getModerationHistory(productId: string) {
+    await this.findProductOrThrow(productId);
+    return this.prisma.marketplace_moderation_events.findMany({
+      where: { entity_type: 'PRODUCT', entity_id: productId },
+      orderBy: { created_at: 'desc' },
+    });
   }
 
   async deleteProduct(productId: string, sellerId?: string) {
@@ -669,6 +747,23 @@ export class ProductsService {
     }
   }
 
+  private ensurePriceIntegrity(price?: number, compareAtPrice?: number | null) {
+    if (price !== undefined && price < 0) throw new BadRequestException('Product price cannot be negative');
+    if (price !== undefined && compareAtPrice !== undefined && compareAtPrice !== null && compareAtPrice < price) {
+      throw new BadRequestException('Compare-at price must be greater than or equal to the selling price');
+    }
+  }
+
+  private async ensureSkuAvailable(sku?: string | null, excludeProductId?: string) {
+    const normalized = sku?.trim();
+    if (!normalized) return;
+    const [product, variant] = await Promise.all([
+      this.prisma.products.findFirst({ where: { sku: normalized, deleted_at: null, ...(excludeProductId ? { NOT: { id: excludeProductId } } : {}) }, select: { id: true } }),
+      this.prisma.product_variants.findFirst({ where: { sku: normalized }, select: { id: true } }),
+    ]);
+    if (product || variant) throw new ConflictException(`SKU "${normalized}" is already in use`);
+  }
+
   private async ensureSellerExists(sellerId: string): Promise<seller_profiles> {
     const seller = await this.prisma.seller_profiles.findFirst({
       where: { id: sellerId, deleted_at: null },
@@ -699,6 +794,26 @@ export class ProductsService {
     return slug;
   }
 
+  private async recordModerationEvent(event: {
+    entityType: string;
+    entityId: string;
+    previousStatus: string;
+    newStatus: string;
+    actorId: string;
+    reason?: string;
+  }) {
+    await this.prisma.marketplace_moderation_events.create({
+      data: {
+        entity_type: event.entityType,
+        entity_id: event.entityId,
+        previous_status: event.previousStatus,
+        new_status: event.newStatus,
+        actor_id: event.actorId,
+        reason: event.reason ?? null,
+      },
+    });
+  }
+
   private async getRelationsFor(product: products) {
     const [category, seller] = await Promise.all([
       this.prisma.product_categories.findUnique({
@@ -717,6 +832,24 @@ export class ProductsService {
       category: category ? this.toPublicCategory(category) : undefined,
       seller: seller ? this.toPublicSeller(seller, user) : undefined,
     };
+  }
+
+  private async getPublicVariants(productId: string) {
+    const variants = await this.prisma.product_variants.findMany({
+      where: { product_id: productId, is_active: true },
+      orderBy: { created_at: 'asc' },
+    });
+    return variants.map((variant) => ({
+      id: variant.id,
+      name: variant.name,
+      sku: variant.sku,
+      price: Number(variant.price),
+      compareAtPrice: variant.compare_at_price === null ? null : Number(variant.compare_at_price),
+      stockQuantity: variant.stock_quantity,
+      weightGrams: variant.weight_grams,
+      imageUrl: variant.image_url,
+      attributes: variant.attributes,
+    }));
   }
 
   private async getCategoriesById(categoryIds: string[]) {
@@ -815,11 +948,26 @@ export class ProductsService {
       category?: ReturnType<ProductsService['toPublicCategory']>;
       seller?: ReturnType<ProductsService['toPublicSeller']>;
     },
+    variants: Array<Record<string, unknown>> = [],
+    includeInternal = true,
   ) {
     return {
       id: product.id,
       sellerId: product.seller_id,
-      seller: relations?.seller ?? null,
+      seller: includeInternal
+        ? relations?.seller ?? null
+        : relations?.seller
+          ? {
+              id: relations.seller.id,
+              businessName: relations.seller.businessName,
+              businessType: relations.seller.businessType,
+              description: relations.seller.description,
+              logoUrl: relations.seller.logoUrl,
+              bannerUrl: relations.seller.bannerUrl,
+              rating: relations.seller.rating,
+              totalReviews: relations.seller.totalReviews,
+            }
+          : null,
       categoryId: product.category_id,
       category: relations?.category ?? null,
       name: product.name,
@@ -833,8 +981,6 @@ export class ProductsService {
       compareAtPrice: product.compare_at_price
         ? Number(product.compare_at_price)
         : null,
-      commissionRate:
-        product.commission_rate === null ? null : Number(product.commission_rate),
       stockQuantity: product.stock_quantity,
       weightGrams: product.weight_grams,
       lengthCm: product.length_cm === null ? null : Number(product.length_cm),
@@ -842,13 +988,19 @@ export class ProductsService {
       heightCm: product.height_cm === null ? null : Number(product.height_cm),
       tags: product.tags,
       isFeatured: product.is_featured,
-      isAdminProduct: product.is_admin_product,
       allowCod: product.allow_cod,
       isReturnable: product.is_returnable,
       returnDays: product.return_days,
-      rejectionReason: product.rejection_reason,
-      verifiedAt: product.verified_at,
       images: images.map((image) => this.toPublicImage(image)),
+      variants,
+      ...(includeInternal
+        ? {
+            commissionRate: product.commission_rate === null ? null : Number(product.commission_rate),
+            isAdminProduct: product.is_admin_product,
+            rejectionReason: product.rejection_reason,
+            verifiedAt: product.verified_at,
+          }
+        : {}),
       createdAt: product.created_at,
       updatedAt: product.updated_at,
     };

@@ -14,7 +14,7 @@ import { generateSecureToken } from '../common/utils/crypto.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddressesService } from '../addresses/addresses.service';
 import { CouponsService } from '../coupons/services/coupons.service';
-import { allocateAmountByLine, allocateDiscountByLine, calculateLineCommission, calculateSellerPayout } from './commission';
+import { allocateAmountByLine, allocateDiscountByLine, calculateLineCommission, calculateLineTax, calculateSellerPayout } from './commission';
 import { assertCashOnDeliveryAllowed } from './order-validation';
 import { CheckoutDto, ListOrdersQueryDto } from './dto/order.dto';
 import { CreateAdminSaleDto } from '../admin/dto/order.dto';
@@ -136,9 +136,7 @@ export class OrdersService {
             platform: platformRate,
           });
           const { rate: commissionRate, amount: lineCommission } = commission;
-          const lineTax = product.is_taxable
-            ? lineSubtotal.mul(product.tax_rate).div(100).toDecimalPlaces(2)
-            : new Prisma.Decimal(0);
+          const lineTax = calculateLineTax(lineSubtotal, product.is_taxable, product.tax_rate);
 
           if (sellerId) await this.lockActiveSeller(tx, sellerId, product.name);
           if (variant) await this.lockActiveProduct(tx, product.id, product.name);
@@ -414,9 +412,7 @@ export class OrdersService {
             platform: platformRate,
           });
           const { rate: commissionRate, amount: lineCommission } = commission;
-          const lineTax = product.is_taxable
-            ? discountedSubtotal.mul(product.tax_rate).div(100).toDecimalPlaces(2)
-            : new Prisma.Decimal(0);
+          const lineTax = calculateLineTax(discountedSubtotal, product.is_taxable, product.tax_rate);
 
           subtotal = subtotal.add(lineSubtotal);
           discountAmount = discountAmount.add(lineDiscount);
