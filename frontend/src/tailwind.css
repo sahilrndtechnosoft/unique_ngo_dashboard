@@ -1153,6 +1153,153 @@ pre.hljs {
 .app-workspace .scrumboard .task:hover, .app-workspace .kanban-board .task:hover, .app-workspace .list-view > *:hover { border-color: #c5d4f3; box-shadow: 0 10px 24px rgb(20 36 64 / 9%); transform: translateY(-2px); }
 @media (max-width: 1023px) { .app-workspace-content { padding: 22px 18px 32px !important; } .app-topbar > div > div:first-child { padding-inline: 16px; } }
 
+/* Final interaction pass for the shared admin shell. */
+@media (min-width: 1024px) {
+    /* The header owns desktop sidebar toggling; keep the nav chrome clean. */
+    .admin-sidebar > div > div:first-child .collapse-icon { display: none; }
+    .admin-sidebar .main-logo { padding-inline: 18px; }
+}
+
+@media (max-width: 1023px) {
+    .admin-sidebar { width: min(300px, 88vw) !important; }
+    .admin-sidebar .main-logo { padding-inline: 16px; }
+}
+
+.app-workspace-content .admin-data-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.app-workspace-content .admin-data-table tbody tr:focus-within {
+    outline: 2px solid var(--workspace-focus-ring);
+    outline-offset: -2px;
+}
+
+.app-workspace-content .admin-data-table tbody td:first-child {
+    color: var(--workspace-ink);
+}
+
+.app-workspace .form-input::placeholder,
+.app-workspace .form-textarea::placeholder {
+    color: var(--workspace-muted);
+    opacity: .8;
+}
+
+.app-workspace .form-input:focus,
+.app-workspace .form-select:focus,
+.app-workspace textarea:focus {
+    border-color: var(--workspace-accent);
+    box-shadow: 0 0 0 3px var(--workspace-focus-ring);
+}
+
+.app-workspace .btn:disabled,
+.app-workspace .form-input:disabled,
+.app-workspace .form-select:disabled,
+.app-workspace textarea:disabled {
+    cursor: not-allowed;
+    opacity: .6;
+}
+
+.dark .app-topbar {
+    background: rgb(14 22 37 / 94%);
+}
+
+.dark .app-workspace-content .admin-data-table thead th,
+.dark .app-workspace-content .admin-table-pagination {
+    background: #111c2e !important;
+}
+
+.dark .app-workspace-content .admin-data-table tbody tr:hover > td {
+    background: #1a2940;
+}
+
+.dark .admin-table-skeleton {
+    background: linear-gradient(90deg, #263752 25%, #1b2940 50%, #263752 75%);
+    background-size: 200% 100%;
+}
+
+/* Executive workspace composition: compact metrics, open surfaces, clear priority. */
+.commerce-dashboard {
+    max-width: 1480px;
+    margin-inline: auto;
+    gap: 24px;
+}
+
+.dashboard-heading {
+    align-items: flex-end;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--workspace-border);
+}
+
+.dashboard-heading h1 {
+    font-size: clamp(22px, 2.2vw, 30px);
+    letter-spacing: -0.02em;
+}
+
+.dashboard-eyebrow {
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.dashboard-stats {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0;
+    border: 1px solid var(--workspace-border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--workspace-surface);
+}
+
+.dashboard-stat {
+    border: 0;
+    border-right: 1px solid var(--workspace-border);
+    border-radius: 0;
+    padding: 16px;
+    box-shadow: none;
+}
+
+.dashboard-stat:last-child { border-right: 0; }
+.dashboard-stat:hover { transform: none; background: var(--workspace-accent-soft); box-shadow: none; }
+.dashboard-stat-icon { width: 30px; border-radius: 8px; background: var(--workspace-accent-soft); color: var(--workspace-accent); }
+.dashboard-stat-icon.mint { background: #e9f7f0; color: #167a52; }
+.dashboard-stat-icon.sky { background: #eaf2ff; color: #2563eb; }
+.dashboard-stat-icon.amber { background: #fff4df; color: #9a6415; }
+.dashboard-stat-icon.rose { background: #fceeed; color: #b64d58; }
+
+.dashboard-stat > p { margin-top: 13px; font-size: 11px; }
+.dashboard-stat > strong { font-size: 21px; letter-spacing: -0.02em; }
+
+.dashboard-surface {
+    border-radius: 12px;
+    box-shadow: none;
+}
+
+.dashboard-main-grid { grid-template-columns: minmax(0, 1.4fr) minmax(300px, .6fr); gap: 16px; }
+.dashboard-task { min-height: 64px; }
+.dashboard-orders-table th { position: sticky; top: 0; z-index: 1; }
+
+.dark .dashboard-stat-icon.mint { background: #17382b; color: #98e0bd; }
+.dark .dashboard-stat-icon.sky { background: #1b3154; color: #9dbfff; }
+.dark .dashboard-stat-icon.amber { background: #3b301e; color: #f2c77d; }
+.dark .dashboard-stat-icon.rose { background: #3d292f; color: #f1a9b0; }
+
+@media (max-width: 1280px) {
+    .dashboard-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .dashboard-stat { border-bottom: 1px solid var(--workspace-border); }
+    .dashboard-stat:nth-child(3n) { border-right: 0; }
+    .dashboard-stat:nth-last-child(-n + 3) { border-bottom: 0; }
+}
+
+@media (max-width: 640px) {
+    .dashboard-heading { align-items: flex-start; }
+    .dashboard-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dashboard-stat:nth-child(3n) { border-right: 1px solid var(--workspace-border); }
+    .dashboard-stat:nth-child(2n) { border-right: 0; }
+    .dashboard-stat:nth-last-child(-n + 3) { border-bottom: 1px solid var(--workspace-border); }
+    .dashboard-stat:nth-last-child(-n + 2) { border-bottom: 0; }
+}
+
 .dark .app-workspace-content .admin-filter-bar.panel {
     border-color: #29374b !important;
     background: #151f30 !important;
@@ -1186,6 +1333,13 @@ pre.hljs {
 
 /* Shared workspace system, applied to every authenticated page. */
 :root {
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
     --workspace-bg: #f5f7fb;
     --workspace-surface: #ffffff;
     --workspace-ink: #17243a;
@@ -1463,6 +1617,25 @@ body {
 .app-topbar button,
 .app-topbar a {
     transition: background-color 140ms ease, color 140ms ease;
+}
+
+.workspace-quick-search-input {
+    min-height: 40px !important;
+    border-color: var(--workspace-border) !important;
+    background: var(--workspace-bg) !important;
+}
+
+.workspace-quick-search-input:focus {
+    background: var(--workspace-surface) !important;
+}
+
+.workspace-quick-search-results {
+    border-color: var(--workspace-border);
+}
+
+.dark .workspace-quick-search-input {
+    background: #111c2e !important;
+    color: var(--workspace-ink);
 }
 
 .dark .app-topbar {

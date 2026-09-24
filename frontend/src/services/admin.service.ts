@@ -231,8 +231,11 @@ export const adminApi = {
     getCoupon: (id: string) => api.get(`/admin/coupons/${id}`).then((r) => unwrap(r)),
     getCouponUsages: (id: string) => api.get(`/admin/coupons/${id}/usages`).then((r) => unwrap<any[]>(r)),
     createCoupon: (body: Record<string, unknown>) => api.post('/admin/coupons', body).then((r) => unwrap(r)),
-    updateCoupon: (id: string, body: Record<string, unknown>) =>
-        api.patch(`/admin/coupons/${id}`, body).then((r) => unwrap(r)),
+    updateCoupon: (id: string, body: Record<string, unknown>) => {
+        // Coupon codes are immutable; UpdateCouponDto rejects this field.
+        const { code: _code, ...mutableBody } = body;
+        return api.patch(`/admin/coupons/${id}`, mutableBody).then((r) => unwrap(r));
+    },
     deleteCoupon: (id: string) => api.delete(`/admin/coupons/${id}`).then((r) => unwrap(r)),
 
     listDonationItems: (params?: Record<string, unknown>) =>

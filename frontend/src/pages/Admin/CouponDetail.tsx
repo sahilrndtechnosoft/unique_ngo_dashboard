@@ -8,6 +8,15 @@ import { DetailFacts, StatusBadge } from '../../components/Admin/FormPrimitives'
 import { showAlert } from '../../utils/alerts';
 import IconArrowLeft from '../../components/Icon/IconArrowLeft';
 
+function couponStatus(coupon: any) {
+    const now = Date.now();
+    if (!coupon.isActive) return 'INACTIVE';
+    if (coupon.startsAt && new Date(coupon.startsAt).getTime() > now) return 'SCHEDULED';
+    if (coupon.expiresAt && new Date(coupon.expiresAt).getTime() <= now) return 'EXPIRED';
+    if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) return 'EXHAUSTED';
+    return 'ACTIVE';
+}
+
 export default function CouponDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -50,7 +59,7 @@ export default function CouponDetail() {
             { label: 'Per-User Limit', value: coupon.perUserLimit },
             { label: 'Applicable To', value: coupon.applicableTo },
             { label: 'Expires', value: coupon.expiresAt ? new Date(coupon.expiresAt).toLocaleDateString() : 'Never' },
-            { label: 'Status', value: coupon.isActive ? 'ACTIVE' : 'INACTIVE' },
+            { label: 'Status', value: couponStatus(coupon) },
         ];
     }, [coupon]);
 
@@ -81,7 +90,7 @@ export default function CouponDetail() {
                         <p className="text-white-dark text-sm mt-1">{coupon.description || 'Coupon detail and redemption history'}</p>
                     </div>
                 </div>
-                <StatusBadge status={coupon.isActive ? 'ACTIVE' : 'INACTIVE'} />
+                <StatusBadge status={couponStatus(coupon)} />
             </div>
 
             <div className="panel mb-5">

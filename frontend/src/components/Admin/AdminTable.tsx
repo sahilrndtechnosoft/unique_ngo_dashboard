@@ -1,4 +1,7 @@
-import { ReactNode, useMemo, useState } from 'react';
+import { Children, isValidElement, cloneElement, ReactNode, useMemo, useState } from 'react';
+import Icon from './WorkspaceIcon';
+import { csvCell, matchesTableFilter } from '../../utils/table-data';
+import { showAlert } from '../../utils/alerts';
 import IconPlus from '../Icon/IconPlus';
 import IconSearch from '../Icon/IconSearch';
 import IconTrash from '../Icon/IconTrash';
@@ -36,6 +39,14 @@ export function AdminPageHeader({
     canClear = false,
     actions,
 }: AdminPageHeaderProps) {
+    const accessibleFilters = (nodes: ReactNode): ReactNode => Children.map(nodes, node => {
+        if (!isValidElement<any>(node)) return node;
+        if (node.type === 'select') {
+            const first = Children.toArray(node.props.children).find(isValidElement);
+            return cloneElement(node, { 'aria-label': node.props['aria-label'] || (isValidElement<any>(first) ? String((first.props as { children?: ReactNode }).children) : 'Filter records') });
+        }
+        return node.props.children ? cloneElement(node, { children: accessibleFilters(node.props.children) }) : node;
+    });
     return (
         <div className="admin-page-header mb-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -82,7 +93,7 @@ export function AdminPageHeader({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
-                        {filters}
+                        {accessibleFilters(filters)}
                         <button type="submit" className="btn btn-primary">
                             <IconSearch className="w-4 h-4 ltr:mr-1.5 rtl:ml-1.5" />
                             Search
@@ -187,9 +198,36 @@ export function AdminDataTable<T extends { id: string }>({
     onPageSizeChange,
     emptyText = 'No records found',
 }: AdminDataTableProps<T>) {
+    const [hidden, setHidden] = useState<string[]>([]);
+    const [filterOpen, setFilterOpen] = useState(false);
+    const [filterColumn, setFilterColumn] = useState(columns[0]?.key || '');
+    const [filterQuery, setFilterQuery] = useState('');
+    const [operator, setOperator] = useState('contains');
+    const [viewName, setViewName] = useState('');
+    const viewKey = `workspace-views:${location.pathname}:${columns.map(c => c.key).join(',')}`;
+    type View = { name: string; hidden: string[]; sortKey: string | null; sortDir: SortDirection; filterColumn: string; filterQuery: string; operator: string };
+    const [views, setViews] = useState<View[]>(() => {
+        try { const value = JSON.parse(localStorage.getItem(viewKey) || '[]'); return Array.isArray(value) ? value.filter(v => typeof v.name === 'string' && Array.isArray(v.hidden) && typeof v.filterQuery === 'string') : []; } catch { return []; }
+    });
+    const visibleColumns = columns.filter(c => !hidden.includes(c.key));
+    const textContent = (node: ReactNode): string => {
+        if (typeof node === 'string' || typeof node === 'number') return String(node);
+        if (isValidElement(node)) {
+            if (typeof node.props.status === 'string') return node.props.status;
+            return textContent(node.props.children);
+        }
+        return Children.toArray(node).map(child => isValidElement(child) ? textContent(child) : String(child ?? '')).join(' ');
+    };
+    const cellValue = (row: T, col: AdminColumn<T>) => {
+        const raw = col.sortValue ? col.sortValue(row) : (row as Record<string, unknown>)[col.key];
+        return typeof raw === 'string' || typeof raw === 'number' ? String(raw) : textContent(col.render(row));
+    };
     const [sortKey, setSortKey] = useState<string | null>(null);
     const [sortDir, setSortDir] = useState<SortDirection>('asc');
-    const safeRows = Array.isArray(rows) ? rows : [];
+    const safeRows = (Array.isArray(rows) ? rows : []).filter(row => {
+        const col = columns.find(c => c.key === filterColumn);
+        return !col || matchesTableFilter(cellValue(row, col), filterQuery, operator);
+    });
 
     const sortedRows = useMemo(() => {
         if (!sortKey) return safeRows;
@@ -204,7 +242,7 @@ export function AdminDataTable<T extends { id: string }>({
         return copy;
     }, [safeRows, columns, sortKey, sortDir]);
 
-    const colSpan = columns.length + (actions ? 1 : 0) + (selectable ? 1 : 0);
+    const colSpan = visibleColumns.length + (actions ? 1 : 0) + (selectable ? 1 : 0);
 
     const toggleSort = (column: AdminColumn<T>) => {
         if (!column.sortable) return;
@@ -218,9 +256,20 @@ export function AdminDataTable<T extends { id: string }>({
 
     return (
         <div className="admin-data-table panel p-0">
+            <div className="ws-table-tools"><span>{total.toLocaleString()} records{sortKey ? ' · Sorted on this page' : ''}</span><div>
+                <select aria-label="Saved table views" value="" onChange={e => { const v = views.find(v => v.name === e.target.value); if(v) { setHidden(v.hidden); setSortKey(v.sortKey); setSortDir(v.sortDir); setFilterColumn(v.filterColumn); setFilterQuery(v.filterQuery); setOperator(v.operator); } }}><option value="">Saved views</option>{views.map(v => <option key={v.name}>{v.name}</option>)}</select>
+                <button type="button" className="btn btn-outline-dark" aria-expanded={filterOpen} onClick={() => setFilterOpen(!filterOpen)}><Icon name="filter"/>Refine page{filterQuery ? ' •' : ''}</button>
+                <details><summary><Icon name="panel"/>Columns</summary><div className="ws-column-options">{columns.map(c => <label key={c.key}><input type="checkbox" checked={!hidden.includes(c.key)} disabled={visibleColumns.length === 1 && !hidden.includes(c.key)} onChange={() => setHidden(prev => prev.includes(c.key) ? prev.filter(k => k !== c.key) : [...prev, c.key])}/>{c.label}</label>)}<form onSubmit={e => { e.preventDefault(); const next = [...views.filter(v => v.name !== viewName.trim()), { name: viewName.trim(), hidden, sortKey, sortDir, filterColumn, filterQuery, operator }]; try {localStorage.setItem(viewKey, JSON.stringify(next)); setViews(next); setViewName(''); showAlert('Table view saved');} catch {showAlert('Could not save this view in your browser.', 'error');} }}><input className="form-input" placeholder="Name this table view" aria-label="View name" required maxLength={40} value={viewName} onChange={e => setViewName(e.target.value)}/><button className="btn btn-outline-dark mt-2" disabled={!viewName.trim()}>Save view</button></form></div></details>
+                <button type="button" className="btn btn-outline-dark" disabled={loading || !safeRows.length} onClick={() => {
+                    const output = [visibleColumns.map(c => csvCell(c.label)).join(','), ...sortedRows.filter(r => !selectedIds.length || selectedIds.includes(r.id)).map(row => visibleColumns.map(c => csvCell(textContent(c.render(row)))).join(','))].join('\r\n');
+                    const url = URL.createObjectURL(new Blob(['\uFEFF' + output], { type: 'text/csv;charset=utf-8;' })); const link = document.createElement('a'); link.href = url; link.download = 'workspace-records.csv'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+                }} title="Export visible rows on this page"><Icon name="download"/>{selectedIds.length ? 'Export selected' : 'Export page'}</button>
+            </div></div>
+            {filterOpen && <div className="ws-refine"><span>Refine this page</span><select aria-label="Filter column" value={filterColumn} onChange={e => setFilterColumn(e.target.value)}>{columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}</select><select aria-label="Filter condition" value={operator} onChange={e => setOperator(e.target.value)}><option value="contains">Contains</option><option value="equals">Equals</option><option value="min">At least</option><option value="max">At most</option><option value="after">On or after</option><option value="before">On or before</option></select><input aria-label="Filter value" type={['after','before'].includes(operator) ? 'date' : ['min','max'].includes(operator) ? 'number' : 'text'} placeholder="Filter value…" value={filterQuery} onChange={e => setFilterQuery(e.target.value)}/>{filterQuery && <button type="button" onClick={() => setFilterQuery('')}>Clear ×</button>}<small>Applies to the loaded page. Use search above to filter all records.</small></div>}
+            {filterQuery && !filterOpen && <div className="ws-filter-chips"><button type="button" onClick={() => setFilterQuery('')}>{columns.find(c => c.key === filterColumn)?.label}: {filterQuery} ×</button></div>}
             {loading ? <span className="sr-only" role="status">Loading records</span> : null}
             <div className="overflow-x-auto">
-                <table className="table-striped table-hover text-sm" aria-busy={loading}>
+                <table className="text-sm" aria-busy={loading}>
                     <thead>
                         <tr>
                             {selectable ? (
@@ -228,16 +277,20 @@ export function AdminDataTable<T extends { id: string }>({
                                     <input
                                         type="checkbox"
                                         className="form-checkbox"
-                                        checked={allSelected}
+                                        checked={filterQuery ? safeRows.length > 0 && safeRows.every(row => selectedIds.includes(row.id)) : allSelected}
                                         ref={(el) => {
-                                            if (el) el.indeterminate = someSelected;
+                                            if (el) el.indeterminate = filterQuery ? safeRows.some(row => selectedIds.includes(row.id)) && !safeRows.every(row => selectedIds.includes(row.id)) : someSelected;
                                         }}
-                                        onChange={onToggleAll}
-                                        aria-label="Select all"
+                                        onChange={() => {
+                                            if (!filterQuery || !onToggle) { onToggleAll?.(); return; }
+                                            const allVisibleSelected = safeRows.every(row => selectedIds.includes(row.id));
+                                            safeRows.forEach(row => { if (allVisibleSelected || !selectedIds.includes(row.id)) onToggle(row.id); });
+                                        }}
+                                        aria-label="Select all visible rows"
                                     />
                                 </th>
                             ) : null}
-                            {columns.map((col) => (
+                            {visibleColumns.map((col) => (
                                 <th
                                     key={col.key}
                                     scope="col"
@@ -284,7 +337,7 @@ export function AdminDataTable<T extends { id: string }>({
                         ) : sortedRows.length === 0 ? (
                             <tr>
                                 <td colSpan={colSpan} className="!py-10 text-white-dark">
-                                    <div className="admin-table-empty-state">{emptyText}</div>
+                                    <div className="admin-table-empty-state">{emptyText}<small>Try a broader search or clear your filters. New records will appear here as they’re added.</small>{filterQuery && <button className="btn btn-outline-dark mt-4" onClick={() => setFilterQuery('')}>Clear page filter</button>}</div>
                                 </td>
                             </tr>
                         ) : (
@@ -301,7 +354,7 @@ export function AdminDataTable<T extends { id: string }>({
                                             />
                                         </td>
                                     ) : null}
-                                    {columns.map((col) => (
+                                    {visibleColumns.map((col) => (
                                         <td key={col.key} className={`!py-2.5 ${col.className ?? ''}`}>
                                             {col.render(row)}
                                         </td>

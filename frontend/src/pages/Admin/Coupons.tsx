@@ -29,6 +29,15 @@ const emptyForm = {
     isActive: true,
 };
 
+function couponStatus(coupon: any) {
+    const now = Date.now();
+    if (!coupon.isActive) return 'INACTIVE';
+    if (coupon.startsAt && new Date(coupon.startsAt).getTime() > now) return 'SCHEDULED';
+    if (coupon.expiresAt && new Date(coupon.expiresAt).getTime() <= now) return 'EXPIRED';
+    if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) return 'EXHAUSTED';
+    return 'ACTIVE';
+}
+
 export default function AdminCoupons() {
     const dispatch = useDispatch();
     const navigate = useNavigate();
@@ -242,7 +251,7 @@ export default function AdminCoupons() {
                     {
                         key: 'isActive',
                         label: 'Status',
-                        render: (row) => <StatusBadge status={row.isActive ? 'ACTIVE' : 'INACTIVE'} />,
+                        render: (row) => <StatusBadge status={couponStatus(row)} />,
                     },
                 ]}
                 rows={items}
@@ -298,8 +307,12 @@ export default function AdminCoupons() {
                                 onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
                             />
                         </FormField>
-                        <FormField label="Applicable To">
-                            <input className="form-input" value={form.applicableTo} onChange={(e) => setForm({ ...form, applicableTo: e.target.value })} />
+                        <FormField label="Applicable To" hint="Product checkout accepts ALL or PRODUCTS coupons">
+                            <select className="form-select" value={form.applicableTo} onChange={(e) => setForm({ ...form, applicableTo: e.target.value })}>
+                                <option value="ALL">All purchases</option>
+                                <option value="PRODUCTS">Product orders</option>
+                                <option value="BLOOD_BANK">Blood bank only</option>
+                            </select>
                         </FormField>
                         <FormField label="Description" className="md:col-span-2">
                             <textarea className="form-textarea" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />

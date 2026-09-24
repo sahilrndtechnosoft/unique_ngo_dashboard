@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import { IsBoolean, IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 
 const DISCOUNT_TYPES = ['PERCENTAGE', 'FLAT'] as const;
+const APPLICABLE_TO = ['ALL', 'PRODUCTS', 'BLOOD_BANK'] as const;
 
 export class ListCouponsQueryDto {
   @ApiPropertyOptional({ example: 1 })
@@ -83,11 +84,10 @@ export class CreateCouponDto {
   @Min(1)
   perUserLimit?: number;
 
-  @ApiPropertyOptional({ example: 'ALL', description: 'What this coupon applies to, e.g. ALL, PRODUCTS, BLOOD_BANK' })
+  @ApiPropertyOptional({ enum: APPLICABLE_TO, default: 'ALL' })
   @IsOptional()
-  @IsString()
-  @MaxLength(50)
-  applicableTo?: string;
+  @IsIn(APPLICABLE_TO)
+  applicableTo?: (typeof APPLICABLE_TO)[number];
 
   @ApiPropertyOptional({ example: '2026-08-01' })
   @IsOptional()
@@ -146,11 +146,10 @@ export class UpdateCouponDto {
   @Min(1)
   perUserLimit?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ enum: APPLICABLE_TO })
   @IsOptional()
-  @IsString()
-  @MaxLength(50)
-  applicableTo?: string;
+  @IsIn(APPLICABLE_TO)
+  applicableTo?: (typeof APPLICABLE_TO)[number];
 
   @ApiPropertyOptional({ example: '2026-08-01' })
   @IsOptional()

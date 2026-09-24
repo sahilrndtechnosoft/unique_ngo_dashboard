@@ -15,18 +15,17 @@ function applyFavicon(path: string | null) {
     link.href = href;
 }
 
-/** Loads admin settings branding once (logo/favicon/company name). */
+/** Public branding is also available before signing in. */
 export function useAppBranding() {
     const dispatch = useDispatch<AppDispatch>();
-    const accessToken = useSelector((state: IRootState) => state.auth.accessToken);
     const branding = useSelector((state: IRootState) => state.settings);
 
     useEffect(() => {
-        if (!accessToken || branding.loaded) return;
+        if (branding.loaded) return;
 
         let cancelled = false;
         api
-            .get('/admin/settings')
+            .get('/public/settings')
             .then((response) => {
                 if (cancelled) return;
                 const settings = unwrap<any>(response);
@@ -48,7 +47,7 @@ export function useAppBranding() {
         return () => {
             cancelled = true;
         };
-    }, [accessToken, branding.loaded, dispatch]);
+    }, [branding.loaded, dispatch]);
 
     useEffect(() => {
         if (branding.loaded) applyFavicon(branding.faviconUrl);
