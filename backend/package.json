@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "build": "nest build",
-        "test:commerce": "tsx --test src/orders/commission.test.ts src/orders/orders.service.test.ts src/orders/order-validation.test.ts src/coupons/coupon-validation.test.ts src/admin/services/dashboard.service.test.ts src/admin/services/orders.service.test.ts src/admin/services/products.service.test.ts src/admin/services/shiprocket.service.test.ts src/auth/auth-flow.test.ts",
+        "test:commerce": "tsx --test src/orders/commission.test.ts src/orders/orders.service.test.ts src/orders/order-validation.test.ts src/coupons/coupon-validation.test.ts src/admin/services/dashboard.service.test.ts src/admin/services/orders.service.test.ts src/admin/services/products.service.test.ts src/admin/services/variant-lifecycle.test.ts src/admin/services/shiprocket.service.test.ts src/payments/payments.service.test.ts src/auth/auth-flow.test.ts",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/src/main",

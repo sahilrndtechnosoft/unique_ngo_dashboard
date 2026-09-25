@@ -10,6 +10,7 @@ export class CouponsService {
 
   async adminCreate(dto: CreateCouponDto, createdById: string) {
     const code = dto.code.trim().toUpperCase();
+    this.ensureCouponConfig(dto);
     const existing = await this.prisma.coupons.findUnique({ where: { code } });
     if (existing) {
       throw new ConflictException('A coupon with this code already exists');
@@ -68,7 +69,19 @@ export class CouponsService {
   }
 
   async adminUpdate(id: string, dto: UpdateCouponDto) {
-    await this.findOrThrow(id);
+    const existing = await this.findOrThrow(id);
+    this.ensureCouponConfig({
+      discountType: dto.discountType ?? existing.discount_type,
+      discountValue: dto.discountValue ?? Number(existing.discount_value),
+      minOrderValue: dto.minOrderValue ?? Number(existing.min_order_value),
+      maxDiscount: dto.maxDiscount !== undefined
+        ? dto.maxDiscount
+        : existing.max_discount === null ? undefined : Number(existing.max_discount),
+      usageLimit: dto.usageLimit !== undefined ? dto.usageLimit : existing.usage_limit ?? undefined,
+      perUserLimit: dto.perUserLimit ?? existing.per_user_limit,
+      startsAt: dto.startsAt ?? existing.starts_at.toISOString(),
+      expiresAt: dto.expiresAt ?? existing.expires_at?.toISOString(),
+    });
 
     const updated = await this.prisma.coupons.update({
       where: { id },
@@ -93,7 +106,10 @@ export class CouponsService {
 
   async adminDelete(id: string) {
     await this.findOrThrow(id);
-    await this.prisma.coupons.delete({ where: { id } });
+    await this.prisma.coupons.update({
+      where: { id },
+      data: { is_active: false, updated_at: new Date() },
+    });
   }
 
   async adminListUsages(id: string) {
@@ -129,17 +145,18 @@ export class CouponsService {
       orderBy: { created_at: 'desc' },
     });
 
-    const eligible: coupons[] = [];
-    for (const coupon of coupons) {
-      if (coupon.usage_limit !== null && coupon.used_count >= coupon.usage_limit) {
-        continue;
-      }
-      const userUsageCount = await this.prisma.coupon_usages.count({ where: { coupon_id: coupon.id, user_id: userId } });
-      if (userUsageCount >= coupon.per_user_limit) {
-        continue;
-      }
-      eligible.push(coupon);
-    }
+    const usages = coupons.length
+      ? await this.prisma.coupon_usages.findMany({
+          where: { coupon_id: { in: coupons.map((coupon) => coupon.id) }, user_id: userId },
+          select: { coupon_id: true },
+        })
+      : [];
+    const usageCounts = new Map<string, number>();
+    for (const usage of usages) usageCounts.set(usage.coupon_id, (usageCounts.get(usage.coupon_id) ?? 0) + 1);
+    const eligible = coupons.filter((coupon) =>
+      (coupon.usage_limit === null || coupon.used_count < coupon.usage_limit) &&
+      (usageCounts.get(coupon.id) ?? 0) < coupon.per_user_limit,
+    );
 
     return eligible.map((coupon) => this.toPublic(coupon));
   }
@@ -193,6 +210,30 @@ export class CouponsService {
       select: { id: true, full_name: true, email: true },
     });
     return new Map(rows.map((row) => [row.id, row]));
+  }
+
+  private ensureCouponConfig(input: {
+    discountType?: string;
+    discountValue?: number;
+    minOrderValue?: number;
+    maxDiscount?: number;
+    usageLimit?: number;
+    perUserLimit?: number;
+    startsAt?: string;
+    expiresAt?: string;
+  }) {
+    if (input.discountType === 'PERCENTAGE' && (input.discountValue ?? 0) > 100) {
+      throw new BadRequestException('Percentage coupon cannot exceed 100%');
+    }
+    if (input.expiresAt && input.startsAt && new Date(input.expiresAt) <= new Date(input.startsAt)) {
+      throw new BadRequestException('Coupon expiry must be after its start date');
+    }
+    if (input.maxDiscount !== undefined && input.maxDiscount < 0) {
+      throw new BadRequestException('Coupon maximum discount cannot be negative');
+    }
+    if (input.minOrderValue !== undefined && input.discountValue !== undefined && input.discountValue < 0) {
+      throw new BadRequestException('Coupon discount cannot be negative');
+    }
   }
 
   private toPublic(coupon: coupons) {

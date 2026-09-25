@@ -43,10 +43,12 @@ import {
 } from '../../common/utils/image-upload.util';
 import {
   CreateProductDto,
+  CreateProductVariantDto,
   CreateSellerProductDto,
   ListProductsQueryDto,
   RejectProductDto,
   UpdateProductDto,
+  UpdateProductVariantDto,
   UpdateSellerProductDto,
   UpdatePlatformCommissionDto,
 } from '../dto/product.dto';
@@ -86,9 +88,46 @@ export class AdminProductsController {
 
   @Get(':id/variants')
   @RequirePermissions(AppModule.PRODUCTS, PermissionAction.VIEW)
+  @ApiOperation({ summary: 'List active variants for a product' })
   @ResponseMessage('Product variants fetched successfully')
   listVariants(@Param('id') id: string) {
     return this.productsService.listVariants(id);
+  }
+
+  @Post(':id/variants')
+  @RequirePermissions(AppModule.PRODUCTS, PermissionAction.EDIT)
+  @ApiOperation({ summary: 'Create a product variant' })
+  @ResponseMessage('Product variant created successfully')
+  createVariant(@Param('id') id: string, @Body() dto: CreateProductVariantDto) {
+    return this.productsService.createVariant(id, dto);
+  }
+
+  @Patch(':id/variants/:variantId')
+  @RequirePermissions(AppModule.PRODUCTS, PermissionAction.EDIT)
+  @ApiOperation({ summary: 'Update a product variant' })
+  @ResponseMessage('Product variant updated successfully')
+  updateVariant(
+    @Param('id') id: string,
+    @Param('variantId') variantId: string,
+    @Body() dto: UpdateProductVariantDto,
+  ) {
+    return this.productsService.updateVariant(id, variantId, dto);
+  }
+
+  @Delete(':id/variants/:variantId')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions(AppModule.PRODUCTS, PermissionAction.EDIT)
+  @ApiOperation({ summary: 'Deactivate a product variant' })
+  @ResponseMessage('Product variant deactivated successfully')
+  deleteVariant(@Param('id') id: string, @Param('variantId') variantId: string) {
+    return this.productsService.deleteVariant(id, variantId);
+  }
+
+  @Get(':id/moderation-history')
+  @RequirePermissions(AppModule.PRODUCTS, PermissionAction.VIEW)
+  @ResponseMessage('Product moderation history fetched successfully')
+  getModerationHistory(@Param('id') id: string) {
+    return this.productsService.getModerationHistory(id);
   }
 
   @Get(':id')
@@ -216,6 +255,49 @@ export class SellerProductsController {
     return this.productsService.getProduct(id, sellerId);
   }
 
+  @Get(':id/variants')
+  @ApiOperation({ summary: 'List active variants for the seller product' })
+  async listVariants(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    const sellerId = await this.productsService.resolveSellerProfileId(user.sub);
+    await this.productsService.getProduct(id, sellerId);
+    return this.productsService.listVariants(id);
+  }
+
+  @Post(':id/variants')
+  @ApiOperation({ summary: 'Create a seller product variant and resubmit the product for review' })
+  async createVariant(
+    @Param('id') id: string,
+    @Body() dto: CreateProductVariantDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    const sellerId = await this.productsService.resolveSellerProfileId(user.sub);
+    return this.productsService.createVariant(id, dto, { sellerId });
+  }
+
+  @Patch(':id/variants/:variantId')
+  @ApiOperation({ summary: 'Update a seller product variant and resubmit the product for review' })
+  async updateVariant(
+    @Param('id') id: string,
+    @Param('variantId') variantId: string,
+    @Body() dto: UpdateProductVariantDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    const sellerId = await this.productsService.resolveSellerProfileId(user.sub);
+    return this.productsService.updateVariant(id, variantId, dto, { sellerId });
+  }
+
+  @Delete(':id/variants/:variantId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Deactivate a seller product variant and resubmit the product for review' })
+  async deleteVariant(
+    @Param('id') id: string,
+    @Param('variantId') variantId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    const sellerId = await this.productsService.resolveSellerProfileId(user.sub);
+    return this.productsService.deleteVariant(id, variantId, { sellerId });
+  }
+
   @Post()
   @ResponseMessage('Product submitted for review')
   @ApiOperation({
@@ -247,6 +329,7 @@ export class SellerProductsController {
     return this.productsService.updateProduct(id, dto, {
       isAdmin: false,
       sellerProfileId: sellerId,
+      actorId: user.sub,
     });
   }
 

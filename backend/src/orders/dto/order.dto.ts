@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator';
-import { order_status, payment_method } from '../../../generated/prisma/client';
+import { order_status, payment_method, shipping_type } from '../../../generated/prisma/client';
 
 export class CheckoutDto {
   @ApiProperty()
@@ -11,6 +11,11 @@ export class CheckoutDto {
   @ApiProperty({ enum: payment_method })
   @IsEnum(payment_method)
   paymentMethod!: payment_method;
+
+  @ApiPropertyOptional({ enum: shipping_type, default: shipping_type.STANDARD })
+  @IsOptional()
+  @IsEnum(shipping_type)
+  shippingType?: shipping_type = shipping_type.STANDARD;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -101,6 +101,14 @@ export class AdminSellersService {
     return this.toPublic(profile, user);
   }
 
+  async getModerationHistory(sellerId: string) {
+    await this.findSellerOrThrow(sellerId);
+    return this.prisma.marketplace_moderation_events.findMany({
+      where: { entity_type: 'SELLER', entity_id: sellerId },
+      orderBy: { created_at: 'desc' },
+    });
+  }
+
   async createSeller(dto: CreateAdminSellerDto, actorId: string) {
     this.validatePickupOrigin(dto);
     const email = dto.email.toLowerCase();
@@ -145,6 +153,17 @@ export class AdminSellersService {
             status === seller_status.ACTIVE ? actorId : undefined,
           verified_at:
             status === seller_status.ACTIVE ? new Date() : undefined,
+        },
+      });
+
+      await tx.marketplace_moderation_events.create({
+        data: {
+          entity_type: 'SELLER',
+          entity_id: profile.id,
+          previous_status: null,
+          new_status: status,
+          actor_id: actorId,
+          reason: null,
         },
       });
 
@@ -218,6 +237,10 @@ export class AdminSellersService {
     };
 
     if (dto.status !== undefined) {
+      this.assertStatusTransition(profile.status, dto.status);
+      if (dto.status === seller_status.REJECTED && !dto.rejectionReason?.trim()) {
+        throw new BadRequestException('A rejection reason is required');
+      }
       profileData.status = dto.status;
       if (dto.status === seller_status.ACTIVE) {
         profileData.verified_by_id = actorId;
@@ -230,19 +253,49 @@ export class AdminSellersService {
       if (dto.status === seller_status.SUSPENDED) {
         profileData.rejection_reason = dto.rejectionReason ?? null;
       }
+      if (dto.status !== seller_status.ACTIVE) {
+        profileData.verified_by_id = null;
+        profileData.verified_at = null;
+      }
     } else if (dto.rejectionReason !== undefined) {
       profileData.rejection_reason = dto.rejectionReason;
     }
 
-    const [updatedUser, updatedProfile] = await this.prisma.$transaction([
-      this.prisma.users.update({ where: { id: user.id }, data: userData }),
-      this.prisma.seller_profiles.update({
-        where: { id: sellerId },
-        data: profileData,
-      }),
-    ]);
+    const result = await this.prisma.$transaction(async (tx) => {
+      const [updatedUser, updatedProfile] = await Promise.all([
+        tx.users.update({ where: { id: user.id }, data: userData }),
+        tx.seller_profiles.update({ where: { id: sellerId }, data: profileData }),
+      ]);
+      if (dto.status && dto.status !== profile.status) {
+        await tx.marketplace_moderation_events.create({
+          data: {
+            entity_type: 'SELLER',
+            entity_id: sellerId,
+            previous_status: profile.status,
+            new_status: dto.status,
+            actor_id: actorId,
+            reason: dto.rejectionReason?.trim() || null,
+          },
+        });
+      }
+      return { updatedUser, updatedProfile };
+    });
 
-    return this.toPublic(updatedProfile, updatedUser);
+    return this.toPublic(result.updatedProfile, result.updatedUser);
+  }
+
+  private assertStatusTransition(from: seller_status, to: seller_status) {
+    if (from === to) return;
+    const allowed: Record<seller_status, seller_status[]> = {
+      [seller_status.PENDING]: [seller_status.UNDER_REVIEW, seller_status.ACTIVE, seller_status.REJECTED, seller_status.SUSPENDED],
+      [seller_status.UNDER_REVIEW]: [seller_status.ACTIVE, seller_status.REJECTED, seller_status.SUSPENDED],
+      [seller_status.REJECTED]: [seller_status.UNDER_REVIEW, seller_status.ACTIVE, seller_status.SUSPENDED],
+      [seller_status.ACTIVE]: [seller_status.SUSPENDED],
+      [seller_status.SUSPENDED]: [seller_status.UNDER_REVIEW, seller_status.ACTIVE],
+    };
+    if (!allowed[from].includes(to)) {
+      throw new BadRequestException(`Invalid seller status transition: ${from} -> ${to}`);
+    }
   }
 
   async updateProfilePicture(sellerId: string, filePath: string) {

@@ -4,6 +4,7 @@ import {
   product_status,
   product_variants,
   products,
+  seller_status,
   wishlists,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -29,6 +30,16 @@ export class WishlistService {
       this.getVariantsById(variantIds),
       this.getPrimaryImagesByProduct(productIds),
     ]);
+    const sellerIds = [...new Set([...productsById.values()].flatMap((product) => product.seller_id ? [product.seller_id] : []))];
+    const sellers = sellerIds.length
+      ? await this.prisma.seller_profiles.findMany({
+          where: { id: { in: sellerIds }, deleted_at: null },
+          select: { id: true, status: true },
+        })
+      : [];
+    const activeSellerIds = new Set(
+      sellers.filter((seller) => seller.status === seller_status.ACTIVE).map((seller) => seller.id),
+    );
 
     return items.map((item) =>
       this.toPublic(
@@ -36,6 +47,9 @@ export class WishlistService {
         productsById.get(item.product_id),
         item.variant_id ? variantsById.get(item.variant_id) : undefined,
         imagesByProduct.get(item.product_id),
+        productsById.get(item.product_id)?.seller_id
+          ? activeSellerIds.has(productsById.get(item.product_id)!.seller_id!)
+          : true,
       ),
     );
   }
@@ -47,10 +61,13 @@ export class WishlistService {
     if (!product) {
       throw new NotFoundException('Product not found');
     }
+    if (product.status !== product_status.ACTIVE || (product.seller_id && !(await this.prisma.seller_profiles.findFirst({ where: { id: product.seller_id, status: seller_status.ACTIVE, deleted_at: null }, select: { id: true } })))) {
+      throw new NotFoundException('Product is not available');
+    }
 
     if (dto.variantId) {
       const variant = await this.prisma.product_variants.findFirst({
-        where: { id: dto.variantId, product_id: product.id },
+        where: { id: dto.variantId, product_id: product.id, is_active: true },
       });
       if (!variant) {
         throw new NotFoundException('Product variant not found');
@@ -83,6 +100,7 @@ export class WishlistService {
     product?: products,
     variant?: product_variants,
     image?: product_images,
+    sellerActive = true,
   ) {
     return {
       id: item.id,
@@ -96,7 +114,7 @@ export class WishlistService {
             slug: product.slug,
             price: Number(product.price),
             status: product.status,
-            isAvailable: product.status === product_status.ACTIVE,
+            isAvailable: product.status === product_status.ACTIVE && sellerActive && (!item.variant_id || variant?.is_active === true),
             imageUrl: image?.url ?? null,
           }
         : null,

@@ -6,6 +6,7 @@ import {
   product_status,
   product_variants,
   products,
+  seller_status,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddCartItemDto, UpdateCartItemDto } from './dto/cart.dto';
@@ -28,6 +29,14 @@ export class CartService {
     });
     if (!product) {
       throw new NotFoundException('Product not found or unavailable');
+    }
+    await this.ensureSellerIsActive(product.seller_id);
+    const hasActiveVariants = !!(await this.prisma.product_variants.findFirst({
+      where: { product_id: product.id, is_active: true },
+      select: { id: true },
+    }));
+    if (hasActiveVariants && !dto.variantId) {
+      throw new BadRequestException('Select a product variant before adding it to the cart');
     }
 
     let variant: product_variants | null = null;
@@ -82,17 +91,21 @@ export class CartService {
     const cart = await this.getOrCreateCart(userId);
     const item = await this.findItemOrThrow(cart.id, itemId);
 
-    const availableStock = item.variant_id
-      ? (
-          await this.prisma.product_variants.findUniqueOrThrow({
-            where: { id: item.variant_id },
-          })
-        ).stock_quantity
-      : (
-          await this.prisma.products.findUniqueOrThrow({
-            where: { id: item.product_id },
-          })
-        ).stock_quantity;
+    const product = await this.prisma.products.findFirst({
+      where: { id: item.product_id, deleted_at: null, status: product_status.ACTIVE },
+    });
+    if (!product) throw new BadRequestException('Product in cart is no longer available');
+    await this.ensureSellerIsActive(product.seller_id);
+    const variant = item.variant_id
+      ? await this.prisma.product_variants.findFirst({
+          where: { id: item.variant_id, product_id: item.product_id, is_active: true },
+        })
+      : null;
+    if (item.variant_id && !variant) throw new BadRequestException('Product variant in cart is no longer available');
+    if (!item.variant_id && await this.hasActiveVariants(item.product_id)) {
+      throw new BadRequestException('Select a product variant before updating this cart item');
+    }
+    const availableStock = variant?.stock_quantity ?? product.stock_quantity;
 
     if (dto.quantity > availableStock) {
       throw new BadRequestException(
@@ -122,11 +135,11 @@ export class CartService {
   }
 
   async getOrCreateCart(userId: string): Promise<carts> {
-    const existing = await this.prisma.carts.findUnique({ where: { user_id: userId } });
-    if (existing) {
-      return existing;
-    }
-    return this.prisma.carts.create({ data: { user_id: userId } });
+    return this.prisma.carts.upsert({
+      where: { user_id: userId },
+      update: {},
+      create: { user_id: userId },
+    });
   }
 
   private async findItemOrThrow(cartId: string, itemId: string) {
@@ -150,11 +163,28 @@ export class CartService {
       ...new Set(items.map((item) => item.variant_id).filter((id): id is string => !!id)),
     ];
 
-    const [productsById, variantsById, imagesByProduct] = await Promise.all([
+    const [productsById, variantsById, imagesByProduct, activeVariants] = await Promise.all([
       this.getProductsById(productIds),
       this.getVariantsById(variantIds),
       this.getPrimaryImagesByProduct(productIds),
+      productIds.length
+        ? this.prisma.product_variants.findMany({
+            where: { product_id: { in: productIds }, is_active: true },
+            select: { product_id: true },
+          })
+        : Promise.resolve([]),
     ]);
+    const variantProductIds = new Set(activeVariants.map((variant) => variant.product_id));
+    const sellerIds = [...new Set([...productsById.values()].flatMap((product) => product.seller_id ? [product.seller_id] : []))];
+    const sellers = sellerIds.length
+      ? await this.prisma.seller_profiles.findMany({
+          where: { id: { in: sellerIds }, deleted_at: null },
+          select: { id: true, status: true },
+        })
+      : [];
+    const activeSellerIds = new Set(
+      sellers.filter((seller) => seller.status === seller_status.ACTIVE).map((seller) => seller.id),
+    );
 
     const publicItems = items.map((item) =>
       this.toPublicItem(
@@ -162,6 +192,10 @@ export class CartService {
         productsById.get(item.product_id),
         item.variant_id ? variantsById.get(item.variant_id) : undefined,
         imagesByProduct.get(item.product_id),
+        productsById.get(item.product_id)?.seller_id
+          ? activeSellerIds.has(productsById.get(item.product_id)!.seller_id!)
+          : true,
+        variantProductIds.has(item.product_id),
       ),
     );
 
@@ -186,9 +220,11 @@ export class CartService {
     product?: products,
     variant?: product_variants,
     image?: product_images,
+    sellerActive = true,
+    hasActiveVariants = false,
   ) {
     const currentPrice = variant ? Number(variant.price) : product ? Number(product.price) : 0;
-    const availableStock = variant ? variant.stock_quantity : product?.stock_quantity ?? 0;
+    const availableStock = variant ? variant.stock_quantity : hasActiveVariants ? 0 : product?.stock_quantity ?? 0;
 
     return {
       id: item.id,
@@ -198,7 +234,8 @@ export class CartService {
       priceAtAdd: Number(item.price_at_add),
       currentPrice,
       lineTotal: currentPrice * item.quantity,
-      isAvailable: !!product && product.status === product_status.ACTIVE,
+      isAvailable: !!product && product.status === product_status.ACTIVE && sellerActive &&
+        (!!item.variant_id ? variant?.is_active === true : !hasActiveVariants),
       availableStock,
       product: product
         ? {
@@ -224,6 +261,22 @@ export class CartService {
       where: { id: { in: productIds } },
     });
     return new Map(rows.map((row) => [row.id, row]));
+  }
+
+  private async ensureSellerIsActive(sellerId: string | null) {
+    if (!sellerId) return;
+    const seller = await this.prisma.seller_profiles.findFirst({
+      where: { id: sellerId, status: seller_status.ACTIVE, deleted_at: null },
+      select: { id: true },
+    });
+    if (!seller) throw new BadRequestException('Seller is no longer active');
+  }
+
+  private async hasActiveVariants(productId: string) {
+    return !!(await this.prisma.product_variants.findFirst({
+      where: { product_id: productId, is_active: true },
+      select: { id: true },
+    }));
   }
 
   private async getVariantsById(variantIds: string[]) {

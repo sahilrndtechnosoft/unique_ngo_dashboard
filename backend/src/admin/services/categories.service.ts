@@ -54,7 +54,7 @@ export class CategoriesService {
     ]);
 
     return {
-      items: rows.map((row) => this.toPublic(row)),
+      items: rows.map((row) => this.toPublic(row, !activeOnly)),
       meta: {
         page,
         limit,
@@ -205,7 +205,7 @@ export class CategoriesService {
     return slug;
   }
 
-  private toPublic(category: product_categories) {
+  private toPublic(category: product_categories, includeInternal = true) {
     return {
       id: category.id,
       name: category.name,
@@ -214,13 +214,16 @@ export class CategoriesService {
       imageUrl: category.image_url,
       iconUrl: category.icon_url,
       parentId: category.parent_id,
-      commissionRate:
-        category.commission_rate === null ? null : Number(category.commission_rate),
       sortOrder: category.sort_order,
-      isActive: category.is_active,
-      isFeatured: category.is_featured,
-      metaTitle: category.meta_title,
-      metaDescription: category.meta_description,
+      ...(includeInternal
+        ? {
+            commissionRate: category.commission_rate === null ? null : Number(category.commission_rate),
+            isActive: category.is_active,
+            isFeatured: category.is_featured,
+            metaTitle: category.meta_title,
+            metaDescription: category.meta_description,
+          }
+        : {}),
       createdAt: category.created_at,
       updatedAt: category.updated_at,
     };

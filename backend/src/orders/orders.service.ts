@@ -14,7 +14,7 @@ import { generateSecureToken } from '../common/utils/crypto.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddressesService } from '../addresses/addresses.service';
 import { CouponsService } from '../coupons/services/coupons.service';
-import { allocateAmountByLine, allocateDiscountByLine, calculateLineCommission, calculateSellerPayout } from './commission';
+import { allocateAmountByLine, allocateDiscountByLine, calculateLineCommission, calculateLineTax, calculateSellerPayout } from './commission';
 import { assertCashOnDeliveryAllowed } from './order-validation';
 import { CheckoutDto, ListOrdersQueryDto } from './dto/order.dto';
 import { CreateAdminSaleDto } from '../admin/dto/order.dto';
@@ -46,14 +46,11 @@ export class OrdersService {
     if (dto.items.length === 0) throw new BadRequestException('Sale must include at least one item');
 
     const productIds = [...new Set(dto.items.map((item) => item.productId))];
-    const variantIds = [...new Set(dto.items.flatMap((item) => item.variantId ? [item.variantId] : []))];
     const [products, variants, images] = await Promise.all([
       this.prisma.products.findMany({
         where: { id: { in: productIds }, deleted_at: null, status: product_status.ACTIVE },
       }),
-      variantIds.length
-        ? this.prisma.product_variants.findMany({ where: { id: { in: variantIds } } })
-        : Promise.resolve([]),
+      this.prisma.product_variants.findMany({ where: { product_id: { in: productIds }, is_active: true } }),
       this.prisma.product_images.findMany({
         where: { product_id: { in: productIds } },
         orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }],
@@ -101,6 +98,10 @@ export class OrdersService {
       if (item.variantId && (!variant || variant.product_id !== product.id || !variant.is_active)) {
         throw new BadRequestException(`Variant is not available for "${product.name}"`);
       }
+      if (!item.variantId) {
+        const hasActiveVariant = variants.some((candidate) => candidate.product_id === product.id && candidate.is_active);
+        if (hasActiveVariant) throw new BadRequestException(`Select a variant for "${product.name}"`);
+      }
       const group = itemsBySeller.get(product.seller_id) ?? [];
       group.push(item);
       itemsBySeller.set(product.seller_id, group);
@@ -136,9 +137,7 @@ export class OrdersService {
             platform: platformRate,
           });
           const { rate: commissionRate, amount: lineCommission } = commission;
-          const lineTax = product.is_taxable
-            ? lineSubtotal.mul(product.tax_rate).div(100).toDecimalPlaces(2)
-            : new Prisma.Decimal(0);
+          const lineTax = calculateLineTax(lineSubtotal, product.is_taxable, product.tax_rate);
 
           if (sellerId) await this.lockActiveSeller(tx, sellerId, product.name);
           if (variant) await this.lockActiveProduct(tx, product.id, product.name);
@@ -216,6 +215,20 @@ export class OrdersService {
         await tx.order_items.createMany({
           data: orderItemsData.map((item) => ({ ...item, order_id: order.id })),
         });
+        if (tx.payments && dto.buyerId) {
+          await tx.payments.create({
+            data: {
+              user_id: dto.buyerId,
+              purpose: 'ORDER',
+              reference_type: 'ORDER',
+              reference_id: order.id,
+              amount: order.total_amount,
+              currency: 'INR',
+              method: dto.paymentMethod,
+              status: order.payment_status,
+            },
+          });
+        }
         await tx.product_inventory_logs.createMany({
           data: items.map((item) => ({
             product_id: item.productId,
@@ -294,16 +307,13 @@ export class OrdersService {
     const sellersById = new Map(sellers.map((seller) => [seller.id, seller]));
     const platformRate = defaultCommission?.rate ?? new Prisma.Decimal(10);
 
-    const variantIds = cartItems
-      .map((item) => item.variant_id)
-      .filter((id): id is string => !!id);
-    const variants =
-      variantIds.length > 0
-        ? await this.prisma.product_variants.findMany({
-            where: { id: { in: variantIds } },
-          })
-        : [];
+    const variants = productIds.length > 0
+      ? await this.prisma.product_variants.findMany({
+          where: { product_id: { in: productIds }, is_active: true },
+        })
+      : [];
     const variantsById = new Map(variants.map((variant) => [variant.id, variant]));
+    const variantProductIds = new Set(variants.map((variant) => variant.product_id));
 
     const primaryImages = await this.prisma.product_images.findMany({
       where: { product_id: { in: productIds } },
@@ -335,6 +345,9 @@ export class OrdersService {
       ) {
         throw new BadRequestException('Product variant in cart is no longer available');
       }
+      if (!item.variant_id && variantProductIds.has(product.id)) {
+        throw new BadRequestException(`Select a variant for "${product.name}" before checkout`);
+      }
       const lineSubtotal = (variant ? variant.price : product.price).mul(item.quantity);
       cartSubtotal = cartSubtotal.add(lineSubtotal);
       const group = itemsBySeller.get(product.seller_id) ?? [];
@@ -353,6 +366,11 @@ export class OrdersService {
         subtotal: (variant ? variant.price : product.price).mul(item.quantity),
       };
     }), coupon?.discount ?? new Prisma.Decimal(0));
+    const shippingFee = await this.resolveShippingFee(
+      address.postal_code,
+      cartSubtotal,
+      dto.shippingType ?? shipping_type.STANDARD,
+    );
 
     const createdOrders = await this.prisma.$transaction(async (tx) => {
       const results: orders[] = [];
@@ -392,6 +410,14 @@ export class OrdersService {
       }
 
       const sellerGroups = [...itemsBySeller].sort(([left], [right]) => (left ?? '').localeCompare(right ?? ''));
+      const shippingFees = allocateAmountByLine(sellerGroups.map(([sellerId, items]) => ({
+        id: sellerId ?? '',
+        weight: items.reduce((total, item) => {
+          const product = productsById.get(item.product_id)!;
+          const variant = item.variant_id ? variantsById.get(item.variant_id) : undefined;
+          return total.add((variant?.price ?? product.price).mul(item.quantity));
+        }, new Prisma.Decimal(0)),
+      })), shippingFee);
       for (const [sellerId, items] of sellerGroups) {
         let subtotal = new Prisma.Decimal(0);
         let discountAmount = new Prisma.Decimal(0);
@@ -414,9 +440,7 @@ export class OrdersService {
             platform: platformRate,
           });
           const { rate: commissionRate, amount: lineCommission } = commission;
-          const lineTax = product.is_taxable
-            ? discountedSubtotal.mul(product.tax_rate).div(100).toDecimalPlaces(2)
-            : new Prisma.Decimal(0);
+          const lineTax = calculateLineTax(discountedSubtotal, product.is_taxable, product.tax_rate);
 
           subtotal = subtotal.add(lineSubtotal);
           discountAmount = discountAmount.add(lineDiscount);
@@ -475,7 +499,8 @@ export class OrdersService {
           new Prisma.Decimal(0),
         );
         const commissionableSubtotal = subtotal.sub(sellerDiscount);
-        const totalAmount = commissionableSubtotal.add(taxAmount);
+        const sellerShippingFee = shippingFees.get(sellerId ?? '') ?? new Prisma.Decimal(0);
+        const totalAmount = commissionableSubtotal.add(taxAmount).add(sellerShippingFee);
 
         const order = await tx.orders.create({
           data: {
@@ -496,6 +521,7 @@ export class OrdersService {
             },
             subtotal,
             discount_amount: discountAmount,
+            shipping_fee: sellerShippingFee,
             tax_amount: taxAmount,
             total_amount: totalAmount,
             commission_rate: commissionableSubtotal.isZero()
@@ -504,6 +530,7 @@ export class OrdersService {
             commission_amount: commissionAmount,
             seller_payout: sellerPayout,
             payment_method: dto.paymentMethod,
+            shipping_type: dto.shippingType ?? shipping_type.STANDARD,
             shipping_address_id: dto.shippingAddressId,
             coupon_id: coupon?.couponId,
             coupon_discount: sellerDiscount,
@@ -528,6 +555,21 @@ export class OrdersService {
         });
 
         await tx.shipments.create({ data: { order_id: order.id } });
+        if (tx.payments) {
+          await tx.payments.create({
+            data: {
+              user_id: userId,
+              purpose: 'ORDER',
+              reference_type: 'ORDER',
+              reference_id: order.id,
+              amount: totalAmount,
+              currency: 'INR',
+              method: dto.paymentMethod,
+              status: payment_status.PENDING,
+              gateway: dto.paymentMethod === 'COD' ? null : 'RAZORPAY',
+            },
+          });
+        }
 
         results.push(order);
       }
@@ -696,5 +738,40 @@ export class OrdersService {
     if (!seller) {
       throw new ConflictException(`Seller for "${productName}" is no longer active`);
     }
+  }
+
+  private async resolveShippingFee(
+    postalCode: string,
+    subtotal: Prisma.Decimal,
+    shippingType: shipping_type,
+  ) {
+    if (shippingType === shipping_type.PICKUP) return new Prisma.Decimal(0);
+    const areaPostalCodes = (this.prisma as PrismaService & {
+      area_postal_codes?: PrismaService['area_postal_codes'];
+    }).area_postal_codes;
+    const deliveryFees = (this.prisma as PrismaService & {
+      delivery_fees?: PrismaService['delivery_fees'];
+    }).delivery_fees;
+    if (!areaPostalCodes || !deliveryFees) return new Prisma.Decimal(0);
+
+    const area = await areaPostalCodes.findFirst({
+      where: { postal_code: postalCode, is_active: true },
+      select: { service_area_id: true },
+    });
+    if (!area) return new Prisma.Decimal(0);
+
+    const fee = await deliveryFees.findFirst({
+      where: {
+        service_area_id: area.service_area_id,
+        shipping_type: shippingType,
+        is_active: true,
+        min_order_value: { lte: subtotal },
+      },
+      orderBy: { min_order_value: 'desc' },
+    });
+    if (!fee) return new Prisma.Decimal(0);
+    return fee.is_free_above !== null && subtotal.gte(fee.is_free_above)
+      ? new Prisma.Decimal(0)
+      : fee.fee;
   }
 }
