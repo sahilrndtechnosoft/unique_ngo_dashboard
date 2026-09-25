@@ -44,7 +44,7 @@ async function bootstrap() {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Unique NGO Platform API')
     .setDescription(
-      'Healthcare and social donation platform - Authentication & User APIs',
+      'Healthcare, social donation, and multi-vendor ecommerce platform APIs.',
     )
     .setVersion('1.0')
     .addBearerAuth()
@@ -62,6 +62,12 @@ async function bootstrap() {
     .addTag('Admin - Categories', 'Product category management')
     .addTag('Admin - Products', 'Admin product CRUD and approval')
     .addTag('Seller - Products', 'Seller product listing and management')
+    .addTag('Payments', 'Customer payment initiation, verification, and Razorpay webhooks')
+    .addTag('Orders', 'Customer checkout and order management')
+    .addTag('Cart', 'Customer cart management')
+    .addTag('Addresses', 'Customer delivery address management')
+    .addTag('Wishlist', 'Customer wishlist management')
+    .addTag('Coupons', 'Customer coupon validation and administration')
     .addTag('Suggestions', 'Customer suggestions and ideas')
     .addTag('Admin - Suggestions', 'Review customer suggestions and ideas')
     .addTag('Categories', 'Public/active category listing')

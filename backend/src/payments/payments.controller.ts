@@ -1,5 +1,13 @@
 import { Body, Controller, Headers, Param, Post, Req } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiHeader,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Public } from '../common/decorators';
 import { CurrentUser, ResponseMessage } from '../common/decorators';
 import { JwtPayload } from '../common/constants';
@@ -13,6 +21,9 @@ export class PaymentsController {
 
   @Post('orders/:orderId/razorpay')
   @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create or reuse a Razorpay order for a pending local order' })
+  @ApiParam({ name: 'orderId', format: 'uuid' })
+  @ApiResponse({ status: 201, description: 'Razorpay order details returned for checkout' })
   @ResponseMessage('Razorpay order created successfully')
   createRazorpayOrder(@CurrentUser() user: JwtPayload, @Param('orderId') orderId: string) {
     return this.paymentsService.createRazorpayOrder(user.sub, orderId);
@@ -20,6 +31,8 @@ export class PaymentsController {
 
   @Post('razorpay/verify')
   @ApiBearerAuth()
+  @ApiOperation({ summary: 'Verify a Razorpay payment server-side and confirm the order' })
+  @ApiResponse({ status: 201, description: 'Payment verified and order status synchronized' })
   @ResponseMessage('Payment verified successfully')
   verify(@CurrentUser() user: JwtPayload, @Body() dto: VerifyRazorpayPaymentDto) {
     return this.paymentsService.verifyRazorpayPayment(user.sub, dto);
@@ -27,6 +40,16 @@ export class PaymentsController {
 
   @Post('razorpay/webhook')
   @Public()
+  @ApiOperation({ summary: 'Receive an idempotent Razorpay payment webhook' })
+  @ApiHeader({ name: 'x-razorpay-signature', required: true })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      description: 'Razorpay webhook payload. The signature is verified against the raw request body.',
+      additionalProperties: true,
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Webhook accepted after signature validation' })
   @ResponseMessage('Webhook accepted')
   webhook(@Req() request: Request & { rawBody?: Buffer }, @Headers('x-razorpay-signature') signature?: string) {
     if (!request.rawBody) throw new Error('Raw webhook body is not available');
