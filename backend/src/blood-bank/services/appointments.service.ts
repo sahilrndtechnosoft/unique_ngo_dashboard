@@ -31,19 +31,7 @@ export class AppointmentsService {
 
   async bookAppointment(donorId: string, dto: CreateAppointmentDto) {
     await this.validateHospitalOrCampaign(dto.hospitalId, dto.campaignId);
-
-    const eligibility = await this.eligibilityService.checkEligibility(
-      donorId,
-      {
-        lastDonationDate: dto.lastDonationDate,
-        hadTattooRecently: dto.hadTattooRecently,
-        tattooDate: dto.tattooDate,
-      },
-      { useAccountHistory: dto.forSelf !== false },
-    );
-    if (!eligibility.eligible) {
-      throw new BadRequestException(eligibility.reasons.join(' '));
-    }
+    await this.validateAppointmentForBooking(donorId, dto, { useAccountHistory: dto.forSelf !== false });
 
     const appointment = await this.createAppointmentRecord(donorId, dto);
     await this.notifyAdminsOfNewAppointment(appointment.id, dto);
@@ -56,6 +44,7 @@ export class AppointmentsService {
       throw new NotFoundException('User not found');
     }
     await this.validateHospitalOrCampaign(dto.hospitalId, dto.campaignId);
+    await this.validateAppointmentForBooking(dto.userId, dto, { useAccountHistory: true });
 
     return this.createAppointmentRecord(dto.userId, dto);
   }
@@ -170,6 +159,27 @@ export class AppointmentsService {
   async adminUpdateAppointment(appointmentId: string, dto: AdminUpdateAppointmentDto) {
     const appointment = await this.findOrThrow(appointmentId);
 
+    if (dto.appointmentDate !== undefined) {
+      this.assertAppointmentDateNotPast(dto.appointmentDate);
+    }
+    if (dto.appointmentDate !== undefined || dto.lastDonationDate !== undefined) {
+      const eligibility = await this.eligibilityService.checkEligibility(
+        appointment.donor_id,
+        {
+          lastDonationDate: dto.lastDonationDate ?? appointment.last_donation_date?.toISOString().slice(0, 10) ?? undefined,
+          hadTattooRecently: dto.hadTattooRecently ?? appointment.had_tattoo_recently,
+          tattooDate: dto.tattooDate ?? appointment.tattoo_date?.toISOString().slice(0, 10) ?? undefined,
+        },
+        {
+          useAccountHistory: dto.lastDonationDate === undefined && appointment.last_donation_date === null,
+          referenceDate: dto.appointmentDate ?? appointment.appointment_date.toISOString().slice(0, 10),
+        },
+      );
+      if (!eligibility.eligible) {
+        throw new BadRequestException(eligibility.reasons.join(' '));
+      }
+    }
+
     const nextHospitalId = dto.hospitalId !== undefined ? dto.hospitalId : appointment.hospital_id;
     const nextCampaignId = dto.campaignId !== undefined ? dto.campaignId : appointment.campaign_id;
     if (dto.hospitalId !== undefined || dto.campaignId !== undefined) {
@@ -262,6 +272,37 @@ export class AppointmentsService {
       if (campaign.status !== campaign_status.ACTIVE) {
         throw new BadRequestException('Campaign is not currently active for bookings');
       }
+    }
+  }
+
+  private async validateAppointmentForBooking(
+    donorId: string,
+    dto: CreateAppointmentDto,
+    options: { useAccountHistory: boolean },
+  ) {
+    this.assertAppointmentDateNotPast(dto.appointmentDate);
+
+    const eligibility = await this.eligibilityService.checkEligibility(
+      donorId,
+      {
+        lastDonationDate: dto.lastDonationDate,
+        hadTattooRecently: dto.hadTattooRecently,
+        tattooDate: dto.tattooDate,
+      },
+      { ...options, referenceDate: dto.appointmentDate },
+    );
+    if (!eligibility.eligible) {
+      throw new BadRequestException(eligibility.reasons.join(' '));
+    }
+  }
+
+  private assertAppointmentDateNotPast(appointmentDate: string) {
+    const [year, month, day] = appointmentDate.slice(0, 10).split('-').map(Number);
+    const appointmentDay = Date.UTC(year, month - 1, day);
+    const today = new Date();
+    const todayDay = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+    if (appointmentDay < todayDay) {
+      throw new BadRequestException('Appointment date cannot be in the past.');
     }
   }
 
