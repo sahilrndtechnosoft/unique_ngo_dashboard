@@ -15,6 +15,7 @@ const STATUSES = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'BANNED', 'PENDING_VERIFICA
 const STAFF_ACCOUNT_TYPES = new Set(['ADMIN', 'SUPER_ADMIN']);
 const BLOOD_GROUPS = ['A_POSITIVE', 'A_NEGATIVE', 'B_POSITIVE', 'B_NEGATIVE', 'AB_POSITIVE', 'AB_NEGATIVE', 'O_POSITIVE', 'O_NEGATIVE'];
 const GENDERS = ['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY'];
+const PERSON_NAME_PATTERN = /^[A-Za-z]+(?: [A-Za-z]+)*$/;
 
 type Mode = 'create' | 'edit';
 
@@ -157,6 +158,12 @@ export default function AdminUsers() {
     const submit = async (event: FormEvent) => {
         event.preventDefault();
 
+        const fullName = form.fullName.trim();
+        if (!PERSON_NAME_PATTERN.test(fullName)) {
+            showAlert('Full Name may contain only letters and spaces', 'error');
+            return;
+        }
+
         if (STAFF_ACCOUNT_TYPES.has(form.role) && !form.rbacRoleId) {
             showAlert('RBAC role is required for Admin and Super Admin', 'error');
             return;
@@ -165,7 +172,7 @@ export default function AdminUsers() {
         setBusy(true);
         try {
             const body: Record<string, unknown> = {
-                fullName: form.fullName,
+                fullName,
                 role: form.role,
                 status: form.status,
                 rbacRoleId: STAFF_ACCOUNT_TYPES.has(form.role) ? form.rbacRoleId : null,
@@ -405,6 +412,9 @@ export default function AdminUsers() {
                             <input
                                 className="form-input"
                                 required
+                                maxLength={255}
+                                pattern="[A-Za-z]+(?: [A-Za-z]+)*"
+                                title="Full Name may contain only letters and spaces"
                                 value={form.fullName}
                                 onChange={(e) => setForm({ ...form, fullName: e.target.value })}
                             />

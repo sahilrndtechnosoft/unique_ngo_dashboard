@@ -26,6 +26,7 @@ export interface ApiErrorResponse {
 }
 
 export const INDIAN_MOBILE_REGEX = /^[6-9]\d{9}$/;
+export const PERSON_NAME_REGEX = /^[A-Za-z]+(?: [A-Za-z]+)*$/;
 
 export const ALLOWED_IMAGE_MIME_TYPES = [
   'image/jpeg',

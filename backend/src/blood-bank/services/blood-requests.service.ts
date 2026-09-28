@@ -9,6 +9,13 @@ import {
   ListBloodRequestsQueryDto,
 } from '../dto/blood-request.dto';
 
+export function assertRequiredByDateNotPast(value: string, now = new Date()): void {
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  if (value.slice(0, 10) < today) {
+    throw new BadRequestException('Required By date cannot be in the past.');
+  }
+}
+
 /** Human-readable status text used in requester-facing notifications. */
 const STATUS_NOTIFICATION_TEXT: Record<blood_request_status, string> = {
   OPEN: 'is now open and visible to donors',
@@ -28,6 +35,10 @@ export class BloodRequestsService {
   ) {}
 
   async createRequest(requesterId: string, dto: CreateBloodRequestDto, proofImageUrl?: string, notifyAdmins = true) {
+    if (!proofImageUrl) {
+      throw new BadRequestException('A supporting proof/document is required');
+    }
+    assertRequiredByDateNotPast(dto.requiredByDate);
     const request = await this.prisma.blood_requests.create({
       data: {
         requester_id: requesterId,
@@ -136,6 +147,15 @@ export class BloodRequestsService {
 
   async adminUpdateRequest(requestId: string, dto: AdminUpdateBloodRequestDto, adminId: string) {
     const request = await this.findOrThrow(requestId);
+    if (dto.requiredByDate !== undefined) {
+      assertRequiredByDateNotPast(dto.requiredByDate);
+    }
+    if (
+      (dto.status === blood_request_status.OPEN || dto.status === blood_request_status.PARTIALLY_FULFILLED) &&
+      dto.status !== request.status
+    ) {
+      assertRequiredByDateNotPast(dto.requiredByDate ?? request.required_by_date.toISOString().slice(0, 10));
+    }
 
     const updated = await this.prisma.blood_requests.update({
       where: { id: requestId },

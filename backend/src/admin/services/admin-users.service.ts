@@ -101,7 +101,7 @@ export class AdminUsersService {
 
     const user = await this.prisma.users.create({
       data: {
-        full_name: dto.fullName,
+        full_name: dto.fullName.trim(),
         email,
         mobile,
         password_hash: passwordHash,
@@ -153,7 +153,7 @@ export class AdminUsersService {
     }
 
     const data: Prisma.usersUpdateInput = {
-      ...(dto.fullName !== undefined && { full_name: dto.fullName }),
+      ...(dto.fullName !== undefined && { full_name: dto.fullName.trim() }),
       ...(dto.email !== undefined && {
         email: dto.email.toLowerCase(),
         email_verified: false,

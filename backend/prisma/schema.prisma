@@ -349,6 +349,12 @@ model blood_donation_appointments {
   blood_group      blood_group
   appointment_date DateTime           @db.Date
   time_slot        String?            @db.VarChar(50)
+  last_donation_date DateTime?       @db.Date
+  had_tattoo_recently Boolean         @default(false)
+  tattoo_date      DateTime?          @db.Date
+  city             String?            @db.VarChar(100)
+  state            String?            @db.VarChar(100)
+  contact_phone    String?            @db.VarChar(20)
   status           appointment_status @default(PENDING)
   notes            String?
   cancel_reason    String?

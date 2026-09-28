@@ -68,6 +68,12 @@ export default function AdminDonationItems() {
     }, []);
 
     const verify = async (id: string) => {
+        const ok = await confirmAction(
+            'Approve this donation item?',
+            'The item will become visible to other users after approval.',
+            'Approve',
+        );
+        if (!ok) return;
         try {
             await adminApi.verifyDonationItem(id);
             showAlert('Donation item approved successfully');

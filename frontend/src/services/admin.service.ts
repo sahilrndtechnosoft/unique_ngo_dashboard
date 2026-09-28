@@ -216,8 +216,14 @@ export const adminApi = {
     listBloodRequests: (params?: Record<string, unknown>) =>
         api.get('/admin/blood-requests', { params }).then((r) => unwrapPaginated<any>(r)),
     getBloodRequest: (id: string) => api.get(`/admin/blood-requests/${id}`).then((r) => unwrap(r)),
-    createBloodRequest: (body: Record<string, unknown>) =>
-        api.post('/admin/blood-requests', body).then((r) => unwrap(r)),
+    createBloodRequest: (body: Record<string, unknown>, proofFile: File) => {
+        const form = new FormData();
+        Object.entries(body).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) form.append(key, String(value));
+        });
+        form.append('file', proofFile);
+        return api.post('/admin/blood-requests', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => unwrap(r));
+    },
     updateBloodRequest: (id: string, body: Record<string, unknown>) =>
         api.patch(`/admin/blood-requests/${id}`, body).then((r) => unwrap(r)),
     deleteBloodRequest: (id: string) => api.delete(`/admin/blood-requests/${id}`).then((r) => unwrap(r)),

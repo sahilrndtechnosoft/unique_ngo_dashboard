@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsDateString,
@@ -9,6 +9,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   Max,
   MaxLength,
   Min,
@@ -16,6 +17,23 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { blood_group, blood_request_status, urgency_level } from '../../../generated/prisma/client';
+import { INDIAN_MOBILE_REGEX } from '../../common/constants';
+
+const BLOOD_REQUEST_LABEL_REGEX = /^(?=.*[A-Za-z])[A-Za-z .,'&_\/-]+$/;
+const BLOOD_REQUEST_ADDRESS_REGEX = /^(?=.*[A-Za-z])[A-Za-z0-9 .,'&_\/-]+$/;
+const BLOOD_REQUEST_TEXT_ERROR = "Field contains invalid characters. Only alphabets, spaces, and valid symbols (e.g., . ' - & _ /) are allowed.";
+
+export function normalizeUrgency(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  const normalized = value.trim().toUpperCase();
+  return ({ NORMAL: 'MEDIUM', URGENT: 'HIGH' } as Record<string, string>)[normalized] ?? normalized;
+}
+
+function normalizeBoolean(value: unknown): unknown {
+  if (value === true || value === 'true' || value === '1') return true;
+  if (value === false || value === 'false' || value === '0') return false;
+  return value;
+}
 
 export class ListBloodRequestsQueryDto {
   @ApiPropertyOptional({ example: 1 })
@@ -40,6 +58,7 @@ export class ListBloodRequestsQueryDto {
 
   @ApiPropertyOptional({ enum: urgency_level })
   @IsOptional()
+  @Transform(({ value }) => normalizeUrgency(value))
   @IsEnum(urgency_level)
   urgency?: urgency_level;
 
@@ -55,13 +74,14 @@ export class ListBloodRequestsQueryDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => normalizeBoolean(value))
   @IsBoolean()
   isEmergency?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   search?: string;
 }
 
@@ -70,6 +90,7 @@ export class CreateBloodRequestDto {
   @IsString()
   @MinLength(2)
   @MaxLength(255)
+  @Matches(BLOOD_REQUEST_LABEL_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
   patientName!: string;
 
   @ApiProperty({ enum: blood_group })
@@ -85,36 +106,43 @@ export class CreateBloodRequestDto {
 
   @ApiPropertyOptional({ enum: urgency_level, example: urgency_level.MEDIUM })
   @IsOptional()
+  @Transform(({ value }) => normalizeUrgency(value))
   @IsEnum(urgency_level)
   urgency?: urgency_level;
 
   @ApiProperty({ example: 'City Care Hospital' })
   @IsString()
   @MaxLength(255)
+  @Matches(BLOOD_REQUEST_LABEL_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
   hospitalName!: string;
 
   @ApiProperty()
   @IsString()
+  @Matches(BLOOD_REQUEST_ADDRESS_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
   hospitalAddress!: string;
 
   @ApiProperty({ example: 'Pune' })
   @IsString()
   @MaxLength(100)
+  @Matches(BLOOD_REQUEST_LABEL_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
   city!: string;
 
   @ApiProperty({ example: 'Maharashtra' })
   @IsString()
   @MaxLength(100)
+  @Matches(BLOOD_REQUEST_LABEL_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
   state!: string;
 
   @ApiProperty()
   @IsString()
   @MaxLength(255)
+  @Matches(BLOOD_REQUEST_LABEL_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
   contactName!: string;
 
   @ApiProperty()
   @IsString()
   @MaxLength(20)
+  @Matches(INDIAN_MOBILE_REGEX, { message: 'Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.' })
   contactMobile!: string;
 
   @ApiProperty({ example: '2026-08-15' })
@@ -128,6 +156,7 @@ export class CreateBloodRequestDto {
 
   @ApiPropertyOptional({ example: false })
   @IsOptional()
+  @Transform(({ value }) => normalizeBoolean(value))
   @IsBoolean()
   isEmergency?: boolean;
 
@@ -156,6 +185,7 @@ export class AdminUpdateBloodRequestDto {
   @IsString()
   @MinLength(2)
   @MaxLength(255)
+  @Matches(BLOOD_REQUEST_LABEL_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
   patientName?: string;
 
   @ApiPropertyOptional({ enum: blood_group })
@@ -179,6 +209,7 @@ export class AdminUpdateBloodRequestDto {
 
   @ApiPropertyOptional({ enum: urgency_level })
   @IsOptional()
+  @Transform(({ value }) => normalizeUrgency(value))
   @IsEnum(urgency_level)
   urgency?: urgency_level;
 
@@ -186,35 +217,41 @@ export class AdminUpdateBloodRequestDto {
   @IsOptional()
   @IsString()
   @MaxLength(255)
+  @Matches(BLOOD_REQUEST_LABEL_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
   hospitalName?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @Matches(BLOOD_REQUEST_ADDRESS_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
   hospitalAddress?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MaxLength(100)
+  @Matches(BLOOD_REQUEST_LABEL_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
   city?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MaxLength(100)
+  @Matches(BLOOD_REQUEST_LABEL_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
   state?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MaxLength(255)
+  @Matches(BLOOD_REQUEST_LABEL_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
   contactName?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MaxLength(20)
+  @Matches(INDIAN_MOBILE_REGEX, { message: 'Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.' })
   contactMobile?: string;
 
   @ApiPropertyOptional({ example: '2026-08-15' })
@@ -234,6 +271,7 @@ export class AdminUpdateBloodRequestDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @Transform(({ value }) => normalizeBoolean(value))
   @IsBoolean()
   isEmergency?: boolean;
 

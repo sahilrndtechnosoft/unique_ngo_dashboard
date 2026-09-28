@@ -1,7 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 import { appointment_status, blood_group } from '../../../generated/prisma/client';
+import { INDIAN_MOBILE_REGEX } from '../../common/constants';
 
 export class ListAppointmentsQueryDto {
   @ApiPropertyOptional({ example: 1 })
@@ -32,6 +33,7 @@ export class ListAppointmentsQueryDto {
   @ApiPropertyOptional({ description: 'Admin-only: search by donor name, email or mobile' })
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   search?: string;
 
   @ApiPropertyOptional({ description: 'Admin-only: filter to a specific hospital' })
@@ -69,6 +71,23 @@ export class CreateAppointmentDto {
   @IsString()
   @MaxLength(50)
   timeSlot?: string;
+
+  @ApiPropertyOptional({ example: 'Pune' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  city?: string;
+
+  @ApiPropertyOptional({ example: 'Maharashtra' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  state?: string;
+
+  @ApiPropertyOptional({ example: '9876543210' })
+  @IsOptional()
+  @Matches(INDIAN_MOBILE_REGEX, { message: 'Contact phone must be a valid 10-digit Indian number' })
+  contactPhone?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -131,7 +150,7 @@ export class AdminCreateAppointmentDto extends CreateAppointmentDto {
   @IsUUID()
   userId!: string;
 
-  @ApiPropertyOptional({ description: 'Admin-created appointments skip the self-service eligibility gate' })
+  @ApiPropertyOptional({ example: false, description: 'Medical screening answer; admin-created appointments skip the self-service eligibility gate' })
   @IsOptional()
   @IsBoolean()
   declare hadTattooRecently: boolean;
@@ -163,6 +182,39 @@ export class AdminUpdateAppointmentDto {
   @IsString()
   @MaxLength(50)
   timeSlot?: string;
+
+  @ApiPropertyOptional({ example: 'Pune' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  city?: string;
+
+  @ApiPropertyOptional({ example: 'Maharashtra' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  state?: string;
+
+  @ApiPropertyOptional({ example: '9876543210' })
+  @IsOptional()
+  @Matches(INDIAN_MOBILE_REGEX, { message: 'Contact phone must be a valid 10-digit Indian number' })
+  contactPhone?: string;
+
+  @ApiPropertyOptional({ example: '2026-05-01' })
+  @IsOptional()
+  @IsDateString()
+  lastDonationDate?: string;
+
+  @ApiPropertyOptional({ example: false })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  hadTattooRecently?: boolean;
+
+  @ApiPropertyOptional({ example: '2026-06-01' })
+  @ValidateIf((dto: AdminUpdateAppointmentDto) => dto.hadTattooRecently === true)
+  @IsDateString()
+  tattooDate?: string;
 
   @ApiPropertyOptional({ enum: appointment_status })
   @IsOptional()
