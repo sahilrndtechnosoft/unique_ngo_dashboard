@@ -5,7 +5,7 @@ import { setPageTitle } from '../../store/themeConfigSlice';
 import { adminApi } from '../../services/admin.service';
 import { getErrorMessage } from '../../services/api';
 import { AdminDataTable } from '../../components/Admin/AdminTable';
-import { DetailFacts, FormField, FormSection, RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
+import { DetailFacts, FormField, FormSection, StatusBadge } from '../../components/Admin/FormPrimitives';
 import { confirmAction, showAlert } from '../../utils/alerts';
 import IconArrowLeft from '../../components/Icon/IconArrowLeft';
 
@@ -477,7 +477,13 @@ export default function OrderDetail() {
                     loadHistory(1, size);
                 }}
                 actions={(row) => (
-                    <RowActionsMenu actions={[{ label: 'View', onClick: () => navigate(`/admin/orders/${row.id}`) }]} />
+                    <Link
+                        to={`/admin/orders/${row.id}`}
+                        className="btn btn-outline-primary btn-sm"
+                        aria-label={`View order ${row.orderNumber}`}
+                    >
+                        View
+                    </Link>
                 )}
                 emptyText="No other orders from this buyer"
             />

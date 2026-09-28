@@ -21,7 +21,7 @@ import { AppModule, JwtPayload, PermissionAction, UserRole } from '../../common/
 import { CurrentUser, RequirePermissions, ResponseMessage, Roles } from '../../common/decorators';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { buildUploadedFilePath, createImageUploadOptions } from '../../common/utils/image-upload.util';
+import { buildUploadedFilePath, createImageUploadOptions, deleteUploadedFile } from '../../common/utils/image-upload.util';
 import {
   AdminCreateBloodRequestDto,
   AdminUpdateBloodRequestDto,
@@ -118,15 +118,19 @@ export class AdminBloodRequestsController {
     schema: {
       ...BLOOD_REQUEST_BODY_SCHEMA,
       properties: { ...BLOOD_REQUEST_BODY_SCHEMA.properties, userId: { type: 'string', format: 'uuid' } },
-      required: ['userId', ...BLOOD_REQUEST_BODY_SCHEMA.required.filter((field) => field !== 'file')],
+      required: ['file', 'userId', ...BLOOD_REQUEST_BODY_SCHEMA.required.filter((field) => field !== 'file')],
     },
   })
   @UseInterceptors(FileInterceptor('file', createImageUploadOptions('blood-requests')))
   create(@UploadedFile() file: Express.Multer.File, @Body() dto: AdminCreateBloodRequestDto) {
-    return this.bloodRequestsService.adminCreateRequest(
-      dto,
-      file ? buildUploadedFilePath('blood-requests', file.filename) : undefined,
-    );
+    if (!file) {
+      throw new BadRequestException('A supporting proof/document is required');
+    }
+    const proofPath = buildUploadedFilePath('blood-requests', file.filename);
+    return this.bloodRequestsService.adminCreateRequest(dto, proofPath).catch((error) => {
+      deleteUploadedFile(proofPath);
+      throw error;
+    });
   }
 
   @Patch(':id')

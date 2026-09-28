@@ -16,7 +16,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { INDIAN_MOBILE_REGEX } from '../../common/constants';
+import { INDIAN_MOBILE_REGEX, PERSON_NAME_REGEX } from '../../common/constants';
 import { blood_group, gender, user_role, user_status } from '../../../generated/prisma/client';
 
 const STAFF_ACCOUNT_TYPES: user_role[] = [
@@ -62,10 +62,13 @@ export class ListUsersQueryDto {
 }
 
 export class CreateAdminUserDto {
-  @ApiProperty({ example: 'Jane Doe' })
+  @ApiProperty({ example: 'Jane Doe', pattern: '^[A-Za-z]+(?: [A-Za-z]+)*$' })
   @IsString()
   @MinLength(2)
   @MaxLength(255)
+  @Matches(PERSON_NAME_REGEX, {
+    message: 'Full name may contain only letters and spaces',
+  })
   fullName!: string;
 
   @ApiProperty({ example: 'jane@unique-ngo.com' })
@@ -133,11 +136,14 @@ export class CreateAdminUserDto {
 }
 
 export class UpdateAdminUserDto {
-  @ApiPropertyOptional({ example: 'Jane Doe' })
+  @ApiPropertyOptional({ example: 'Jane Doe', pattern: '^[A-Za-z]+(?: [A-Za-z]+)*$' })
   @IsOptional()
   @IsString()
   @MinLength(2)
   @MaxLength(255)
+  @Matches(PERSON_NAME_REGEX, {
+    message: 'Full name may contain only letters and spaces',
+  })
   fullName?: string;
 
   @ApiPropertyOptional({ example: 'jane@unique-ngo.com' })

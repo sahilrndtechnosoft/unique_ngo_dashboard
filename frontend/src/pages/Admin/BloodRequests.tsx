@@ -8,12 +8,22 @@ import { AdminDataTable, AdminPageHeader, BulkActionsBar } from '../../component
 import AdminFormModal from '../../components/Admin/AdminFormModal';
 import { FormField, FormSection, RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
 import { confirmAction, showAlert } from '../../utils/alerts';
+import { bloodRequestUrgencyStatus } from './blood-request-display';
 
 type Mode = 'create' | 'edit' | 'view';
 
 const BLOOD_GROUPS = ['A_POSITIVE', 'A_NEGATIVE', 'B_POSITIVE', 'B_NEGATIVE', 'AB_POSITIVE', 'AB_NEGATIVE', 'O_POSITIVE', 'O_NEGATIVE'];
 const URGENCY_LEVELS = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 const REQUEST_STATUSES = ['OPEN', 'PARTIALLY_FULFILLED', 'FULFILLED', 'CANCELLED', 'EXPIRED'];
+const BLOOD_REQUEST_LABEL_PATTERN = "(?=.*[A-Za-z])[A-Za-z .,'&_/-]+";
+const BLOOD_REQUEST_TEXT_TITLE = "Field contains invalid characters. Only alphabets, spaces, and valid symbols (e.g., . ' - & _ /) are allowed.";
+const INDIAN_MOBILE_PATTERN = '[6-9][0-9]{9}';
+
+function localDateInputValue(date = new Date()) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+const MIN_REQUIRED_BY_DATE = localDateInputValue();
 
 const emptyForm = {
     userId: '',
@@ -53,6 +63,7 @@ export default function AdminBloodRequests() {
     const [mode, setMode] = useState<Mode | null>(null);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState(emptyForm);
+    const [pendingProof, setPendingProof] = useState<File | null>(null);
     const [requesterSearch, setRequesterSearch] = useState('');
     const [requesterResults, setRequesterResults] = useState<any[]>([]);
 
@@ -81,7 +92,7 @@ export default function AdminBloodRequests() {
             const data = await adminApi.listBloodRequests({
                 page,
                 limit: size,
-                search: nextSearch || undefined,
+                search: nextSearch.trim() || undefined,
                 status: nextStatus || undefined,
             });
             setItems(data.items);
@@ -108,6 +119,7 @@ export default function AdminBloodRequests() {
     const openCreate = () => {
         setEditingId(null);
         setForm(emptyForm);
+        setPendingProof(null);
         setRequesterSearch('');
         setRequesterResults([]);
         setMode('create');
@@ -139,16 +151,26 @@ export default function AdminBloodRequests() {
             expiresAt: request.expiresAt ? request.expiresAt.slice(0, 10) : '',
             proofImageUrl: request.proofImageUrl ?? null,
         });
+        setPendingProof(null);
     };
 
     const submit = async (event: FormEvent) => {
         event.preventDefault();
+        if (form.requiredByDate < MIN_REQUIRED_BY_DATE) {
+            showAlert('Required By date cannot be in the past.', 'error');
+            return;
+        }
         setBusy(true);
         setError('');
         try {
             if (mode === 'create') {
                 if (!form.userId) {
                     showAlert('Select a requesting user first', 'error');
+                    setBusy(false);
+                    return;
+                }
+                if (!pendingProof) {
+                    showAlert('A supporting proof/document is required', 'error');
                     setBusy(false);
                     return;
                 }
@@ -169,7 +191,7 @@ export default function AdminBloodRequests() {
                     isEmergency: form.isEmergency,
                     forSelf: form.forSelf,
                     patientRelation: form.forSelf ? undefined : form.patientRelation || undefined,
-                });
+                }, pendingProof);
                 showAlert('Blood request created successfully');
             } else if (editingId) {
                 await adminApi.updateBloodRequest(editingId, {
@@ -293,7 +315,7 @@ export default function AdminBloodRequests() {
                         label: 'Urgency',
                         sortable: true,
                         sortValue: (row) => row.urgency,
-                        render: (row) => <StatusBadge status={row.isEmergency ? 'CRITICAL' : row.urgency} />,
+                        render: (row) => <StatusBadge status={bloodRequestUrgencyStatus(row)} />,
                     },
                     {
                         key: 'hospital',
@@ -456,7 +478,7 @@ export default function AdminBloodRequests() {
                             </FormField>
                         ) : null}
                         <FormField label={form.forSelf ? 'Patient Name' : "Family Member's Name"} required>
-                            <input className="form-input" required disabled={readOnly} value={form.patientName} onChange={(e) => setForm({ ...form, patientName: e.target.value })} />
+                            <input className="form-input" required disabled={readOnly} pattern={BLOOD_REQUEST_LABEL_PATTERN} title={BLOOD_REQUEST_TEXT_TITLE} value={form.patientName} onChange={(e) => setForm({ ...form, patientName: e.target.value })} />
                         </FormField>
                         <FormField label="Blood Group" required>
                             <select className="form-select" required disabled={readOnly} value={form.bloodGroup} onChange={(e) => setForm({ ...form, bloodGroup: e.target.value })}>
@@ -486,7 +508,7 @@ export default function AdminBloodRequests() {
                             </select>
                         </FormField>
                         <FormField label="Required By" required>
-                            <input className="form-input" type="date" required disabled={readOnly} value={form.requiredByDate} onChange={(e) => setForm({ ...form, requiredByDate: e.target.value })} />
+                            <input className="form-input" type="date" min={MIN_REQUIRED_BY_DATE} required disabled={readOnly} value={form.requiredByDate} onChange={(e) => setForm({ ...form, requiredByDate: e.target.value })} />
                         </FormField>
                         <FormField label="Emergency">
                             <div className="flex items-center h-[38px]">
@@ -496,28 +518,39 @@ export default function AdminBloodRequests() {
                                 </label>
                             </div>
                         </FormField>
+                        {mode === 'create' ? (
+                            <FormField label="Supporting Proof" required className="md:col-span-2" hint="Upload the requisition or hospital proof document.">
+                                <input
+                                    className="form-input"
+                                    type="file"
+                                    accept="image/*"
+                                    required
+                                    onChange={(e) => setPendingProof(e.target.files?.[0] ?? null)}
+                                />
+                            </FormField>
+                        ) : null}
                     </div>
                 </FormSection>
 
                 <FormSection title="Hospital & Contact" className="md:col-span-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <FormField label="Hospital Name" required>
-                            <input className="form-input" required disabled={readOnly} value={form.hospitalName} onChange={(e) => setForm({ ...form, hospitalName: e.target.value })} />
+                            <input className="form-input" required disabled={readOnly} pattern={BLOOD_REQUEST_LABEL_PATTERN} title={BLOOD_REQUEST_TEXT_TITLE} value={form.hospitalName} onChange={(e) => setForm({ ...form, hospitalName: e.target.value })} />
                         </FormField>
                         <FormField label="Hospital Address" required className="md:col-span-2">
-                            <textarea className="form-textarea" required disabled={readOnly} value={form.hospitalAddress} onChange={(e) => setForm({ ...form, hospitalAddress: e.target.value })} />
+                            <textarea className="form-textarea" required disabled={readOnly} title={BLOOD_REQUEST_TEXT_TITLE} value={form.hospitalAddress} onChange={(e) => setForm({ ...form, hospitalAddress: e.target.value })} />
                         </FormField>
                         <FormField label="City" required>
-                            <input className="form-input" required disabled={readOnly} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+                            <input className="form-input" required disabled={readOnly} pattern={BLOOD_REQUEST_LABEL_PATTERN} title={BLOOD_REQUEST_TEXT_TITLE} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
                         </FormField>
                         <FormField label="State" required>
-                            <input className="form-input" required disabled={readOnly} value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+                            <input className="form-input" required disabled={readOnly} pattern={BLOOD_REQUEST_LABEL_PATTERN} title={BLOOD_REQUEST_TEXT_TITLE} value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
                         </FormField>
                         <FormField label="Contact Name" required>
-                            <input className="form-input" required disabled={readOnly} value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })} />
+                            <input className="form-input" required disabled={readOnly} pattern={BLOOD_REQUEST_LABEL_PATTERN} title={BLOOD_REQUEST_TEXT_TITLE} value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })} />
                         </FormField>
                         <FormField label="Contact Mobile" required>
-                            <input className="form-input" required disabled={readOnly} value={form.contactMobile} onChange={(e) => setForm({ ...form, contactMobile: e.target.value })} />
+                            <input className="form-input" type="tel" inputMode="numeric" required disabled={readOnly} pattern={INDIAN_MOBILE_PATTERN} maxLength={10} title="Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9." value={form.contactMobile} onChange={(e) => setForm({ ...form, contactMobile: e.target.value })} />
                         </FormField>
                         <FormField label="Notes" className="md:col-span-2">
                             <textarea className="form-textarea" disabled={readOnly} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />

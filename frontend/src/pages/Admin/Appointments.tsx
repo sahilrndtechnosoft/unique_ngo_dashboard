@@ -23,6 +23,12 @@ const emptyForm = {
     bloodGroup: '',
     appointmentDate: '',
     timeSlot: '',
+    lastDonationDate: '',
+    hadTattooRecently: false,
+    tattooDate: '',
+    city: '',
+    state: '',
+    contactPhone: '',
     notes: '',
     status: 'PENDING',
     cancelReason: '',
@@ -59,7 +65,7 @@ export default function AdminAppointments() {
             return;
         }
         try {
-            const data = await adminApi.listUsers({ search: donorSearch, limit: 10 });
+            const data = await adminApi.listUsers({ search: donorSearch.trim(), limit: 10 });
             setDonorResults(data.items);
         } catch (err) {
             showAlert(getErrorMessage(err), 'error');
@@ -75,7 +81,7 @@ export default function AdminAppointments() {
             const data = await adminApi.listAppointments({
                 page,
                 limit: size,
-                search: nextSearch || undefined,
+                search: nextSearch.trim() || undefined,
                 status: nextStatus || undefined,
             });
             setItems(data.items);
@@ -120,6 +126,12 @@ export default function AdminAppointments() {
             bloodGroup: appointment.bloodGroup,
             appointmentDate: appointment.appointmentDate.slice(0, 10),
             timeSlot: appointment.timeSlot ?? '',
+            lastDonationDate: appointment.lastDonationDate ? appointment.lastDonationDate.slice(0, 10) : '',
+            hadTattooRecently: appointment.hadTattooRecently ?? false,
+            tattooDate: appointment.tattooDate ? appointment.tattooDate.slice(0, 10) : '',
+            city: appointment.city ?? '',
+            state: appointment.state ?? '',
+            contactPhone: appointment.contactPhone ?? '',
             notes: appointment.notes ?? '',
             status: appointment.status,
             cancelReason: appointment.cancelReason ?? '',
@@ -144,6 +156,12 @@ export default function AdminAppointments() {
                 bloodGroup: form.bloodGroup,
                 appointmentDate: form.appointmentDate,
                 timeSlot: form.timeSlot || undefined,
+                lastDonationDate: form.lastDonationDate || undefined,
+                hadTattooRecently: form.hadTattooRecently,
+                tattooDate: form.hadTattooRecently ? form.tattooDate || undefined : undefined,
+                city: form.city || undefined,
+                state: form.state || undefined,
+                contactPhone: form.contactPhone || undefined,
                 notes: form.notes || undefined,
                 hospitalId: form.donationType === 'hospital' ? form.hospitalId || undefined : undefined,
                 campaignId: form.donationType === 'camp' ? form.campaignId || undefined : undefined,
@@ -425,6 +443,31 @@ export default function AdminAppointments() {
                         </FormField>
                         <FormField label="Time Slot">
                             <input className="form-input" value={form.timeSlot} onChange={(e) => setForm({ ...form, timeSlot: e.target.value })} />
+                        </FormField>
+                        <FormField label="Last Donation Date">
+                            <input className="form-input" type="date" value={form.lastDonationDate} onChange={(e) => setForm({ ...form, lastDonationDate: e.target.value })} />
+                        </FormField>
+                        <FormField label="Tattoo Recently?" required>
+                            <div className="flex items-center h-[38px]">
+                                <label className="flex items-center gap-2">
+                                    <input type="checkbox" className="form-checkbox" checked={form.hadTattooRecently} onChange={(e) => setForm({ ...form, hadTattooRecently: e.target.checked, tattooDate: e.target.checked ? form.tattooDate : '' })} />
+                                    Yes
+                                </label>
+                            </div>
+                        </FormField>
+                        {form.hadTattooRecently ? (
+                            <FormField label="Tattoo Date" required>
+                                <input className="form-input" type="date" required value={form.tattooDate} onChange={(e) => setForm({ ...form, tattooDate: e.target.value })} />
+                            </FormField>
+                        ) : null}
+                        <FormField label="City" required={mode === 'create'}>
+                            <input className="form-input" required={mode === 'create'} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+                        </FormField>
+                        <FormField label="State" required={mode === 'create'}>
+                            <input className="form-input" required={mode === 'create'} value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+                        </FormField>
+                        <FormField label="Contact Phone" required={mode === 'create'}>
+                            <input className="form-input" type="tel" inputMode="numeric" required={mode === 'create'} value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} />
                         </FormField>
                         {mode === 'edit' ? (
                             <FormField label="Status">

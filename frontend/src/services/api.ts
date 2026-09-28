@@ -1,4 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { shouldRedirectAfterUnauthorized } from './api-auth';
+
+export { shouldRedirectAfterUnauthorized } from './api-auth';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3017/api/v1';
 export const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 'http://localhost:3017';
@@ -28,7 +31,7 @@ api.interceptors.response.use(
     (response) => response,
     async (error: AxiosError) => {
         const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
-        if (error.response?.status !== 401 || !original || original._retry) {
+        if (error.response?.status !== 401 || !original || original._retry || !shouldRedirectAfterUnauthorized(original.url)) {
             return Promise.reject(error);
         }
 
