@@ -407,6 +407,7 @@ export default function UserDetail() {
                                 className="form-input"
                                 type="date"
                                 required
+                                min={appointmentMode === 'create' ? new Date().toISOString().slice(0, 10) : undefined}
                                 value={appointmentForm.appointmentDate}
                                 onChange={(e) => setAppointmentForm({ ...appointmentForm, appointmentDate: e.target.value })}
                             />

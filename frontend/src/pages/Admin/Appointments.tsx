@@ -13,6 +13,16 @@ type Mode = 'create' | 'edit';
 
 const APPOINTMENT_STATUSES = ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
 const BLOOD_GROUPS = ['A_POSITIVE', 'A_NEGATIVE', 'B_POSITIVE', 'B_NEGATIVE', 'AB_POSITIVE', 'AB_NEGATIVE', 'O_POSITIVE', 'O_NEGATIVE'];
+const DONATION_ELIGIBILITY_MONTHS = 3;
+
+const localDateInputValue = (date = new Date()) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+const nextEligibleDonationDate = (lastDonationDate: string) => {
+    const date = new Date(`${lastDonationDate}T00:00:00`);
+    date.setMonth(date.getMonth() + DONATION_ELIGIBILITY_MONTHS);
+    return localDateInputValue(date);
+};
 
 const emptyForm = {
     userId: '',
@@ -148,6 +158,21 @@ export default function AdminAppointments() {
         if (mode === 'create' && !form.userId) {
             showAlert('Select a donor first', 'error');
             return;
+        }
+        if (mode === 'create' && form.appointmentDate < localDateInputValue()) {
+            const message = 'Appointment date cannot be in the past.';
+            setError(message);
+            showAlert(message, 'error');
+            return;
+        }
+        if (mode === 'create' && form.lastDonationDate && form.appointmentDate) {
+            const nextEligibleDate = nextEligibleDonationDate(form.lastDonationDate);
+            if (form.appointmentDate < nextEligibleDate) {
+                const message = `Donor must wait at least ${DONATION_ELIGIBILITY_MONTHS} months between donations. Next eligible date: ${nextEligibleDate}.`;
+                setError(message);
+                showAlert(message, 'error');
+                return;
+            }
         }
         setBusy(true);
         setError('');
@@ -439,7 +464,7 @@ export default function AdminAppointments() {
                             </select>
                         </FormField>
                         <FormField label="Appointment Date" required>
-                            <input className="form-input" type="date" required min={mode === 'create' ? new Date().toISOString().slice(0, 10) : undefined} value={form.appointmentDate} onChange={(e) => setForm({ ...form, appointmentDate: e.target.value })} />
+                            <input className="form-input" type="date" required min={mode === 'create' ? localDateInputValue() : undefined} value={form.appointmentDate} onChange={(e) => setForm({ ...form, appointmentDate: e.target.value })} />
                         </FormField>
                         <FormField label="Time Slot">
                             <input className="form-input" value={form.timeSlot} onChange={(e) => setForm({ ...form, timeSlot: e.target.value })} />
