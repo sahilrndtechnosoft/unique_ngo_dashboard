@@ -439,7 +439,7 @@ export default function AdminAppointments() {
                             </select>
                         </FormField>
                         <FormField label="Appointment Date" required>
-                            <input className="form-input" type="date" required value={form.appointmentDate} onChange={(e) => setForm({ ...form, appointmentDate: e.target.value })} />
+                            <input className="form-input" type="date" required min={mode === 'create' ? new Date().toISOString().slice(0, 10) : undefined} value={form.appointmentDate} onChange={(e) => setForm({ ...form, appointmentDate: e.target.value })} />
                         </FormField>
                         <FormField label="Time Slot">
                             <input className="form-input" value={form.timeSlot} onChange={(e) => setForm({ ...form, timeSlot: e.target.value })} />

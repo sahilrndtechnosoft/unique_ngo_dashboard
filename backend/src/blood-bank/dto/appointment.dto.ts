@@ -150,7 +150,7 @@ export class AdminCreateAppointmentDto extends CreateAppointmentDto {
   @IsUUID()
   userId!: string;
 
-  @ApiPropertyOptional({ example: false, description: 'Medical screening answer; admin-created appointments skip the self-service eligibility gate' })
+  @ApiPropertyOptional({ example: false, description: 'Medical screening answer; admin-created appointments are also checked for donor eligibility' })
   @IsOptional()
   @IsBoolean()
   declare hadTattooRecently: boolean;

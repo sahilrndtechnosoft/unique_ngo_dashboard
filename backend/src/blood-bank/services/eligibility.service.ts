@@ -10,6 +10,11 @@ export interface EligibilityResult {
   reasons: string[];
 }
 
+interface EligibilityOptions {
+  useAccountHistory?: boolean;
+  referenceDate?: string | Date;
+}
+
 function addMonths(date: Date, months: number): Date {
   const result = new Date(date);
   result.setMonth(result.getMonth() + months);
@@ -45,9 +50,11 @@ export class EligibilityService {
    * donation history. Must be disabled when checking eligibility for someone other than the account
    * holder (e.g. an appointment booked on behalf of a family member) — the account's history doesn't apply to them.
    */
-  async checkEligibility(userId: string, dto: CheckEligibilityDto, options?: { useAccountHistory?: boolean }): Promise<EligibilityResult> {
+  async checkEligibility(userId: string, dto: CheckEligibilityDto, options?: EligibilityOptions): Promise<EligibilityResult> {
     const settings = await this.ensureSettings();
     const reasons: string[] = [];
+    const comparisonDate = options?.referenceDate ? new Date(options.referenceDate) : new Date();
+    const donationMonths = `${settings.donation_eligibility_months} month${settings.donation_eligibility_months === 1 ? '' : 's'}`;
 
     let lastDonationDate: Date | null = dto.lastDonationDate ? new Date(dto.lastDonationDate) : null;
     if (!lastDonationDate && (options?.useAccountHistory ?? true)) {
@@ -57,16 +64,16 @@ export class EligibilityService {
 
     if (lastDonationDate) {
       const eligibleFrom = addMonths(lastDonationDate, settings.donation_eligibility_months);
-      if (new Date() < eligibleFrom) {
-        reasons.push(
-          `You must wait at least ${settings.donation_eligibility_months} month(s) since your last donation. You'll be eligible from ${eligibleFrom.toISOString().slice(0, 10)}.`,
-        );
+      if (comparisonDate < eligibleFrom) {
+        reasons.push(options?.referenceDate
+          ? `Donor must wait at least ${donationMonths} between donations. Next eligible date: ${eligibleFrom.toISOString().slice(0, 10)}.`
+          : `You must wait at least ${settings.donation_eligibility_months} month(s) since your last donation. You'll be eligible from ${eligibleFrom.toISOString().slice(0, 10)}.`);
       }
     }
 
     if (dto.hadTattooRecently && dto.tattooDate) {
       const eligibleFrom = addMonths(new Date(dto.tattooDate), settings.tattoo_eligibility_months);
-      if (new Date() < eligibleFrom) {
+      if (comparisonDate < eligibleFrom) {
         reasons.push(
           `You must wait at least ${settings.tattoo_eligibility_months} month(s) after a tattoo before donating. You'll be eligible from ${eligibleFrom.toISOString().slice(0, 10)}.`,
         );
