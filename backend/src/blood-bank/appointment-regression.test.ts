@@ -133,6 +133,45 @@ test('rejects admin appointments within the donation eligibility window', async 
   assert.equal(createCalls, 0);
 });
 
+test('admin create enforces the three-month rule before inserting', async () => {
+  let createCalls = 0;
+  const prisma = {
+    users: {
+      findFirst: async () => ({ id: 'donor-id' }),
+      findUnique: async () => null,
+    },
+    hospitals: { findFirst: async () => ({ id: 'hospital-id' }) },
+    blood_bank_settings: {
+      findUnique: async () => ({ donation_eligibility_months: 3, tattoo_eligibility_months: 6 }),
+    },
+    blood_donation_appointments: {
+      create: async () => {
+        createCalls += 1;
+        return {};
+      },
+    },
+  };
+  const service = new AppointmentsService(
+    prisma as never,
+    new EligibilityService(prisma as never),
+    {} as never,
+  );
+
+  await assert.rejects(
+    () =>
+      service.adminCreateAppointment({
+        userId: 'donor-id',
+        hospitalId: 'hospital-id',
+        bloodGroup: 'O_POSITIVE',
+        appointmentDate: '2099-09-25',
+        lastDonationDate: '2099-09-15',
+        hadTattooRecently: false,
+      } as AdminCreateAppointmentDto),
+    { message: 'Donor must wait at least 3 months between donations. Next eligible date: 2099-12-15.' },
+  );
+  assert.equal(createCalls, 0);
+});
+
 test('checks donation eligibility against the requested appointment date', async () => {
   const settings = {
     donation_eligibility_months: 3,
