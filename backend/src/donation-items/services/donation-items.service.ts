@@ -154,7 +154,11 @@ export class DonationItemsService {
   }
 
   async adminUpdate(itemId: string, dto: AdminUpdateDonationItemDto) {
-    await this.findOrThrow(itemId);
+    const item = await this.findOrThrow(itemId);
+
+    if (item.status === donation_item_status.CANCELLED && dto.status !== undefined && dto.status !== donation_item_status.CANCELLED) {
+      throw new BadRequestException('Cannot change the status of a cancelled item.');
+    }
 
     const updated = await this.prisma.donation_items.update({
       where: { id: itemId },
@@ -182,9 +186,19 @@ export class DonationItemsService {
   async verify(itemId: string, adminId: string) {
     const item = await this.findOrThrow(itemId);
 
+    if (item.status === donation_item_status.CANCELLED) {
+      throw new BadRequestException('Cannot approve a cancelled item.');
+    }
+
     const updated = await this.prisma.donation_items.update({
       where: { id: itemId },
-      data: { verified_by_id: adminId, verified_at: new Date(), admin_note: null, updated_at: new Date() },
+      data: {
+        status: donation_item_status.AVAILABLE,
+        verified_by_id: adminId,
+        verified_at: new Date(),
+        admin_note: null,
+        updated_at: new Date(),
+      },
     });
 
     await this.notifyDonor(item.donor_id, 'Listing Approved', `Your donation listing "${item.title}" has been approved and is now visible to others.`, item.id);
@@ -196,9 +210,14 @@ export class DonationItemsService {
   async reject(itemId: string, dto: RejectDonationItemDto, adminId: string) {
     const item = await this.findOrThrow(itemId);
 
+    if (item.status === donation_item_status.CANCELLED) {
+      throw new BadRequestException('Cannot reject a cancelled item.');
+    }
+
     const updated = await this.prisma.donation_items.update({
       where: { id: itemId },
       data: {
+        status: donation_item_status.REJECTED,
         verified_by_id: adminId,
         verified_at: null,
         admin_note: dto.adminNote,

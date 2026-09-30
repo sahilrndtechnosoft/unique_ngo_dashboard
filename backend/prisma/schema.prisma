@@ -1910,6 +1910,7 @@ enum donation_item_status {
   APPROVED
   TRANSFERRED
   CANCELLED
+  REJECTED
 }
 
 enum donation_status {

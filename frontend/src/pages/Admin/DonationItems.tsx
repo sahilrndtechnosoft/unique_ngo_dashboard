@@ -8,7 +8,7 @@ import { AdminDataTable, AdminPageHeader } from '../../components/Admin/AdminTab
 import { RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
 import { confirmAction, showAlert } from '../../utils/alerts';
 
-const STATUSES = ['AVAILABLE', 'REQUESTED', 'APPROVED', 'TRANSFERRED', 'CANCELLED'];
+const STATUSES = ['AVAILABLE', 'REQUESTED', 'APPROVED', 'TRANSFERRED', 'CANCELLED', 'REJECTED'];
 const CATEGORIES = ['FURNITURE', 'CLOTHING', 'MEDICAL_EQUIPMENT', 'ELECTRONICS', 'BOOKS_STATIONERY', 'HOUSEHOLD', 'TOYS', 'OTHER'];
 
 export default function AdminDonationItems() {
@@ -191,7 +191,7 @@ export default function AdminDonationItems() {
                     {
                         key: 'verified',
                         label: 'Review',
-                        render: (row) => (row.isVerified ? <StatusBadge status="VERIFIED" /> : <StatusBadge status="PENDING" />),
+                        render: (row) => (row.status === 'REJECTED' ? <StatusBadge status="REJECTED" /> : row.isVerified ? <StatusBadge status="VERIFIED" /> : <StatusBadge status="PENDING" />),
                     },
                     {
                         key: 'createdAt',
@@ -216,7 +216,7 @@ export default function AdminDonationItems() {
                     <RowActionsMenu
                         actions={[
                             { label: 'View', onClick: () => navigate(`/admin/donation-items/${row.id}`) },
-                            ...(!row.isVerified ? [{ label: 'Approve', onClick: () => verify(row.id) }] : []),
+                            ...(!row.isVerified && row.status !== 'CANCELLED' ? [{ label: 'Approve', onClick: () => verify(row.id) }] : []),
                             { label: 'Delete', onClick: () => remove(row.id), danger: true },
                         ]}
                     />

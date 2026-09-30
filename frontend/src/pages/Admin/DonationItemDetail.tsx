@@ -142,7 +142,7 @@ export default function DonationItemDetail() {
             { label: 'Pickup Only', value: item.isPickupOnly ? 'Yes' : 'No' },
             { label: 'Donor', value: item.donor?.fullName ?? '—' },
             { label: 'Donor Mobile', value: item.donor?.mobileMasked ?? '—' },
-            { label: 'Review Status', value: item.isVerified ? 'VERIFIED' : 'PENDING REVIEW' },
+            { label: 'Review Status', value: item.status === 'REJECTED' ? 'REJECTED' : item.isVerified ? 'VERIFIED' : 'PENDING REVIEW' },
             { label: 'Listed On', value: new Date(item.createdAt).toLocaleString() },
         ];
     }, [item]);
@@ -176,7 +176,7 @@ export default function DonationItemDetail() {
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <StatusBadge status={item.status} />
-                    {!item.isVerified ? (
+                    {!item.isVerified && item.status !== 'CANCELLED' ? (
                         <>
                             <button type="button" className="btn btn-success" disabled={busy} onClick={verify}>
                                 Approve
