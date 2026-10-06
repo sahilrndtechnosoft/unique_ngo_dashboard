@@ -20,6 +20,7 @@ const DEAD_TOKEN_ERROR_CODES = [
   'messaging/invalid-registration-token',
   'messaging/invalid-argument',
 ];
+const FCM_MULTICAST_LIMIT = 500;
 
 @Injectable()
 export class FcmService {
@@ -58,7 +59,8 @@ export class FcmService {
   }
 
   async sendToTokens(tokens: string[], payload: PushPayload): Promise<PushResult> {
-    if (tokens.length === 0) {
+    const uniqueTokens = [...new Set(tokens)];
+    if (uniqueTokens.length === 0) {
       return { successTokens: [], invalidTokens: [] };
     }
 
@@ -67,28 +69,30 @@ export class FcmService {
       return { successTokens: [], invalidTokens: [] };
     }
 
-    const message: MulticastMessage = {
-      tokens,
-      notification: { title: payload.title, body: payload.body },
-      data: payload.data,
-    };
-
-    const response = await messaging.sendEachForMulticast(message);
-
     const successTokens: string[] = [];
     const invalidTokens: string[] = [];
-    response.responses.forEach((result, index) => {
-      const token = tokens[index];
-      if (result.success) {
-        successTokens.push(token);
-        return;
-      }
-      if (result.error && DEAD_TOKEN_ERROR_CODES.includes(result.error.code)) {
-        invalidTokens.push(token);
-      } else {
-        this.logger.error(`FCM send failed for token ${token}: ${result.error?.message}`);
-      }
-    });
+    for (let index = 0; index < uniqueTokens.length; index += FCM_MULTICAST_LIMIT) {
+      const batch = uniqueTokens.slice(index, index + FCM_MULTICAST_LIMIT);
+      const message: MulticastMessage = {
+        tokens: batch,
+        notification: { title: payload.title, body: payload.body },
+        data: payload.data,
+      };
+
+      const response = await messaging.sendEachForMulticast(message);
+      response.responses.forEach((result, resultIndex) => {
+        const token = batch[resultIndex];
+        if (result.success) {
+          successTokens.push(token);
+          return;
+        }
+        if (result.error && DEAD_TOKEN_ERROR_CODES.includes(result.error.code)) {
+          invalidTokens.push(token);
+        } else {
+          this.logger.error(`FCM send failed for token ${token}: ${result.error?.message}`);
+        }
+      });
+    }
 
     return { successTokens, invalidTokens };
   }
