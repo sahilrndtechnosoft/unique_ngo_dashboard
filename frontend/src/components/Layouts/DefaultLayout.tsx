@@ -9,6 +9,7 @@ import { adminMenuGroups, canAccess } from '../../config/admin-menu';
 import { adminApi } from '../../services/admin.service';
 import { mediaUrl } from '../../services/api';
 import { logout } from '../../services/auth.service';
+import { registerFcmNotifications } from '../../services/firebase-notifications';
 import Icon from '../Admin/WorkspaceIcon';
 import '../../assets/css/workspace.css';
 
@@ -56,9 +57,18 @@ export default function DefaultLayout({ children }: PropsWithChildren) {
     return (data.items || []).map((r: any) => ({ label: s.title(r) || r.id, to: `/admin/${s.path}/${r.id}`, kind: s.kind }));
    }));
    if (!cancelled) { setRecords(results.flatMap(r => r.status === 'fulfilled' ? r.value : [])); setSearchError(results.some(r => r.status === 'rejected')); setSearching(false); }
-  }, 300);
+ }, 300);
   return () => { cancelled = true; clearTimeout(timer); };
  }, [palette, query, auth.isSuperAdmin, auth.permissions]);
+ useEffect(() => {
+  if (!auth.accessToken || !auth.user?.id) return;
+  let cancelled = false;
+  let cleanup: void | (() => void);
+  registerFcmNotifications(auth.user.id)
+   .then((nextCleanup) => { if (cancelled) nextCleanup?.(); else cleanup = nextCleanup; })
+   .catch(() => {});
+  return () => { cancelled = true; cleanup?.(); };
+ }, [auth.accessToken, auth.user?.id]);
  const navigation = <>
   <Link to="/" className="ws-brand"><img className="ws-brand-logo" src={branding.logoUrl ? mediaUrl(branding.logoUrl) : '/assets/images/logo.svg'} alt={branding.companyName || 'Unique NGO'}/><span className="ws-nav-label"><strong>{branding.companyName || 'Unique NGO'}</strong><small>Operations workspace</small></span></Link>
   <button className="ws-nav-search" onClick={() => { setMobile(false); setPalette(true); }} title="Search workspace"><Icon name="search"/><span className="ws-nav-label">Find anything</span><kbd className="ws-nav-label">⌘ K</kbd></button>
