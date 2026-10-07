@@ -12,6 +12,8 @@ export interface PushPayload {
 export interface PushResult {
   successTokens: string[];
   invalidTokens: string[];
+  messageIds: string[];
+  failures: Array<{ tokenPrefix: string; code?: string; message?: string }>;
 }
 
 /** Tokens FCM reports as permanently dead — safe to deactivate rather than retry. */
@@ -21,6 +23,7 @@ const DEAD_TOKEN_ERROR_CODES = [
   'messaging/invalid-argument',
 ];
 const FCM_MULTICAST_LIMIT = 500;
+const tokenPrefix = (token: string) => token.slice(0, 12);
 
 @Injectable()
 export class FcmService {
@@ -61,22 +64,28 @@ export class FcmService {
   async sendToTokens(tokens: string[], payload: PushPayload): Promise<PushResult> {
     const uniqueTokens = [...new Set(tokens)];
     if (uniqueTokens.length === 0) {
-      return { successTokens: [], invalidTokens: [] };
+      return { successTokens: [], invalidTokens: [], messageIds: [], failures: [] };
     }
 
     const messaging = this.getMessagingClient();
     if (!messaging) {
-      return { successTokens: [], invalidTokens: [] };
+      return { successTokens: [], invalidTokens: [], messageIds: [], failures: [] };
     }
 
     const successTokens: string[] = [];
     const invalidTokens: string[] = [];
+    const messageIds: string[] = [];
+    const failures: PushResult['failures'] = [];
     for (let index = 0; index < uniqueTokens.length; index += FCM_MULTICAST_LIMIT) {
       const batch = uniqueTokens.slice(index, index + FCM_MULTICAST_LIMIT);
       const message: MulticastMessage = {
         tokens: batch,
         notification: { title: payload.title, body: payload.body },
         data: payload.data,
+        android: {
+          priority: 'high',
+          notification: { channelId: 'high_importance_channel' },
+        },
       };
 
       const response = await messaging.sendEachForMulticast(message);
@@ -84,16 +93,18 @@ export class FcmService {
         const token = batch[resultIndex];
         if (result.success) {
           successTokens.push(token);
+          if (result.messageId) messageIds.push(result.messageId);
           return;
         }
+        failures.push({ tokenPrefix: tokenPrefix(token), code: result.error?.code, message: result.error?.message });
         if (result.error && DEAD_TOKEN_ERROR_CODES.includes(result.error.code)) {
           invalidTokens.push(token);
         } else {
-          this.logger.error(`FCM send failed for token ${token}: ${result.error?.message}`);
+          this.logger.error(`FCM send failed for token prefix ${tokenPrefix(token)}: ${result.error?.code ?? 'unknown'} ${result.error?.message ?? ''}`);
         }
       });
     }
 
-    return { successTokens, invalidTokens };
+    return { successTokens, invalidTokens, messageIds, failures };
   }
 }
