@@ -7,12 +7,24 @@ export class DeviceTokensService {
   constructor(private readonly prisma: PrismaService) {}
 
   async registerToken(userId: string, dto: RegisterDeviceTokenDto) {
-    const deviceId = dto.deviceId ?? dto.token;
-    await this.prisma.device_tokens.upsert({
-      where: { user_id_device_id_platform: { user_id: userId, device_id: deviceId, platform: dto.platform } },
-      update: { token: dto.token, is_active: true, updated_at: new Date() },
-      create: { user_id: userId, token: dto.token, platform: dto.platform, device_id: deviceId },
-    });
+    const platform = dto.platform.trim().toUpperCase();
+    const deviceId = dto.deviceId?.trim() || dto.token;
+    const now = new Date();
+    await this.prisma.$transaction([
+      this.prisma.device_tokens.upsert({
+        where: { user_id_device_id_platform: { user_id: userId, device_id: deviceId, platform } },
+        update: { token: dto.token, is_active: true, updated_at: now },
+        create: { user_id: userId, token: dto.token, platform, device_id: deviceId, updated_at: now },
+      }),
+      this.prisma.device_tokens.updateMany({
+        where: { user_id: userId, device_id: deviceId, token: { not: dto.token } },
+        data: { is_active: false, updated_at: now },
+      }),
+      this.prisma.device_tokens.updateMany({
+        where: { user_id: userId, token: dto.token, OR: [{ device_id: { not: deviceId } }, { platform: { not: platform } }] },
+        data: { is_active: false, updated_at: now },
+      }),
+    ]);
   }
 
   async removeToken(userId: string, token: string) {
@@ -31,9 +43,15 @@ export class DeviceTokensService {
     }
     const rows = await this.prisma.device_tokens.findMany({
       where: { user_id: { in: userIds }, is_active: true },
-      select: { token: true },
+      orderBy: { updated_at: 'desc' },
+      select: { user_id: true, platform: true, device_id: true, token: true },
     });
-    return rows.map((row) => row.token);
+    const latestByDevice = new Map<string, string>();
+    for (const row of rows) {
+      const key = `${row.user_id}:${row.platform.toUpperCase()}:${row.device_id ?? row.token}`;
+      if (!latestByDevice.has(key)) latestByDevice.set(key, row.token);
+    }
+    return [...new Set(latestByDevice.values())];
   }
 
   async deactivateTokens(tokens: string[]) {
