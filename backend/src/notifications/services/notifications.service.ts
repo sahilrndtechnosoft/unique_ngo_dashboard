@@ -31,7 +31,7 @@ export class NotificationsService {
 
     let sentAt: Date | null = null;
     if (tokens.length > 0) {
-      const { invalidTokens } = await this.fcmService.sendToTokens(tokens, {
+      const { successTokens, invalidTokens } = await this.fcmService.sendToTokens(tokens, {
         title: input.title,
         body: input.body,
         data: input.data,
@@ -39,7 +39,7 @@ export class NotificationsService {
       if (invalidTokens.length > 0) {
         await this.deviceTokensService.deactivateTokens(invalidTokens);
       }
-      sentAt = new Date();
+      sentAt = successTokens.length > 0 ? new Date() : null;
     } else {
       this.logger.debug(`No active device tokens for user ${userId} — notification persisted without a push.`);
     }
@@ -58,10 +58,10 @@ export class NotificationsService {
   }
 
   /** Reusable entry point for pushing + persisting the same notification to many users at once. */
-  async notifyUsers(userIds: string[], input: SendNotificationInput): Promise<{ targeted: number; delivered: number }> {
+  async notifyUsers(userIds: string[], input: SendNotificationInput): Promise<{ targeted: number; delivered: number; messageIds: string[]; failures: Array<{ tokenPrefix: string; code?: string; message?: string }> }> {
     const uniqueUserIds = [...new Set(userIds)];
     if (uniqueUserIds.length === 0) {
-      return { targeted: 0, delivered: 0 };
+      return { targeted: 0, delivered: 0, messageIds: [], failures: [] };
     }
 
     const tokenRows = await this.prisma.device_tokens.findMany({
@@ -77,11 +77,16 @@ export class NotificationsService {
     }
 
     let deliveredTokens = new Set<string>();
+    let messageIds: string[] = [];
+    let failures: Array<{ tokenPrefix: string; code?: string; message?: string }> = [];
     if (tokenRows.length > 0) {
-      const { successTokens, invalidTokens } = await this.fcmService.sendToTokens(
+      const result = await this.fcmService.sendToTokens(
         tokenRows.map((row) => row.token),
         { title: input.title, body: input.body, data: input.data },
       );
+      const { successTokens, invalidTokens } = result;
+      messageIds = result.messageIds;
+      failures = result.failures;
       deliveredTokens = new Set(successTokens);
       if (invalidTokens.length > 0) {
         await this.deviceTokensService.deactivateTokens(invalidTokens);
@@ -104,7 +109,7 @@ export class NotificationsService {
 
     await this.prisma.notifications.createMany({ data: rows });
 
-    return { targeted: uniqueUserIds.length, delivered: rows.filter((row) => row.sent_at !== null).length };
+    return { targeted: uniqueUserIds.length, delivered: rows.filter((row) => row.sent_at !== null).length, messageIds, failures };
   }
 
   async broadcast(dto: SendNotificationDto) {
