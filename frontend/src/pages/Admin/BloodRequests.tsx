@@ -7,6 +7,7 @@ import { useRowSelection } from '../../hooks/useRowSelection';
 import { AdminDataTable, AdminPageHeader, BulkActionsBar } from '../../components/Admin/AdminTable';
 import AdminFormModal from '../../components/Admin/AdminFormModal';
 import { FormField, FormSection, RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
+import ZoomableImage from '../../components/Admin/ZoomableImage';
 import { confirmAction, showAlert } from '../../utils/alerts';
 import { bloodRequestUrgencyStatus } from './blood-request-display';
 
@@ -563,9 +564,7 @@ export default function AdminBloodRequests() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <FormField label="Supporting Proof" className="md:col-span-2" hint="Document uploaded by the user showing blood is required">
                                 {form.proofImageUrl ? (
-                                    <a href={mediaUrl(form.proofImageUrl)} target="_blank" rel="noreferrer">
-                                        <img src={mediaUrl(form.proofImageUrl)} alt="Proof of blood requirement" className="h-32 rounded border border-[#ebedf2] dark:border-[#191e3a] object-cover" />
-                                    </a>
+                                    <ZoomableImage src={mediaUrl(form.proofImageUrl)} alt="Proof of blood requirement" className="h-32 rounded border border-[#ebedf2] dark:border-[#191e3a] object-cover" />
                                 ) : (
                                     <p className="text-sm text-white-dark italic">No proof uploaded</p>
                                 )}

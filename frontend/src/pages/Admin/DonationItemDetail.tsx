@@ -7,6 +7,7 @@ import { getErrorMessage, mediaUrl } from '../../services/api';
 import { AdminDataTable } from '../../components/Admin/AdminTable';
 import AdminFormModal from '../../components/Admin/AdminFormModal';
 import { DetailFacts, FormField, FormSection, StatusBadge } from '../../components/Admin/FormPrimitives';
+import ZoomableImage from '../../components/Admin/ZoomableImage';
 import { confirmAction, showAlert } from '../../utils/alerts';
 import IconArrowLeft from '../../components/Icon/IconArrowLeft';
 
@@ -203,7 +204,7 @@ export default function DonationItemDetail() {
                     <h5 className="font-semibold text-lg mb-4">Photos</h5>
                     <div className="flex flex-wrap gap-3">
                         {item.images.map((image: any) => (
-                            <img key={image.id} src={mediaUrl(image.url)} alt="" className="h-28 w-28 rounded object-cover border border-[#ebedf2] dark:border-[#191e3a]" />
+                            <ZoomableImage key={image.id} src={mediaUrl(image.url)} alt={item.title} className="h-28 w-28 rounded object-cover border border-[#ebedf2] dark:border-[#191e3a]" />
                         ))}
                     </div>
                 </div>

@@ -18,6 +18,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { JwtStrategy } from './common/strategies/jwt.strategy';
+import { shouldSkipRateLimit } from './common/utils/rate-limit.util';
 import { InquiriesModule } from './inquiries/inquiries.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { OrdersModule } from './orders/orders.module';
@@ -38,6 +39,7 @@ import { PaymentsModule } from './payments/payments.module';
       {
         ttl: 60_000,
         limit: 30,
+        skipIf: shouldSkipRateLimit,
       },
     ]),
     PassportModule.register({ defaultStrategy: 'jwt' }),

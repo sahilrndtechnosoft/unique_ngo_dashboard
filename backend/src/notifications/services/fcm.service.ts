@@ -7,6 +7,7 @@ export interface PushPayload {
   title: string;
   body: string;
   data?: Record<string, string>;
+  imageUrl?: string;
 }
 
 export interface PushResult {
@@ -80,11 +81,11 @@ export class FcmService {
       const batch = uniqueTokens.slice(index, index + FCM_MULTICAST_LIMIT);
       const message: MulticastMessage = {
         tokens: batch,
-        notification: { title: payload.title, body: payload.body },
-        data: payload.data,
+        notification: { title: payload.title, body: payload.body, ...(payload.imageUrl ? { imageUrl: payload.imageUrl } : {}) },
+        data: payload.imageUrl ? { ...(payload.data ?? {}), imageUrl: payload.imageUrl } : payload.data,
         android: {
           priority: 'high',
-          notification: { channelId: 'high_importance_channel' },
+          notification: { channelId: 'high_importance_channel', ...(payload.imageUrl ? { imageUrl: payload.imageUrl } : {}) },
         },
       };
 

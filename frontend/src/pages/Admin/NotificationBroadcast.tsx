@@ -2,11 +2,12 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { setPageTitle } from '../../store/themeConfigSlice';
 import { adminApi } from '../../services/admin.service';
-import { getErrorMessage } from '../../services/api';
+import { getErrorMessage, mediaUrl } from '../../services/api';
 import { useRowSelection } from '../../hooks/useRowSelection';
 import { AdminDataTable, BulkActionsBar } from '../../components/Admin/AdminTable';
 import AdminFormModal from '../../components/Admin/AdminFormModal';
 import { FormField, RowActionsMenu } from '../../components/Admin/FormPrimitives';
+import ZoomableImage from '../../components/Admin/ZoomableImage';
 import { confirmAction, showAlert } from '../../utils/alerts';
 
 const BLOOD_GROUPS = ['A_POSITIVE', 'A_NEGATIVE', 'B_POSITIVE', 'B_NEGATIVE', 'AB_POSITIVE', 'AB_NEGATIVE', 'O_POSITIVE', 'O_NEGATIVE'];
@@ -26,6 +27,9 @@ export default function AdminNotificationBroadcast() {
     const [selectedUsers, setSelectedUsers] = useState<{ id: string; label: string }[]>([]);
     const [title, setTitle] = useState('');
     const [body, setBody] = useState('');
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState('');
+    const [imageInputKey, setImageInputKey] = useState(0);
     const [busy, setBusy] = useState(false);
 
     const [items, setItems] = useState<any[]>([]);
@@ -55,6 +59,16 @@ export default function AdminNotificationBroadcast() {
         loadHistory();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    useEffect(() => {
+        if (!imageFile) {
+            setImagePreview('');
+            return;
+        }
+        const url = URL.createObjectURL(imageFile);
+        setImagePreview(url);
+        return () => URL.revokeObjectURL(url);
+    }, [imageFile]);
 
     const toggleGroup = (group: string) => {
         setBloodGroups((prev) => (prev.includes(group) ? prev.filter((g) => g !== group) : [...prev, group]));
@@ -97,10 +111,13 @@ export default function AdminNotificationBroadcast() {
                 userIds: target === 'SPECIFIC_USERS' ? selectedUsers.map((u) => u.id) : undefined,
                 title,
                 body,
+                imageFile,
             });
             showAlert(`Matched ${data.matchedUsers} user(s) — ${data.delivered} of ${data.targeted} received a push`);
             setTitle('');
             setBody('');
+            setImageFile(null);
+            setImageInputKey((key) => key + 1);
             setBloodGroups([]);
             setSelectedUsers([]);
             await loadHistory(1, pageSize);
@@ -279,6 +296,17 @@ export default function AdminNotificationBroadcast() {
                                 <FormField label="Body" required>
                                     <textarea className="form-textarea min-h-[140px]" required value={body} onChange={(e) => setBody(e.target.value)} />
                                 </FormField>
+                                <FormField label="Image" hint="Optional JPG, PNG, WEBP, or GIF image for the push notification">
+                                    <input key={imageInputKey} className="form-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(e) => setImageFile(e.target.files?.[0] ?? null)} />
+                                    {imagePreview ? (
+                                        <div className="mt-3 flex items-start gap-3">
+                                            <ZoomableImage src={imagePreview} alt="Notification preview" className="h-24 w-24 rounded border border-[#ebedf2] object-cover dark:border-[#191e3a]" />
+                                            <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => { setImageFile(null); setImageInputKey((key) => key + 1); }}>
+                                                Remove image
+                                            </button>
+                                        </div>
+                                    ) : null}
+                                </FormField>
                             </div>
 
                             <div className="flex justify-end mt-6">
@@ -364,6 +392,11 @@ export default function AdminNotificationBroadcast() {
                         <FormField label="Body" className="md:col-span-2">
                             <p>{viewing.body}</p>
                         </FormField>
+                        {viewing.data?.imageUrl ? (
+                            <FormField label="Image" className="md:col-span-2">
+                                <ZoomableImage src={mediaUrl(viewing.data.imageUrl)} alt={viewing.title} className="max-h-52 rounded border border-[#ebedf2] object-contain dark:border-[#191e3a]" />
+                            </FormField>
+                        ) : null}
                         <FormField label="Recipient">
                             <p>{viewing.recipient?.fullName ?? '—'} {viewing.recipient?.email ? `(${viewing.recipient.email})` : ''}</p>
                         </FormField>

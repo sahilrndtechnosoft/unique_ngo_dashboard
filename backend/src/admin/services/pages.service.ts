@@ -1,11 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { pages, page_type } from '../../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePageDto, UpdatePageDto } from '../dto/page.dto';
 
 @Injectable()
-export class PagesService {
+export class PagesService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
+
+  async onModuleInit() {
+    await this.ensureDefaultPages();
+  }
 
   async listPages(activeOnly = false, type?: page_type) {
     const rows = await this.prisma.pages.findMany({
@@ -119,6 +123,13 @@ export class PagesService {
     return slug;
   }
 
+  private async ensureDefaultPages() {
+    await this.prisma.pages.createMany({
+      skipDuplicates: true,
+      data: DEFAULT_PAGES,
+    });
+  }
+
   private toPublic(page: pages) {
     return {
       id: page.id,
@@ -133,3 +144,51 @@ export class PagesService {
     };
   }
 }
+
+const DEFAULT_PAGES = [
+  {
+    slug: 'privacy-policy',
+    title: 'Privacy Policy',
+    type: 'PRIVACY_POLICY' as page_type,
+    sort_order: 10,
+    is_active: true,
+    content:
+      '<h2>Privacy Policy</h2><p>Unique NGO collects only the information needed to provide blood donation, emergency request, appointment, marketplace, notification, and account services.</p><p>We use this information to verify users, coordinate donors and hospitals, process requests, send important updates, prevent fraud, and improve service quality.</p><p>We do not sell personal information. Data may be shared only with authorised administrators, hospitals, service providers, or authorities where required to complete a request or comply with law.</p><p>Users may request correction, deletion, or account support by contacting the organisation through the official support channel.</p>',
+  },
+  {
+    slug: 'return-policy',
+    title: 'Return Policy',
+    type: 'INFORMATION' as page_type,
+    sort_order: 20,
+    is_active: true,
+    content:
+      '<h2>Return Policy</h2><p>Returns are accepted only for eligible marketplace orders or donation-item handovers according to the item condition, delivery status, and return window shown at the time of transaction.</p><p>Items must be unused, safely packed, and returned with any available proof, images, or order details requested by the support team.</p><p>Perishable, hygiene-sensitive, personalised, damaged-by-user, or final-sale items may not be returnable unless required by law or approved by the administrator.</p>',
+  },
+  {
+    slug: 'disclaimer',
+    title: 'Disclaimer',
+    type: 'INFORMATION' as page_type,
+    sort_order: 30,
+    is_active: true,
+    content:
+      '<h2>Disclaimer</h2><p>Unique NGO helps connect users, donors, hospitals, volunteers, sellers, and beneficiaries. Information shown in the app is provided for coordination and support purposes.</p><p>Emergency, medical, blood donation, and eligibility decisions must be confirmed by qualified medical professionals or authorised institutions.</p><p>The platform may contain user-submitted details. While moderation and verification are performed where possible, users should independently verify critical information before acting on it.</p>',
+  },
+  {
+    slug: 'refund-policy',
+    title: 'Refund Policy',
+    type: 'INFORMATION' as page_type,
+    sort_order: 40,
+    is_active: true,
+    content:
+      '<h2>Refund Policy</h2><p>Refunds are processed only for eligible cancelled, failed, returned, or administrator-approved transactions.</p><p>Approved prepaid refunds are returned through the original payment method wherever supported by the payment provider. Cash-on-delivery or offline cases may require manual verification and bank details.</p><p>Refund timelines depend on the payment gateway, bank, and internal review status. Duplicate, fraudulent, already-settled, or policy-ineligible claims may be rejected.</p>',
+  },
+  {
+    slug: 'compliances',
+    title: 'Compliances',
+    type: 'INFORMATION' as page_type,
+    sort_order: 50,
+    is_active: true,
+    content:
+      '<h2>Compliances</h2><p>Unique NGO aims to operate according to applicable Indian laws, data-protection practices, payment rules, charitable activity requirements, and blood-donation safety guidelines.</p><p>Administrators must maintain accurate records, verify critical requests, protect sensitive personal data, and restrict access to authorised users only.</p><p>Users, hospitals, sellers, and volunteers are expected to provide truthful information and follow platform policies, medical instructions, and legal requirements.</p>',
+  },
+];

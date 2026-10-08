@@ -6,6 +6,7 @@ import { adminApi } from '../../services/admin.service';
 import { getErrorMessage, mediaUrl } from '../../services/api';
 import { AdminDataTable } from '../../components/Admin/AdminTable';
 import { RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
+import ZoomableImage from '../../components/Admin/ZoomableImage';
 import { promptReason, showAlert } from '../../utils/alerts';
 import IconArrowLeft from '../../components/Icon/IconArrowLeft';
 
@@ -162,7 +163,7 @@ export default function ProductDetail() {
                         <div className="product-image-grid">
                             {product.images.map((image: any) => (
                                 <figure key={image.id}>
-                                    <img src={mediaUrl(image.url)} alt={image.altText || product.name} loading="lazy" />
+                                    <ZoomableImage src={mediaUrl(image.url)} alt={image.altText || product.name} buttonClassName="h-full w-full" />
                                     {image.isPrimary ? <figcaption>Primary image</figcaption> : null}
                                 </figure>
                             ))}

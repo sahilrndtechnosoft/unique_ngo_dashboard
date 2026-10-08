@@ -6,6 +6,7 @@ import { adminApi } from '../../services/admin.service';
 import { getErrorMessage, mediaUrl } from '../../services/api';
 import { AdminDataTable } from '../../components/Admin/AdminTable';
 import { DetailFacts, RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
+import ZoomableImage from '../../components/Admin/ZoomableImage';
 import { showAlert } from '../../utils/alerts';
 import IconArrowLeft from '../../components/Icon/IconArrowLeft';
 
@@ -96,7 +97,7 @@ export default function CategoryDetail() {
                     </Link>
                     <div className="flex items-center gap-3">
                         {category.imageUrl ? (
-                            <img src={mediaUrl(category.imageUrl)} alt={category.name} className="h-12 w-12 rounded object-cover" />
+                            <ZoomableImage src={mediaUrl(category.imageUrl)} alt={category.name} className="h-12 w-12 rounded object-cover" />
                         ) : null}
                         <div>
                             <h2 className="text-xl font-semibold dark:text-white-light">{category.name}</h2>

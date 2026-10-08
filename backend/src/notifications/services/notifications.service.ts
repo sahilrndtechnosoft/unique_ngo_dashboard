@@ -12,6 +12,7 @@ export interface SendNotificationInput {
   title: string;
   body: string;
   data?: Record<string, string>;
+  imageUrl?: string;
 }
 
 @Injectable()
@@ -34,7 +35,8 @@ export class NotificationsService {
       const { successTokens, invalidTokens } = await this.fcmService.sendToTokens(tokens, {
         title: input.title,
         body: input.body,
-        data: input.data,
+        data: this.withImageData(input.data, input.imageUrl),
+        imageUrl: this.toAbsoluteUrl(input.imageUrl),
       });
       if (invalidTokens.length > 0) {
         await this.deviceTokensService.deactivateTokens(invalidTokens);
@@ -51,7 +53,7 @@ export class NotificationsService {
         channel: 'PUSH',
         title: input.title,
         body: input.body,
-        data: input.data,
+        data: this.withImageData(input.data, input.imageUrl),
         sent_at: sentAt,
       },
     });
@@ -82,7 +84,7 @@ export class NotificationsService {
     if (tokenRows.length > 0) {
       const result = await this.fcmService.sendToTokens(
         tokenRows.map((row) => row.token),
-        { title: input.title, body: input.body, data: input.data },
+        { title: input.title, body: input.body, data: this.withImageData(input.data, input.imageUrl), imageUrl: this.toAbsoluteUrl(input.imageUrl) },
       );
       const { successTokens, invalidTokens } = result;
       messageIds = result.messageIds;
@@ -102,7 +104,7 @@ export class NotificationsService {
         channel: 'PUSH' as const,
         title: input.title,
         body: input.body,
-        data: input.data,
+        data: this.withImageData(input.data, input.imageUrl),
         sent_at: delivered ? now : null,
       };
     });
@@ -112,7 +114,7 @@ export class NotificationsService {
     return { targeted: uniqueUserIds.length, delivered: rows.filter((row) => row.sent_at !== null).length, messageIds, failures };
   }
 
-  async broadcast(dto: SendNotificationDto) {
+  async broadcast(dto: SendNotificationDto, imageUrl?: string) {
     let userIds: string[];
     let type: notification_type;
 
@@ -132,7 +134,7 @@ export class NotificationsService {
       type = 'SYSTEM';
     }
 
-    const result = await this.notifyUsers(userIds, { type, title: dto.title, body: dto.body });
+    const result = await this.notifyUsers(userIds, { type, title: dto.title, body: dto.body, imageUrl });
     return { matchedUsers: userIds.length, ...result };
   }
 
@@ -255,5 +257,16 @@ export class NotificationsService {
       createdAt: row.created_at,
       recipient: recipient ? { id: row.user_id, fullName: recipient.full_name, email: recipient.email } : undefined,
     };
+  }
+
+  private withImageData(data?: Record<string, string>, imageUrl?: string): Record<string, string> | undefined {
+    const absoluteImageUrl = this.toAbsoluteUrl(imageUrl);
+    return absoluteImageUrl ? { ...(data ?? {}), imageUrl: absoluteImageUrl } : data;
+  }
+
+  private toAbsoluteUrl(url?: string) {
+    if (!url || url.startsWith('http')) return url;
+    const appUrl = process.env.APP_URL ?? 'http://localhost:3000';
+    return `${appUrl.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`;
   }
 }

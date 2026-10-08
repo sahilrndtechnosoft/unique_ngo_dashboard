@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { ArrayMinSize, ArrayUnique, IsArray, IsEnum, IsString, IsUUID, MaxLength, ValidateIf } from 'class-validator';
 import { blood_group } from '../../../generated/prisma/client';
 
@@ -14,6 +15,7 @@ export class SendNotificationDto {
   target!: NotificationTarget;
 
   @ApiPropertyOptional({ enum: blood_group, isArray: true, description: 'Required when target is BLOOD_GROUP' })
+  @Transform(({ value }) => (Array.isArray(value) ? value : value ? [value] : value))
   @ValidateIf((dto: SendNotificationDto) => dto.target === NotificationTarget.BLOOD_GROUP)
   @IsArray()
   @ArrayMinSize(1)
@@ -22,6 +24,7 @@ export class SendNotificationDto {
   bloodGroups?: blood_group[];
 
   @ApiPropertyOptional({ type: [String], description: 'Required when target is SPECIFIC_USERS' })
+  @Transform(({ value }) => (Array.isArray(value) ? value : value ? [value] : value))
   @ValidateIf((dto: SendNotificationDto) => dto.target === NotificationTarget.SPECIFIC_USERS)
   @IsArray()
   @ArrayMinSize(1)
