@@ -7,6 +7,7 @@ import { useRowSelection } from '../../hooks/useRowSelection';
 import { AdminDataTable, AdminPageHeader, BulkActionsBar } from '../../components/Admin/AdminTable';
 import AdminFormModal from '../../components/Admin/AdminFormModal';
 import { FormField, FormSection, RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
+import ZoomableImage from '../../components/Admin/ZoomableImage';
 import { confirmAction, promptReason, showAlert } from '../../utils/alerts';
 
 const STATUSES = ['PENDING', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'COMPLETED', 'CANCELLED'];
@@ -799,7 +800,7 @@ export default function AdminBloodDonations() {
 
                         <FormSection title="Uploaded certificate / proof" className="mt-5">
                             {selectedDonation.proofImageUrl ? (
-                                <img src={mediaUrl(selectedDonation.proofImageUrl)} alt="Donation proof" className="max-h-64 rounded object-contain" />
+                                <ZoomableImage src={mediaUrl(selectedDonation.proofImageUrl)} alt="Donation proof" className="max-h-64 rounded object-contain" />
                             ) : (
                                 <span className="text-white-dark">No proof uploaded</span>
                             )}

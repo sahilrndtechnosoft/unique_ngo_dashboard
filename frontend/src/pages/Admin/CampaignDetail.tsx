@@ -6,6 +6,7 @@ import { adminApi } from '../../services/admin.service';
 import { getErrorMessage, mediaUrl } from '../../services/api';
 import { AdminDataTable } from '../../components/Admin/AdminTable';
 import { DetailFacts, StatusBadge } from '../../components/Admin/FormPrimitives';
+import ZoomableImage from '../../components/Admin/ZoomableImage';
 import { showAlert } from '../../utils/alerts';
 import IconArrowLeft from '../../components/Icon/IconArrowLeft';
 
@@ -118,7 +119,7 @@ export default function CampaignDetail() {
                     </Link>
                     <div className="flex items-center gap-3">
                         {campaign.bannerUrl ? (
-                            <img src={mediaUrl(campaign.bannerUrl)} alt={campaign.name} className="h-12 w-20 rounded object-cover" />
+                            <ZoomableImage src={mediaUrl(campaign.bannerUrl)} alt={campaign.name} className="h-12 w-20 rounded object-cover" />
                         ) : null}
                         <div>
                             <h2 className="text-xl font-semibold dark:text-white-light">{campaign.name}</h2>

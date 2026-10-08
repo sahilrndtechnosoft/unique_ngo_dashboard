@@ -228,8 +228,23 @@ export const adminApi = {
         api.patch(`/admin/blood-requests/${id}`, body).then((r) => unwrap(r)),
     deleteBloodRequest: (id: string) => api.delete(`/admin/blood-requests/${id}`).then((r) => unwrap(r)),
 
-    broadcastNotification: (body: { target: string; bloodGroups?: string[]; userIds?: string[]; title: string; body: string }) =>
-        api.post('/admin/notifications/broadcast', body).then((r) => unwrap<{ matchedUsers: number; targeted: number; delivered: number }>(r)),
+    broadcastNotification: (body: { target: string; bloodGroups?: string[]; userIds?: string[]; title: string; body: string; imageFile?: File | null }) => {
+        if (!body.imageFile) {
+            const { imageFile: _imageFile, ...payload } = body;
+            return api.post('/admin/notifications/broadcast', payload).then((r) => unwrap<{ matchedUsers: number; targeted: number; delivered: number }>(r));
+        }
+
+        const form = new FormData();
+        form.append('target', body.target);
+        form.append('title', body.title);
+        form.append('body', body.body);
+        body.bloodGroups?.forEach((group) => form.append('bloodGroups', group));
+        body.userIds?.forEach((userId) => form.append('userIds', userId));
+        form.append('file', body.imageFile);
+        return api
+            .post('/admin/notifications/broadcast', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+            .then((r) => unwrap<{ matchedUsers: number; targeted: number; delivered: number }>(r));
+    },
     listNotifications: (params?: Record<string, unknown>) =>
         api.get('/admin/notifications', { params }).then((r) => unwrapPaginated<any>(r)),
     getNotification: (id: string) => api.get(`/admin/notifications/${id}`).then((r) => unwrap(r)),

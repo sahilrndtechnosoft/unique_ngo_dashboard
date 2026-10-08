@@ -7,6 +7,7 @@ import { getErrorMessage, mediaUrl } from '../../services/api';
 import { AdminDataTable } from '../../components/Admin/AdminTable';
 import AdminFormModal from '../../components/Admin/AdminFormModal';
 import { DetailFacts, FormField, FormSection, RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
+import ZoomableImage from '../../components/Admin/ZoomableImage';
 import { confirmAction, showAlert } from '../../utils/alerts';
 import IconArrowLeft from '../../components/Icon/IconArrowLeft';
 import IconPlus from '../../components/Icon/IconPlus';
@@ -212,7 +213,7 @@ export default function UserDetail() {
                     </Link>
                     <div className="flex items-center gap-3">
                         {user.profilePicture ? (
-                            <img src={mediaUrl(user.profilePicture)} alt={user.fullName} className="h-12 w-12 rounded-full object-cover" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/assets/images/auth/user.png'; }} />
+                            <ZoomableImage src={mediaUrl(user.profilePicture)} alt={user.fullName} className="h-12 w-12 rounded-full object-cover" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/assets/images/auth/user.png'; }} />
                         ) : null}
                         <div>
                             <h2 className="text-xl font-semibold dark:text-white-light">{user.fullName}</h2>
