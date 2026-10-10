@@ -13,7 +13,7 @@ export default registerAs('app', () => ({
   },
   bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS ?? '12', 10),
   otpExpiryMinutes: parseInt(process.env.OTP_EXPIRY_MINUTES ?? '5', 10),
-  defaultOtp: process.env.DEFAULT_OTP ?? '1234',
+  defaultOtp: process.env.DEFAULT_OTP ?? '123456',
   exposeOtpInResponse: process.env.EXPOSE_OTP_IN_RESPONSE === 'true',
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET ?? 'dev-access-secret-change-in-production',
