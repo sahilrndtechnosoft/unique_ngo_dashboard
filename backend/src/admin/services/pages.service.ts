@@ -191,4 +191,13 @@ const DEFAULT_PAGES = [
     content:
       '<h2>Compliances</h2><p>Unique NGO aims to operate according to applicable Indian laws, data-protection practices, payment rules, charitable activity requirements, and blood-donation safety guidelines.</p><p>Administrators must maintain accurate records, verify critical requests, protect sensitive personal data, and restrict access to authorised users only.</p><p>Users, hospitals, sellers, and volunteers are expected to provide truthful information and follow platform policies, medical instructions, and legal requirements.</p>',
   },
+  {
+    slug: 'consent-form',
+    title: 'Blood Donor Consent Form',
+    type: 'INFORMATION' as page_type,
+    sort_order: 60,
+    is_active: true,
+    content:
+      '<h2>Blood Donor Consent Form</h2><p>I hereby voluntarily agree and consent to donate blood. I confirm that the information provided regarding my health, medical history, recent procedures (including tattoos), and eligibility is accurate and complete to the best of my knowledge.</p><p>I understand the blood donation procedure, tests that may be carried out on the donated blood, and potential risks. I consent to my blood being screened and utilized for patients in need.</p>',
+  },
 ];

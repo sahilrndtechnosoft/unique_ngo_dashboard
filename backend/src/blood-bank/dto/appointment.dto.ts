@@ -109,6 +109,18 @@ export class CreateAppointmentDto {
   @IsDateString()
   tattooDate?: string;
 
+  @ApiPropertyOptional({ example: true, default: false, description: 'Has the donor signed / agreed to the consent form?' })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  hasConsentForm?: boolean;
+
+  @ApiPropertyOptional({ example: true, default: false, description: 'Alias for hasConsentForm' })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  consentForm?: boolean;
+
   @ApiPropertyOptional({ example: true, default: true, description: 'Is this donation for the logged-in user, or on behalf of someone else?' })
   @IsOptional()
   @Type(() => Boolean)
@@ -215,6 +227,18 @@ export class AdminUpdateAppointmentDto {
   @ValidateIf((dto: AdminUpdateAppointmentDto) => dto.hadTattooRecently === true)
   @IsDateString()
   tattooDate?: string;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  hasConsentForm?: boolean;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  consentForm?: boolean;
 
   @ApiPropertyOptional({ enum: appointment_status })
   @IsOptional()

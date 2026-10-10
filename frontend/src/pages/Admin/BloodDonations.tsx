@@ -41,6 +41,7 @@ const emptyDonationForm = {
     city: '',
     state: '',
     notes: '',
+    hasConsentForm: false,
     forSelf: true,
     beneficiaryName: '',
     beneficiaryMobile: '',
@@ -351,6 +352,7 @@ export default function AdminBloodDonations() {
             city: row.city ?? '',
             state: row.state ?? '',
             notes: row.notes ?? '',
+            hasConsentForm: row.hasConsentForm ?? row.consentForm ?? false,
             forSelf: row.forSelf ?? true,
             beneficiaryName: row.beneficiary?.name ?? '',
             beneficiaryMobile: row.beneficiary?.mobile ?? '',
@@ -390,6 +392,8 @@ export default function AdminBloodDonations() {
                 city: donationForm.city || undefined,
                 state: donationForm.state || undefined,
                 notes: donationForm.notes || undefined,
+                hasConsentForm: donationForm.hasConsentForm,
+                consentForm: donationForm.hasConsentForm,
                 hospitalId: donationForm.donationType === 'hospital' ? donationForm.hospitalId || undefined : undefined,
                 campaignId: donationForm.donationType === 'camp' ? donationForm.campaignId || undefined : undefined,
                 forSelf: donationForm.forSelf,
@@ -574,6 +578,16 @@ export default function AdminBloodDonations() {
                         key: 'reward',
                         label: 'Reward',
                         render: (row) => (row.rewardClaimed ? 'Credited' : '—'),
+                    },
+                    {
+                        key: 'consentForm',
+                        label: 'Consent Form',
+                        render: (row) =>
+                            row.hasConsentForm || row.consentForm ? (
+                                <span className="badge badge-outline-success">Marked</span>
+                            ) : (
+                                <span className="badge badge-outline-danger">Not Marked</span>
+                            ),
                     },
                     {
                         key: 'status',
@@ -1067,6 +1081,19 @@ export default function AdminBloodDonations() {
                                 />
                             </FormField>
                         ) : null}
+                        <FormField label="Consent Form" className="md:col-span-2" hint="Informed donor consent form status">
+                            <div className="flex items-center h-[38px]">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="form-checkbox"
+                                        checked={donationForm.hasConsentForm}
+                                        onChange={(e) => setDonationForm({ ...donationForm, hasConsentForm: e.target.checked })}
+                                    />
+                                    <span>Consent form marked / signed</span>
+                                </label>
+                            </div>
+                        </FormField>
                         <FormField label="Notes" className="md:col-span-2">
                             <textarea
                                 className="form-textarea"

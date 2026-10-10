@@ -36,6 +36,7 @@ const emptyForm = {
     lastDonationDate: '',
     hadTattooRecently: false,
     tattooDate: '',
+    hasConsentForm: false,
     city: '',
     state: '',
     contactPhone: '',
@@ -139,6 +140,7 @@ export default function AdminAppointments() {
             lastDonationDate: appointment.lastDonationDate ? appointment.lastDonationDate.slice(0, 10) : '',
             hadTattooRecently: appointment.hadTattooRecently ?? false,
             tattooDate: appointment.tattooDate ? appointment.tattooDate.slice(0, 10) : '',
+            hasConsentForm: appointment.hasConsentForm ?? appointment.consentForm ?? false,
             city: appointment.city ?? '',
             state: appointment.state ?? '',
             contactPhone: appointment.contactPhone ?? '',
@@ -184,6 +186,8 @@ export default function AdminAppointments() {
                 lastDonationDate: form.lastDonationDate || undefined,
                 hadTattooRecently: form.hadTattooRecently,
                 tattooDate: form.hadTattooRecently ? form.tattooDate || undefined : undefined,
+                hasConsentForm: form.hasConsentForm,
+                consentForm: form.hasConsentForm,
                 city: form.city || undefined,
                 state: form.state || undefined,
                 contactPhone: form.contactPhone || undefined,
@@ -314,6 +318,18 @@ export default function AdminAppointments() {
                         key: 'bloodGroup',
                         label: 'Blood Group',
                         render: (row) => row.bloodGroup.replace('_', ' '),
+                    },
+                    {
+                        key: 'consentForm',
+                        label: 'Consent Form',
+                        sortable: true,
+                        sortValue: (row) => (row.hasConsentForm || row.consentForm ? 1 : 0),
+                        render: (row) =>
+                            row.hasConsentForm || row.consentForm ? (
+                                <span className="badge badge-outline-success">Marked</span>
+                            ) : (
+                                <span className="badge badge-outline-danger">Not Marked</span>
+                            ),
                     },
                     {
                         key: 'status',
@@ -485,6 +501,19 @@ export default function AdminAppointments() {
                                 <input className="form-input" type="date" required value={form.tattooDate} onChange={(e) => setForm({ ...form, tattooDate: e.target.value })} />
                             </FormField>
                         ) : null}
+                        <FormField label="Consent Form" hint="Mark if donor has agreed to / completed the consent form">
+                            <div className="flex items-center h-[38px]">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="form-checkbox"
+                                        checked={form.hasConsentForm}
+                                        onChange={(e) => setForm({ ...form, hasConsentForm: e.target.checked })}
+                                    />
+                                    <span>Consent form marked / signed</span>
+                                </label>
+                            </div>
+                        </FormField>
                         <FormField label="City" required={mode === 'create'}>
                             <input className="form-input" required={mode === 'create'} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
                         </FormField>

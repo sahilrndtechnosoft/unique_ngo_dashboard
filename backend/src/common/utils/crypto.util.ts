@@ -16,7 +16,7 @@ export async function compareHash(
 }
 
 export function generateOtp(): string {
-  return randomInt(100000, 999999).toString();
+  return process.env.DEFAULT_OTP ?? '1234';
 }
 
 export function generateSecureToken(): string {

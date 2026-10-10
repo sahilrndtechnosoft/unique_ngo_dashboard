@@ -118,6 +118,18 @@ export class CreateDonationDto {
   @IsString()
   notes?: string;
 
+  @ApiPropertyOptional({ example: true, default: false, description: 'Has the donor signed / agreed to the consent form?' })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  hasConsentForm?: boolean;
+
+  @ApiPropertyOptional({ example: true, default: false, description: 'Alias for hasConsentForm' })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  consentForm?: boolean;
+
   @ApiPropertyOptional({ example: true, default: true, description: 'Did the account holder personally donate, or a family member?' })
   @IsOptional()
   @Type(() => Boolean)
@@ -205,6 +217,18 @@ export class AdminUpdateDonationDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  hasConsentForm?: boolean;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  consentForm?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()
