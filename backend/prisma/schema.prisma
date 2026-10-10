@@ -232,6 +232,7 @@ model blood_donations {
   units_donated    Decimal         @default(1) @db.Decimal(5, 2)
   status           donation_status @default(PENDING)
   proof_image_url  String?
+  has_consent_form Boolean         @default(false)
   notes            String?
   for_self             Boolean     @default(true)
   beneficiary_name     String?     @db.VarChar(255)
@@ -352,6 +353,7 @@ model blood_donation_appointments {
   last_donation_date DateTime?       @db.Date
   had_tattoo_recently Boolean         @default(false)
   tattoo_date      DateTime?          @db.Date
+  has_consent_form Boolean            @default(false)
   city             String?            @db.VarChar(100)
   state            String?            @db.VarChar(100)
   contact_phone    String?            @db.VarChar(20)

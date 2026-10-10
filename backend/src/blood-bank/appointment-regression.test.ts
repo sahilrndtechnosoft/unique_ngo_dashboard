@@ -60,10 +60,12 @@ test('persists appointment screening and contact/location fields', async () => {
     city: 'Pune',
     state: 'Maharashtra',
     contactPhone: '9876543210',
+    hasConsentForm: true,
   } as AdminCreateAppointmentDto);
 
   assert.equal(saved?.last_donation_date instanceof Date, true);
   assert.equal(saved?.had_tattoo_recently, false);
+  assert.equal(saved?.has_consent_form, true);
   assert.equal(saved?.city, 'Pune');
   assert.equal(saved?.state, 'Maharashtra');
   assert.equal(saved?.contact_phone, '9876543210');

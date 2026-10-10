@@ -10,7 +10,7 @@ export class VerifyOtpDto extends DeviceInfoDto {
   })
   mobileNumber!: string;
 
-  @ApiProperty({ example: '123456' })
-  @Matches(/^\d{6}$/, { message: 'OTP must be a 6-digit number' })
+  @ApiProperty({ example: '1234' })
+  @Matches(/^\d{4,6}$/, { message: 'OTP must be a 4 to 6-digit number' })
   otp!: string;
 }

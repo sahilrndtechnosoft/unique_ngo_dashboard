@@ -16,6 +16,7 @@ const emptyForm = {
     city: '',
     state: '',
     notes: '',
+    hasConsentForm: false,
 };
 
 export default function DonateBlood() {
@@ -62,6 +63,7 @@ export default function DonateBlood() {
         if (form.city) body.append('city', form.city);
         if (form.state) body.append('state', form.state);
         if (form.notes) body.append('notes', form.notes);
+        body.append('hasConsentForm', String(form.hasConsentForm));
 
         setBusy(true);
         try {
@@ -221,6 +223,18 @@ export default function DonateBlood() {
                             required
                             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                         />
+                    </div>
+
+                    <div className="md:col-span-2">
+                        <label className="flex cursor-pointer items-center gap-2">
+                            <input
+                                type="checkbox"
+                                className="form-checkbox"
+                                checked={form.hasConsentForm}
+                                onChange={(e) => setForm({ ...form, hasConsentForm: e.target.checked })}
+                            />
+                            <span className="text-sm font-semibold">I have read and agree to the Blood Donor Consent Form</span>
+                        </label>
                     </div>
 
                     <div className="md:col-span-2">
