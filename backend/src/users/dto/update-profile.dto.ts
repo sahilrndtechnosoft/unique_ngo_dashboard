@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsOptional,
@@ -78,4 +79,20 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   profilePicture?: string;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Whether user has signed/submitted the consent form',
+  })
+  @IsOptional()
+  @IsBoolean()
+  hasConsentForm?: boolean;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Alias for hasConsentForm',
+  })
+  @IsOptional()
+  @IsBoolean()
+  consentForm?: boolean;
 }

@@ -32,6 +32,7 @@ const emptyForm = {
     dateOfBirth: '',
     bio: '',
     isAvailableDonor: false,
+    hasConsentForm: false,
     profilePicture: '' as string | null,
 };
 
@@ -149,6 +150,7 @@ export default function AdminUsers() {
             dateOfBirth: user.dateOfBirth ? user.dateOfBirth.slice(0, 10) : '',
             bio: user.bio ?? '',
             isAvailableDonor: user.isAvailableDonor ?? false,
+            hasConsentForm: Boolean(user.hasConsentForm ?? user.consentForm ?? false),
             profilePicture: user.profilePicture ?? null,
         });
         setPendingImage(null);
@@ -181,6 +183,8 @@ export default function AdminUsers() {
                 dateOfBirth: form.dateOfBirth || undefined,
                 bio: form.bio || undefined,
                 isAvailableDonor: form.isAvailableDonor,
+                hasConsentForm: form.hasConsentForm,
+                consentForm: form.hasConsentForm,
             };
             if (form.email) body.email = form.email;
             if (form.mobile) body.mobile = form.mobile;
@@ -351,6 +355,18 @@ export default function AdminUsers() {
                         render: (row) => (row.bloodGroup ? row.bloodGroup.replace('_', ' ') : '—'),
                     },
                     {
+                        key: 'hasConsentForm',
+                        label: 'Consent Form',
+                        sortable: true,
+                        sortValue: (row) => (row.hasConsentForm || row.consentForm ? 1 : 0),
+                        render: (row) =>
+                            row.hasConsentForm || row.consentForm ? (
+                                <span className="badge badge-outline-success">Submitted</span>
+                            ) : (
+                                <span className="badge badge-outline-warning">Pending</span>
+                            ),
+                    },
+                    {
                         key: 'status',
                         label: 'Status',
                         sortable: true,
@@ -517,6 +533,17 @@ export default function AdminUsers() {
                                     onChange={(e) => setForm({ ...form, isAvailableDonor: e.target.checked })}
                                 />
                                 Listed as an available blood donor
+                            </label>
+                        </FormField>
+                        <FormField label="Consent Form">
+                            <label className="flex items-center gap-2 cursor-pointer h-[38px]">
+                                <input
+                                    type="checkbox"
+                                    className="form-checkbox"
+                                    checked={form.hasConsentForm}
+                                    onChange={(e) => setForm({ ...form, hasConsentForm: e.target.checked })}
+                                />
+                                Consent form accepted &amp; submitted
                             </label>
                         </FormField>
                         <FormField label="Bio" className="md:col-span-2">

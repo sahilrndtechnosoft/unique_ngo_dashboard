@@ -1711,6 +1711,7 @@ model users {
   blood_group        blood_group?
   bio                String?
   is_available_donor Boolean      @default(false)
+  has_consent_form   Boolean      @default(false)
   last_donation_date DateTime?    @db.Date
   referral_code      String?      @unique @db.VarChar(20)
   referred_by_id     String?      @db.Uuid
