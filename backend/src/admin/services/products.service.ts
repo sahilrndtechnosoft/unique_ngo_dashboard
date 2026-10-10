@@ -1138,6 +1138,8 @@ export class ProductsService {
       bloodGroup: safeUser.blood_group,
       bio: safeUser.bio,
       isAvailableDonor: safeUser.is_available_donor,
+      hasConsentForm: safeUser.has_consent_form,
+      consentForm: safeUser.has_consent_form,
       lastDonationDate: safeUser.last_donation_date,
       referralCode: safeUser.referral_code,
       referredById: safeUser.referred_by_id,

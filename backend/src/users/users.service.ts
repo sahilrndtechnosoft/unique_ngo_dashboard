@@ -28,6 +28,8 @@ export interface PublicUserProfile {
   bloodGroup: string | null;
   bio: string | null;
   profilePicture: string | null;
+  hasConsentForm: boolean;
+  consentForm: boolean;
   address: string | null;
   city: string | null;
   state: string | null;
@@ -65,6 +67,8 @@ export class UsersService {
       bloodGroup: user.blood_group,
       bio: user.bio,
       profilePicture: user.profile_image_url,
+      hasConsentForm: user.has_consent_form,
+      consentForm: user.has_consent_form,
       address: address?.address_line1 ?? null,
       city: address?.city ?? null,
       state: address?.state ?? null,
@@ -99,6 +103,7 @@ export class UsersService {
       blood_group?: users['blood_group'];
       profile_image_url?: string | null;
       password_hash?: string;
+      has_consent_form?: boolean;
     } = {};
     if (dto.fullName !== undefined) updateData.full_name = dto.fullName;
     if (dto.email !== undefined) {
@@ -110,6 +115,11 @@ export class UsersService {
     if (dto.bloodGroup !== undefined) updateData.blood_group = dto.bloodGroup;
     if (dto.profilePicture !== undefined) {
       updateData.profile_image_url = dto.profilePicture;
+    }
+    if (dto.hasConsentForm !== undefined) {
+      updateData.has_consent_form = dto.hasConsentForm;
+    } else if (dto.consentForm !== undefined) {
+      updateData.has_consent_form = dto.consentForm;
     }
     if (dto.password) {
       if (

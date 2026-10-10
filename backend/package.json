@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "build": "nest build",
-        "test:admin-user": "tsx --test src/admin/dto/admin-user-validation.test.ts",
+    "test:admin-user": "tsx --test src/admin/dto/admin-user-validation.test.ts src/users/users.service.test.ts",
         "test:blood-requests": "tsx --test src/blood-bank/blood-request-regression.test.ts",
         "test:blood-appointments": "tsx --test src/blood-bank/appointment-regression.test.ts",
         "test:donation-items": "tsx --test src/donation-items/donation-items-state.test.ts",

@@ -186,6 +186,14 @@ export default function UserDetail() {
             { label: 'Blood Group', value: user.bloodGroup ? user.bloodGroup.replace('_', ' ') : '—' },
             { label: 'Gender', value: user.gender ? user.gender.replace(/_/g, ' ') : '—' },
             { label: 'Available Donor', value: user.isAvailableDonor ? 'Yes' : 'No' },
+            {
+                label: 'Consent Form',
+                value: (
+                    <span className={`badge ${user.hasConsentForm || user.consentForm ? 'badge-outline-success' : 'badge-outline-warning'}`}>
+                        {user.hasConsentForm || user.consentForm ? 'Submitted' : 'Pending'}
+                    </span>
+                ),
+            },
         ];
     }, [user]);
 

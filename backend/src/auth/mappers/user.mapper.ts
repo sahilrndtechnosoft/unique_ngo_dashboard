@@ -10,6 +10,8 @@ export interface PublicUserProfile {
   mobileVerified: boolean;
   emailVerified: boolean;
   profilePicture: string | null;
+  hasConsentForm?: boolean;
+  consentForm?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,6 +47,8 @@ export function toPublicUser(user: users): PublicUserProfile {
     mobileVerified: user.mobile_verified,
     emailVerified: user.email_verified,
     profilePicture: user.profile_image_url,
+    hasConsentForm: user.has_consent_form,
+    consentForm: user.has_consent_form,
     createdAt: user.created_at,
     updatedAt: user.updated_at,
   };

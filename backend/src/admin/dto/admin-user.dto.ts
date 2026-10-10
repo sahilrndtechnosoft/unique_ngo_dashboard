@@ -133,6 +133,16 @@ export class CreateAdminUserDto {
   @IsOptional()
   @IsBoolean()
   isAvailableDonor?: boolean;
+
+  @ApiPropertyOptional({ description: 'Whether this user has signed/submitted the consent form' })
+  @IsOptional()
+  @IsBoolean()
+  hasConsentForm?: boolean;
+
+  @ApiPropertyOptional({ description: 'Alias for hasConsentForm' })
+  @IsOptional()
+  @IsBoolean()
+  consentForm?: boolean;
 }
 
 export class UpdateAdminUserDto {
@@ -211,4 +221,14 @@ export class UpdateAdminUserDto {
   @IsOptional()
   @IsBoolean()
   isAvailableDonor?: boolean;
+
+  @ApiPropertyOptional({ description: 'Whether this user has signed/submitted the consent form' })
+  @IsOptional()
+  @IsBoolean()
+  hasConsentForm?: boolean;
+
+  @ApiPropertyOptional({ description: 'Alias for hasConsentForm' })
+  @IsOptional()
+  @IsBoolean()
+  consentForm?: boolean;
 }

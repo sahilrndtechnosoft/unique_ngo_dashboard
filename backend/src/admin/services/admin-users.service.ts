@@ -115,6 +115,7 @@ export class AdminUsersService {
         date_of_birth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
         bio: dto.bio,
         is_available_donor: dto.isAvailableDonor ?? false,
+        has_consent_form: dto.hasConsentForm ?? dto.consentForm ?? false,
       },
       include: { rbac_role: true },
     });
@@ -169,6 +170,8 @@ export class AdminUsersService {
       ...(dto.dateOfBirth !== undefined && { date_of_birth: new Date(dto.dateOfBirth) }),
       ...(dto.bio !== undefined && { bio: dto.bio }),
       ...(dto.isAvailableDonor !== undefined && { is_available_donor: dto.isAvailableDonor }),
+      ...(dto.hasConsentForm !== undefined && { has_consent_form: dto.hasConsentForm }),
+      ...(dto.hasConsentForm === undefined && dto.consentForm !== undefined && { has_consent_form: dto.consentForm }),
       ...(rbacRoleId !== undefined && {
         rbac_role: rbacRoleId
           ? { connect: { id: rbacRoleId } }
@@ -324,6 +327,8 @@ export class AdminUsersService {
       dateOfBirth: user.date_of_birth,
       bio: user.bio,
       isAvailableDonor: user.is_available_donor,
+      hasConsentForm: user.has_consent_form,
+      consentForm: user.has_consent_form,
       emailVerified: user.email_verified,
       mobileVerified: user.mobile_verified,
       profilePicture: user.profile_image_url,

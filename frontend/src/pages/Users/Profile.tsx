@@ -49,6 +49,7 @@ const emptyProfileForm = {
     email: '',
     password: '',
     currentPassword: '',
+    hasConsentForm: false,
 };
 
 const emptyOrgForm = {
@@ -126,6 +127,7 @@ const Profile = () => {
                 email: profile.email ?? '',
                 password: '',
                 currentPassword: '',
+                hasConsentForm: Boolean(profile.hasConsentForm ?? profile.consentForm ?? false),
             });
             setMobile(profile.mobile ?? '');
             setProfilePicture(profile.profilePicture ?? null);
@@ -181,6 +183,8 @@ const Profile = () => {
             const body: Record<string, unknown> = {
                 fullName: profileForm.fullName,
                 email: profileForm.email,
+                hasConsentForm: profileForm.hasConsentForm,
+                consentForm: profileForm.hasConsentForm,
             };
             if (profileForm.password) {
                 body.password = profileForm.password;
@@ -525,6 +529,17 @@ const Profile = () => {
                                     </FormField>
                                     <FormField label="Role">
                                         <input className="form-input" disabled value={user?.role ?? ''} />
+                                    </FormField>
+                                    <FormField label="Consent Form" className="md:col-span-2">
+                                        <label className="flex items-center gap-2 cursor-pointer h-[38px]">
+                                            <input
+                                                type="checkbox"
+                                                className="form-checkbox"
+                                                checked={profileForm.hasConsentForm}
+                                                onChange={(e) => setProfileForm({ ...profileForm, hasConsentForm: e.target.checked })}
+                                            />
+                                            <span className="text-sm font-medium">Consent form accepted &amp; submitted</span>
+                                        </label>
                                     </FormField>
 
                                     <div className="md:col-span-2 flex items-center gap-2 pt-2 pb-1 text-white-dark">
