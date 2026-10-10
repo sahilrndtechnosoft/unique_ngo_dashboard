@@ -3,6 +3,7 @@ node_modules/
 dist/
 build/
 .env
+.env.docker
 .env.local
 .env.*.local
 backend/.env
