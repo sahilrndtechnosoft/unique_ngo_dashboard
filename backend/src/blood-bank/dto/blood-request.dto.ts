@@ -17,11 +17,18 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { blood_group, blood_request_status, urgency_level } from '../../../generated/prisma/client';
-import { INDIAN_MOBILE_REGEX } from '../../common/constants';
+import { INDIAN_MOBILE_REPEATED_DIGITS_REGEX } from '../../common/constants';
 
-const BLOOD_REQUEST_LABEL_REGEX = /^(?=.*[A-Za-z])[A-Za-z .,'&_\/-]+$/;
-const BLOOD_REQUEST_ADDRESS_REGEX = /^(?=.*[A-Za-z])[A-Za-z0-9 .,'&_\/-]+$/;
-const BLOOD_REQUEST_TEXT_ERROR = "Field contains invalid characters. Only alphabets, spaces, and valid symbols (e.g., . ' - & _ /) are allowed.";
+export const HOSPITAL_NAME_REGEX = /^(?=.*\p{L})[\p{L}0-9 .,'\-&()/#]+$/u;
+export const HOSPITAL_ADDRESS_REGEX = /^(?=.*\p{L})[\p{L}0-9 .,'\-&_/#()]+$/u;
+export const PERSON_OR_PLACE_REGEX = /^(?=.*\p{L})[\p{L} .'\-]+$/u;
+export const SAFE_NOTES_REGEX = /^(?!.*(?:<\s*script|\bscript\b|javascript:|data:\s*text\/html|on[a-z]+\s*=))[^<>]*$/is;
+
+export const HOSPITAL_NAME_ERROR = "$property contains invalid characters. Only letters, digits, spaces, and valid symbols (. ' - & , ( ) / #) are allowed, and pure numbers are not allowed.";
+export const HOSPITAL_ADDRESS_ERROR = "$property contains invalid characters. Only letters, digits, spaces, and valid symbols (, . ' - & _ / # ( )) are allowed, and pure numbers are not allowed.";
+export const PERSON_OR_PLACE_ERROR = "$property contains invalid characters. Only letters, spaces, and valid symbols (. ' -) are allowed.";
+export const SAFE_NOTES_ERROR = "$property cannot contain <, >, script, or event-handler patterns.";
+export const MOBILE_ERROR = "Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9 (repeated digits not allowed).";
 
 export function normalizeUrgency(value: unknown): unknown {
   if (typeof value !== 'string') return value;
@@ -90,7 +97,7 @@ export class CreateBloodRequestDto {
   @IsString()
   @MinLength(2)
   @MaxLength(255)
-  @Matches(BLOOD_REQUEST_LABEL_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
+  @Matches(PERSON_OR_PLACE_REGEX, { message: PERSON_OR_PLACE_ERROR })
   patientName!: string;
 
   @ApiProperty({ enum: blood_group })
@@ -113,36 +120,36 @@ export class CreateBloodRequestDto {
   @ApiProperty({ example: 'City Care Hospital' })
   @IsString()
   @MaxLength(255)
-  @Matches(BLOOD_REQUEST_LABEL_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
+  @Matches(HOSPITAL_NAME_REGEX, { message: HOSPITAL_NAME_ERROR })
   hospitalName!: string;
 
   @ApiProperty()
   @IsString()
-  @Matches(BLOOD_REQUEST_ADDRESS_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
+  @Matches(HOSPITAL_ADDRESS_REGEX, { message: HOSPITAL_ADDRESS_ERROR })
   hospitalAddress!: string;
 
   @ApiProperty({ example: 'Pune' })
   @IsString()
   @MaxLength(100)
-  @Matches(BLOOD_REQUEST_LABEL_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
+  @Matches(PERSON_OR_PLACE_REGEX, { message: PERSON_OR_PLACE_ERROR })
   city!: string;
 
   @ApiProperty({ example: 'Maharashtra' })
   @IsString()
   @MaxLength(100)
-  @Matches(BLOOD_REQUEST_LABEL_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
+  @Matches(PERSON_OR_PLACE_REGEX, { message: PERSON_OR_PLACE_ERROR })
   state!: string;
 
   @ApiProperty()
   @IsString()
   @MaxLength(255)
-  @Matches(BLOOD_REQUEST_LABEL_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
+  @Matches(PERSON_OR_PLACE_REGEX, { message: PERSON_OR_PLACE_ERROR })
   contactName!: string;
 
   @ApiProperty()
   @IsString()
   @MaxLength(20)
-  @Matches(INDIAN_MOBILE_REGEX, { message: 'Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.' })
+  @Matches(INDIAN_MOBILE_REPEATED_DIGITS_REGEX, { message: MOBILE_ERROR })
   contactMobile!: string;
 
   @ApiProperty({ example: '2026-08-15' })
@@ -152,6 +159,9 @@ export class CreateBloodRequestDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(500)
+  @Matches(SAFE_NOTES_REGEX, { message: SAFE_NOTES_ERROR })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   notes?: string;
 
   @ApiPropertyOptional({ example: false })
@@ -170,6 +180,7 @@ export class CreateBloodRequestDto {
   @ValidateIf((dto: CreateBloodRequestDto) => dto.forSelf === false)
   @IsString()
   @MaxLength(100)
+  @Matches(PERSON_OR_PLACE_REGEX, { message: PERSON_OR_PLACE_ERROR })
   patientRelation?: string;
 }
 
@@ -185,7 +196,7 @@ export class AdminUpdateBloodRequestDto {
   @IsString()
   @MinLength(2)
   @MaxLength(255)
-  @Matches(BLOOD_REQUEST_LABEL_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
+  @Matches(PERSON_OR_PLACE_REGEX, { message: PERSON_OR_PLACE_ERROR })
   patientName?: string;
 
   @ApiPropertyOptional({ enum: blood_group })
@@ -217,41 +228,41 @@ export class AdminUpdateBloodRequestDto {
   @IsOptional()
   @IsString()
   @MaxLength(255)
-  @Matches(BLOOD_REQUEST_LABEL_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
+  @Matches(HOSPITAL_NAME_REGEX, { message: HOSPITAL_NAME_ERROR })
   hospitalName?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  @Matches(BLOOD_REQUEST_ADDRESS_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
+  @Matches(HOSPITAL_ADDRESS_REGEX, { message: HOSPITAL_ADDRESS_ERROR })
   hospitalAddress?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MaxLength(100)
-  @Matches(BLOOD_REQUEST_LABEL_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
+  @Matches(PERSON_OR_PLACE_REGEX, { message: PERSON_OR_PLACE_ERROR })
   city?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MaxLength(100)
-  @Matches(BLOOD_REQUEST_LABEL_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
+  @Matches(PERSON_OR_PLACE_REGEX, { message: PERSON_OR_PLACE_ERROR })
   state?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MaxLength(255)
-  @Matches(BLOOD_REQUEST_LABEL_REGEX, { message: BLOOD_REQUEST_TEXT_ERROR })
+  @Matches(PERSON_OR_PLACE_REGEX, { message: PERSON_OR_PLACE_ERROR })
   contactName?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MaxLength(20)
-  @Matches(INDIAN_MOBILE_REGEX, { message: 'Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.' })
+  @Matches(INDIAN_MOBILE_REPEATED_DIGITS_REGEX, { message: MOBILE_ERROR })
   contactMobile?: string;
 
   @ApiPropertyOptional({ example: '2026-08-15' })
@@ -267,6 +278,9 @@ export class AdminUpdateBloodRequestDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(500)
+  @Matches(SAFE_NOTES_REGEX, { message: SAFE_NOTES_ERROR })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   notes?: string;
 
   @ApiPropertyOptional()
@@ -278,6 +292,9 @@ export class AdminUpdateBloodRequestDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(500)
+  @Matches(SAFE_NOTES_REGEX, { message: SAFE_NOTES_ERROR })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   adminNote?: string;
 
   @ApiPropertyOptional({ example: '2026-08-20' })
@@ -295,5 +312,6 @@ export class AdminUpdateBloodRequestDto {
   @IsOptional()
   @IsString()
   @MaxLength(100)
+  @Matches(PERSON_OR_PLACE_REGEX, { message: PERSON_OR_PLACE_ERROR })
   patientRelation?: string;
 }

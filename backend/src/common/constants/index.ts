@@ -19,13 +19,16 @@ export interface ApiSuccessResponse<T = unknown> {
   data?: T;
 }
 
+export type ApiValidationError = { field: string; message: string };
+
 export interface ApiErrorResponse {
   success: false;
   message: string;
-  errors: string[];
+  errors: (string | ApiValidationError)[];
 }
 
 export const INDIAN_MOBILE_REGEX = /^[6-9]\d{9}$/;
+export const INDIAN_MOBILE_REPEATED_DIGITS_REGEX = /^(?!^(\d)\1{9}$)[6-9]\d{9}$/;
 export const PERSON_NAME_REGEX = /^[A-Za-z]+(?: [A-Za-z]+)*$/;
 
 export const ALLOWED_IMAGE_MIME_TYPES = [

@@ -34,6 +34,12 @@ export class BloodRequestsService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
+  private sanitizeText(value?: string | null): string | null {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
   async createRequest(requesterId: string, dto: CreateBloodRequestDto, proofImageUrl?: string, notifyAdmins = true) {
     if (!proofImageUrl) {
       throw new BadRequestException('A supporting proof/document is required');
@@ -53,7 +59,7 @@ export class BloodRequestsService {
         contact_name: dto.contactName,
         contact_mobile: dto.contactMobile,
         required_by_date: new Date(dto.requiredByDate),
-        notes: dto.notes,
+        notes: this.sanitizeText(dto.notes),
         is_emergency: dto.isEmergency ?? false,
         proof_image_url: proofImageUrl,
         for_self: dto.forSelf ?? true,
@@ -172,9 +178,9 @@ export class BloodRequestsService {
         ...(dto.contactName !== undefined && { contact_name: dto.contactName }),
         ...(dto.contactMobile !== undefined && { contact_mobile: dto.contactMobile }),
         ...(dto.requiredByDate !== undefined && { required_by_date: new Date(dto.requiredByDate) }),
-        ...(dto.notes !== undefined && { notes: dto.notes }),
+        ...(dto.notes !== undefined && { notes: this.sanitizeText(dto.notes) }),
         ...(dto.isEmergency !== undefined && { is_emergency: dto.isEmergency }),
-        ...(dto.adminNote !== undefined && { admin_note: dto.adminNote }),
+        ...(dto.adminNote !== undefined && { admin_note: this.sanitizeText(dto.adminNote) }),
         ...(dto.expiresAt !== undefined && { expires_at: new Date(dto.expiresAt) }),
         ...(dto.forSelf !== undefined && { for_self: dto.forSelf }),
         ...(dto.patientRelation !== undefined && { patient_relation: dto.patientRelation }),

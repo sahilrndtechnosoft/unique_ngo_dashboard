@@ -2,7 +2,16 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 import { appointment_status, blood_group } from '../../../generated/prisma/client';
-import { INDIAN_MOBILE_REGEX } from '../../common/constants';
+import { INDIAN_MOBILE_REPEATED_DIGITS_REGEX } from '../../common/constants';
+
+export const APPOINTMENT_LOCATION_REGEX = /^(?=.*\p{L})[\p{L} .'\-&]+$/u;
+export const APPOINTMENT_NAME_REGEX = /^(?=.*\p{L})[\p{L} .'\-]+$/u;
+export const SAFE_NOTES_REGEX = /^(?!.*(?:<\s*script|\bscript\b|javascript:|data:\s*text\/html|on[a-z]+\s*=))[^<>]*$/is;
+
+export const APPOINTMENT_LOCATION_ERROR = "$property contains invalid characters. Only letters, spaces, and valid symbols (. ' - &) are allowed.";
+export const APPOINTMENT_NAME_ERROR = "$property contains invalid characters. Only letters, spaces, and valid symbols (. ' -) are allowed.";
+export const SAFE_NOTES_ERROR = "$property cannot contain <, >, script, or event-handler patterns.";
+export const APPOINTMENT_MOBILE_ERROR = "Contact phone must be a valid 10-digit Indian number starting with 6, 7, 8, or 9 (repeated digits not allowed).";
 
 export class ListAppointmentsQueryDto {
   @ApiPropertyOptional({ example: 1 })
@@ -76,22 +85,27 @@ export class CreateAppointmentDto {
   @IsOptional()
   @IsString()
   @MaxLength(100)
+  @Matches(APPOINTMENT_LOCATION_REGEX, { message: APPOINTMENT_LOCATION_ERROR })
   city?: string;
 
   @ApiPropertyOptional({ example: 'Maharashtra' })
   @IsOptional()
   @IsString()
   @MaxLength(100)
+  @Matches(APPOINTMENT_LOCATION_REGEX, { message: APPOINTMENT_LOCATION_ERROR })
   state?: string;
 
   @ApiPropertyOptional({ example: '9876543210' })
   @IsOptional()
-  @Matches(INDIAN_MOBILE_REGEX, { message: 'Contact phone must be a valid 10-digit Indian number' })
+  @Matches(INDIAN_MOBILE_REPEATED_DIGITS_REGEX, { message: APPOINTMENT_MOBILE_ERROR })
   contactPhone?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(500)
+  @Matches(SAFE_NOTES_REGEX, { message: SAFE_NOTES_ERROR })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   notes?: string;
 
   @ApiPropertyOptional({ example: '2026-05-01', description: 'Date of your last blood donation, if any. Falls back to your donation history if omitted.' })
@@ -131,18 +145,21 @@ export class CreateAppointmentDto {
   @ValidateIf((dto: CreateAppointmentDto) => dto.forSelf === false)
   @IsString()
   @MaxLength(255)
+  @Matches(APPOINTMENT_NAME_REGEX, { message: APPOINTMENT_NAME_ERROR })
   beneficiaryName?: string;
 
   @ApiPropertyOptional({ description: 'Required when forSelf is false: mobile number of the person who will actually donate' })
   @ValidateIf((dto: CreateAppointmentDto) => dto.forSelf === false)
   @IsString()
   @MaxLength(20)
+  @Matches(INDIAN_MOBILE_REPEATED_DIGITS_REGEX, { message: 'Beneficiary mobile must be a valid 10-digit Indian number starting with 6, 7, 8, or 9 (repeated digits not allowed)' })
   beneficiaryMobile?: string;
 
   @ApiPropertyOptional({ example: 'Spouse', description: 'Required when forSelf is false: relationship to the logged-in user' })
   @ValidateIf((dto: CreateAppointmentDto) => dto.forSelf === false)
   @IsString()
   @MaxLength(100)
+  @Matches(APPOINTMENT_NAME_REGEX, { message: APPOINTMENT_NAME_ERROR })
   beneficiaryRelation?: string;
 }
 
@@ -154,6 +171,9 @@ export class UpdateAppointmentStatusDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(500)
+  @Matches(SAFE_NOTES_REGEX, { message: SAFE_NOTES_ERROR })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   cancelReason?: string;
 }
 
@@ -199,17 +219,19 @@ export class AdminUpdateAppointmentDto {
   @IsOptional()
   @IsString()
   @MaxLength(100)
+  @Matches(APPOINTMENT_LOCATION_REGEX, { message: APPOINTMENT_LOCATION_ERROR })
   city?: string;
 
   @ApiPropertyOptional({ example: 'Maharashtra' })
   @IsOptional()
   @IsString()
   @MaxLength(100)
+  @Matches(APPOINTMENT_LOCATION_REGEX, { message: APPOINTMENT_LOCATION_ERROR })
   state?: string;
 
   @ApiPropertyOptional({ example: '9876543210' })
   @IsOptional()
-  @Matches(INDIAN_MOBILE_REGEX, { message: 'Contact phone must be a valid 10-digit Indian number' })
+  @Matches(INDIAN_MOBILE_REPEATED_DIGITS_REGEX, { message: APPOINTMENT_MOBILE_ERROR })
   contactPhone?: string;
 
   @ApiPropertyOptional({ example: '2026-05-01' })
@@ -248,11 +270,17 @@ export class AdminUpdateAppointmentDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(500)
+  @Matches(SAFE_NOTES_REGEX, { message: SAFE_NOTES_ERROR })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   notes?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(500)
+  @Matches(SAFE_NOTES_REGEX, { message: SAFE_NOTES_ERROR })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   cancelReason?: string;
 
   @ApiPropertyOptional()
@@ -265,17 +293,20 @@ export class AdminUpdateAppointmentDto {
   @IsOptional()
   @IsString()
   @MaxLength(255)
+  @Matches(APPOINTMENT_NAME_REGEX, { message: APPOINTMENT_NAME_ERROR })
   beneficiaryName?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MaxLength(20)
+  @Matches(INDIAN_MOBILE_REPEATED_DIGITS_REGEX, { message: 'Beneficiary mobile must be a valid 10-digit Indian number starting with 6, 7, 8, or 9 (repeated digits not allowed)' })
   beneficiaryMobile?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MaxLength(100)
+  @Matches(APPOINTMENT_NAME_REGEX, { message: APPOINTMENT_NAME_ERROR })
   beneficiaryRelation?: string;
 }
