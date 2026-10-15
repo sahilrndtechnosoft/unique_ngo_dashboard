@@ -347,7 +347,15 @@ export default function AdminNotificationBroadcast() {
                         {
                             key: 'sentAt',
                             label: 'Sent',
-                            render: (row) => (row.sentAt ? new Date(row.sentAt).toLocaleString() : 'Not delivered'),
+                            render: (row) =>
+                                row.sentAt ? (
+                                    <div>
+                                        <span className="badge badge-outline-success">Delivered</span>
+                                        <div className="text-xs text-white-dark mt-0.5">{new Date(row.sentAt).toLocaleString()}</div>
+                                    </div>
+                                ) : (
+                                    <span className="badge badge-outline-danger">Not delivered</span>
+                                ),
                         },
                         {
                             key: 'createdAt',
@@ -404,7 +412,7 @@ export default function AdminNotificationBroadcast() {
                             <p>{viewing.type}</p>
                         </FormField>
                         <FormField label="Sent At">
-                            <p>{viewing.sentAt ? new Date(viewing.sentAt).toLocaleString() : 'Not delivered (no active device)'}</p>
+                            <p>{viewing.sentAt ? `Delivered (${new Date(viewing.sentAt).toLocaleString()})` : 'Not delivered'}</p>
                         </FormField>
                         <FormField label="Created At">
                             <p>{new Date(viewing.createdAt).toLocaleString()}</p>

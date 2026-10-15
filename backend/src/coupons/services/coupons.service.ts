@@ -106,9 +106,15 @@ export class CouponsService {
 
   async adminDelete(id: string) {
     await this.findOrThrow(id);
-    await this.prisma.coupons.update({
+    const [usageCount, orderCount] = await Promise.all([
+      this.prisma.coupon_usages.count({ where: { coupon_id: id } }),
+      this.prisma.orders.count({ where: { coupon_id: id } }),
+    ]);
+    if (usageCount > 0 || orderCount > 0) {
+      throw new BadRequestException('Cannot delete a coupon that has already been used in orders. Please deactivate it instead.');
+    }
+    await this.prisma.coupons.delete({
       where: { id },
-      data: { is_active: false, updated_at: new Date() },
     });
   }
 
