@@ -49,6 +49,12 @@ export class AppointmentsService {
     return this.createAppointmentRecord(dto.userId, dto);
   }
 
+  private sanitizeText(value?: string | null): string | null {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
   private async createAppointmentRecord(donorId: string, dto: CreateAppointmentDto) {
     const appointment = await this.prisma.blood_donation_appointments.create({
       data: {
@@ -65,7 +71,7 @@ export class AppointmentsService {
         city: dto.city,
         state: dto.state,
         contact_phone: dto.contactPhone,
-        notes: dto.notes,
+        notes: this.sanitizeText(dto.notes),
         for_self: dto.forSelf ?? true,
         beneficiary_name: dto.forSelf === false ? dto.beneficiaryName : null,
         beneficiary_mobile: dto.forSelf === false ? dto.beneficiaryMobile : null,
@@ -207,8 +213,8 @@ export class AppointmentsService {
         ...(dto.state !== undefined && { state: dto.state }),
         ...(dto.contactPhone !== undefined && { contact_phone: dto.contactPhone }),
         ...(dto.status !== undefined && { status: dto.status }),
-        ...(dto.notes !== undefined && { notes: dto.notes }),
-        ...(dto.cancelReason !== undefined && { cancel_reason: dto.cancelReason }),
+        ...(dto.notes !== undefined && { notes: this.sanitizeText(dto.notes) }),
+        ...(dto.cancelReason !== undefined && { cancel_reason: this.sanitizeText(dto.cancelReason) }),
         ...(dto.forSelf !== undefined && { for_self: dto.forSelf }),
         ...(dto.beneficiaryName !== undefined && { beneficiary_name: dto.beneficiaryName }),
         ...(dto.beneficiaryMobile !== undefined && { beneficiary_mobile: dto.beneficiaryMobile }),
@@ -240,7 +246,7 @@ export class AppointmentsService {
       where: { id: appointmentId },
       data: {
         status: appointment_status.CANCELLED,
-        cancel_reason: dto.cancelReason,
+        cancel_reason: this.sanitizeText(dto.cancelReason),
         updated_at: new Date(),
       },
     });

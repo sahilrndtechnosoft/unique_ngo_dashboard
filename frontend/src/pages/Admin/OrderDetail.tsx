@@ -263,7 +263,7 @@ export default function OrderDetail() {
                 <FormSection title="Financial summary" description="Commission is calculated per item after discounts, excluding tax and shipping.">
                     <DetailFacts items={[
                         { label: 'Item subtotal', value: formatMoney(order.subtotal) },
-                        { label: 'Discount', value: `−${formatMoney(order.discountAmount)}` },
+                        { label: 'Discount', value: formatMoney(Math.abs(Number(order.discountAmount ?? 0))) },
                         { label: 'Tax', value: formatMoney(order.taxAmount) },
                         { label: 'Shipping', value: formatMoney(order.shippingFee) },
                         { label: 'Order total', value: formatMoney(order.totalAmount) },

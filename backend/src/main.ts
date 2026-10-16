@@ -1,8 +1,9 @@
-import { ValidationPipe } from '@nestjs/common';
+import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { ValidationError } from 'class-validator';
 import helmet from 'helmet';
 import { join } from 'path';
 import { AppModule } from './app.module';
@@ -28,6 +29,24 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
       transform: true,
       transformOptions: { enableImplicitConversion: true },
+      exceptionFactory: (errors: ValidationError[] = []) => {
+        const formattedErrors: Array<{ field: string; message: string }> = [];
+        const extract = (errList: ValidationError[], parent = '') => {
+          for (const err of errList) {
+            const prop = parent ? `${parent}.${err.property}` : err.property;
+            if (err.constraints) {
+              for (const msg of Object.values(err.constraints)) {
+                formattedErrors.push({ field: prop, message: msg });
+              }
+            }
+            if (err.children?.length) {
+              extract(err.children, prop);
+            }
+          }
+        };
+        extract(errors);
+        return new BadRequestException(formattedErrors);
+      },
     }),
   );
 

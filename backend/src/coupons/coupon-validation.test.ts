@@ -56,3 +56,40 @@ test('coupon validation and admin output preserve an explicit zero max discount'
   assert.equal(validated.discount.toString(), '0');
   assert.equal(adminView.maxDiscount, 0);
 });
+
+test('adminDelete hard deletes unused coupons', async () => {
+  let deletedId: string | null = null;
+  const coupon = { id: 'coupon-1', code: 'UNUSED' };
+  const service = new CouponsService({
+    coupons: {
+      findUnique: async () => coupon,
+      delete: async ({ where }: any) => {
+        deletedId = where.id;
+        return coupon;
+      },
+    },
+    coupon_usages: { count: async () => 0 },
+    orders: { count: async () => 0 },
+  } as never);
+
+  await service.adminDelete('coupon-1');
+  assert.equal(deletedId, 'coupon-1');
+});
+
+test('adminDelete rejects deleting a coupon that has been used in orders', async () => {
+  const coupon = { id: 'coupon-used', code: 'USED' };
+  const service = new CouponsService({
+    coupons: {
+      findUnique: async () => coupon,
+      delete: async () => assert.fail('Should not be called'),
+    },
+    coupon_usages: { count: async () => 2 },
+    orders: { count: async () => 0 },
+  } as never);
+
+  await assert.rejects(
+    async () => service.adminDelete('coupon-used'),
+    /Cannot delete a coupon that has already been used in orders/
+  );
+});
+

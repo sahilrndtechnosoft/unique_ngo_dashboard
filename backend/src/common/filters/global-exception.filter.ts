@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
-import { ApiErrorResponse } from '../constants';
+import { ApiErrorResponse, ApiValidationError } from '../constants';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -19,7 +19,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Internal server error';
-    let errors: string[] = [];
+    let errors: (string | ApiValidationError)[] = [];
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -32,10 +32,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         message = (body.message as string) ?? message;
 
         if (Array.isArray(body.message)) {
-          errors = body.message as string[];
+          errors = body.message as (string | ApiValidationError)[];
           message = 'Validation failed';
         } else if (Array.isArray(body.errors)) {
-          errors = body.errors as string[];
+          errors = body.errors as (string | ApiValidationError)[];
         } else if (typeof body.message === 'string') {
           errors = [body.message];
         }

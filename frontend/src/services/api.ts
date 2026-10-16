@@ -160,8 +160,18 @@ export function mediaUrl(path: string | null | undefined): string {
 
 export function getErrorMessage(error: unknown, fallback = 'Something went wrong'): string {
     if (axios.isAxiosError(error)) {
-        const data = error.response?.data as { message?: string; errors?: string[] } | undefined;
-        if (data?.errors?.length) return data.errors.join(', ');
+        const data = error.response?.data as { message?: string; errors?: (string | { field?: string; message?: string })[] } | undefined;
+        if (data?.errors?.length) {
+            return data.errors
+                .map((err) => {
+                    if (typeof err === 'string') return err;
+                    if (err && typeof err === 'object') {
+                        return err.message || (err.field ? `${err.field}: invalid value` : JSON.stringify(err));
+                    }
+                    return String(err);
+                })
+                .join(', ');
+        }
         if (data?.message) return data.message;
         if (!error.response) return 'Cannot reach the API. Check that the backend service is running, then try again.';
     }

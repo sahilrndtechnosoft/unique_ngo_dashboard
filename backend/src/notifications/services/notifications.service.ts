@@ -164,6 +164,20 @@ export class NotificationsService {
       }),
     ]);
 
+    const undeliveredIds = rows.filter((row) => row.sent_at === null).map((row) => row.id);
+    if (undeliveredIds.length > 0) {
+      const now = new Date();
+      await this.prisma.notifications.updateMany({
+        where: { id: { in: undeliveredIds } },
+        data: { sent_at: now },
+      });
+      for (const row of rows) {
+        if (row.sent_at === null) {
+          row.sent_at = now;
+        }
+      }
+    }
+
     return {
       items: rows.map((row) => this.toPublic(row)),
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
@@ -175,7 +189,37 @@ export class NotificationsService {
     if (!row) {
       throw new NotFoundException('Notification not found');
     }
+    if (row.sent_at === null) {
+      const now = new Date();
+      await this.prisma.notifications.update({
+        where: { id: row.id },
+        data: { sent_at: now },
+      });
+      row.sent_at = now;
+    }
     return this.toPublic(row);
+  }
+
+  async markRead(userId: string, id: string) {
+    const row = await this.prisma.notifications.findFirst({ where: { id, user_id: userId } });
+    if (!row) {
+      throw new NotFoundException('Notification not found');
+    }
+    const now = new Date();
+    const updated = await this.prisma.notifications.update({
+      where: { id },
+      data: { is_read: true, ...(row.sent_at === null ? { sent_at: now } : {}) },
+    });
+    return this.toPublic(updated);
+  }
+
+  async markAllRead(userId: string) {
+    const now = new Date();
+    await this.prisma.notifications.updateMany({
+      where: { user_id: userId, is_read: false },
+      data: { is_read: true, sent_at: now },
+    });
+    return { success: true };
   }
 
   async deleteMyNotification(userId: string, id: string) {

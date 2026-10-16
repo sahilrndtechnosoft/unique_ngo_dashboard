@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { plainToInstance } from 'class-transformer';
-import { AdminCreateAppointmentDto, ListAppointmentsQueryDto } from './dto/appointment.dto';
+import { validate } from 'class-validator';
+import { AdminCreateAppointmentDto, AdminUpdateAppointmentDto, CreateAppointmentDto, ListAppointmentsQueryDto } from './dto/appointment.dto';
 import { EligibilityService } from './services/eligibility.service';
 import { AppointmentsService } from './services/appointments.service';
 
@@ -197,4 +198,88 @@ test('checks donation eligibility against the requested appointment date', async
 
   assert.equal(result.eligible, false);
   assert.match(result.reasons[0], /Donor must wait at least 3 months between donations/);
+});
+
+test('validates notes, location, and mobile rules on appointment booking', async () => {
+  const baseBooking = {
+    hospitalId: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+    bloodGroup: 'O_POSITIVE',
+    appointmentDate: '2099-01-01',
+    hadTattooRecently: false,
+    city: 'Vapi',
+    state: 'Gujarat',
+    contactPhone: '7796735387',
+    notes: "Patient has doctor's prescription for scheduled donation",
+  };
+
+  // Valid booking passes validation
+  const validErrors = await validate(plainToInstance(CreateAppointmentDto, baseBooking));
+  assert.equal(validErrors.length, 0, JSON.stringify(validErrors));
+
+  // notes with script or <> are rejected
+  const scriptNotes = await validate(plainToInstance(CreateAppointmentDto, { ...baseBooking, notes: '<script>alert(1)</script>' }));
+  assert.ok(scriptNotes.some((e) => e.property === 'notes'));
+
+  const angleBracketNotes = await validate(plainToInstance(CreateAppointmentDto, { ...baseBooking, notes: 'Donor needs <special> care' }));
+  assert.ok(angleBracketNotes.some((e) => e.property === 'notes'));
+
+  // notes > 500 characters are rejected
+  const longNotes = await validate(plainToInstance(CreateAppointmentDto, { ...baseBooking, notes: 'x'.repeat(501) }));
+  assert.ok(longNotes.some((e) => e.property === 'notes'));
+
+  // city and state with letters Unicode and . ' - & are allowed
+  const symbolLocation = await validate(plainToInstance(CreateAppointmentDto, {
+    ...baseBooking,
+    city: "St. John's",
+    state: 'Dadra & Nagar Haveli',
+  }));
+  assert.equal(symbolLocation.length, 0);
+
+  // city with numbers or < > rejected
+  const invalidCity = await validate(plainToInstance(CreateAppointmentDto, { ...baseBooking, city: 'City <123>' }));
+  assert.ok(invalidCity.some((e) => e.property === 'city'));
+
+  // contactPhone repeated digits rejected
+  const repeatedPhone = await validate(plainToInstance(CreateAppointmentDto, { ...baseBooking, contactPhone: '9999999999' }));
+  assert.ok(repeatedPhone.some((e) => e.property === 'contactPhone'));
+
+  // contactPhone starting with < 6 rejected
+  const invalidPhone = await validate(plainToInstance(CreateAppointmentDto, { ...baseBooking, contactPhone: '5555555555' }));
+  assert.ok(invalidPhone.some((e) => e.property === 'contactPhone'));
+});
+
+test('sanitizes notes server-side on appointment creation', async () => {
+  let createdNotes: string | null | undefined;
+  const service = new AppointmentsService(
+    {
+      blood_donation_appointments: {
+        create: async ({ data }: { data: { notes: string | null } }) => {
+          createdNotes = data.notes;
+          return { id: 'app-id', ...data };
+        },
+      },
+    } as never,
+    { checkEligibility: async () => ({ eligible: true, reasons: [] }) } as never,
+    { notifyAdminsByEmail: async () => undefined } as never,
+  );
+
+  await (service as unknown as { createAppointmentRecord: (donorId: string, dto: unknown) => Promise<unknown> })
+    .createAppointmentRecord('donor-id', {
+      bloodGroup: 'O_POSITIVE',
+      appointmentDate: '2099-01-01',
+      hadTattooRecently: false,
+      notes: '   Trimmed appointment notes   ',
+    });
+
+  assert.equal(createdNotes, 'Trimmed appointment notes');
+
+  await (service as unknown as { createAppointmentRecord: (donorId: string, dto: unknown) => Promise<unknown> })
+    .createAppointmentRecord('donor-id', {
+      bloodGroup: 'O_POSITIVE',
+      appointmentDate: '2099-01-01',
+      hadTattooRecently: false,
+      notes: '   ',
+    });
+
+  assert.equal(createdNotes, null);
 });

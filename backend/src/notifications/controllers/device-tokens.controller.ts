@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtPayload } from '../../common/constants';
 import { CurrentUser, ResponseMessage } from '../../common/decorators';
@@ -33,6 +33,20 @@ export class DeviceTokensController {
   @ResponseMessage('Notifications fetched successfully')
   listMyNotifications(@CurrentUser() user: JwtPayload, @Query() query: ListNotificationsQueryDto) {
     return this.notificationsService.listMyNotifications(user.sub, query);
+  }
+
+  @Patch('read-all')
+  @HttpCode(HttpStatus.OK)
+  @ResponseMessage('All notifications marked as read')
+  markAllRead(@CurrentUser() user: JwtPayload) {
+    return this.notificationsService.markAllRead(user.sub);
+  }
+
+  @Patch(':id/read')
+  @HttpCode(HttpStatus.OK)
+  @ResponseMessage('Notification marked as read')
+  markRead(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.notificationsService.markRead(user.sub, id);
   }
 
   @Get(':id')
