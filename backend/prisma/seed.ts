@@ -11,6 +11,7 @@ import {
 } from '../generated/prisma/client';
 import { assignSuperAdminRole, seedRbac } from './seed-rbac';
 import { printDemoCredentials, seedDemoData } from './seed-demo-data';
+import { seedRewardsAndPartners } from './seed-rewards-partners';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@unique-ngo.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'Admin@123456';
@@ -31,10 +32,19 @@ const USER_MOBILE = process.env.USER_MOBILE ?? '9666666666';
 
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS ?? '12', 10);
 
-/** Find by email including soft-deleted rows (email unique still applies). */
+/** Find by email including soft-deleted rows. */
 async function findUserByEmail(prisma: PrismaClient, email: string) {
   return prisma.users.findFirst({
     where: { email },
+  });
+}
+
+/** Find by email or mobile including soft-deleted rows. */
+async function findUserByEmailOrMobile(prisma: PrismaClient, email: string, mobile: string) {
+  return prisma.users.findFirst({
+    where: {
+      OR: [{ email }, { mobile }],
+    },
   });
 }
 
@@ -50,7 +60,7 @@ async function upsertSeedUser(
 ): Promise<users> {
   const email = data.email.toLowerCase();
   const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
-  const existing = await findUserByEmail(prisma, email);
+  const existing = await findUserByEmailOrMobile(prisma, email, data.mobile);
 
   const isStaff =
     data.role === user_role.ADMIN || data.role === user_role.SUPER_ADMIN;
@@ -195,6 +205,7 @@ async function main() {
     await seedUser(prisma);
     await seedAppSettings(prisma);
     await seedDemoData(prisma);
+    await seedRewardsAndPartners(prisma);
 
     console.log('\n--- Admin login ---');
     console.log(`  Email:    ${ADMIN_EMAIL}`);

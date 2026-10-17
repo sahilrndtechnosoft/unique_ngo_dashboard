@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   Prisma,
+  coupon_usage_status,
   order_items,
   order_status,
   orders,
@@ -258,6 +259,31 @@ export class AdminOrdersService {
             note: dto.note,
           })),
         });
+
+        // Reversal of coupon usage if applied to this order
+        if (order.coupon_id) {
+          const usage = await tx.coupon_usages.findFirst({
+            where: {
+              coupon_id: order.coupon_id,
+              order_id: orderId,
+              status: coupon_usage_status.APPLIED,
+            },
+          });
+          if (usage) {
+            await tx.coupon_usages.update({
+              where: { id: usage.id },
+              data: {
+                status: coupon_usage_status.REVERSED,
+                reversed_at: new Date(),
+                reversal_reason: dto.note ?? 'Order cancelled by admin',
+              },
+            });
+            await tx.coupons.update({
+              where: { id: order.coupon_id },
+              data: { used_count: { decrement: 1 } },
+            });
+          }
+        }
       }
 
       if (shipment) {

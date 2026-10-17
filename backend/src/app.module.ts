@@ -22,12 +22,17 @@ import { shouldSkipRateLimit } from './common/utils/rate-limit.util';
 import { InquiriesModule } from './inquiries/inquiries.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { OrdersModule } from './orders/orders.module';
+import { PartnersModule } from './partners/partners.module';
+import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RbacModule } from './admin/rbac.module';
-import { UsersModule } from './users/users.module';
-import { WishlistModule } from './wishlist/wishlist.module';
+import { RedemptionsModule } from './redemptions/redemptions.module';
+import { RewardsCatalogModule } from './rewards-catalog/rewards-catalog.module';
+import { RewardsModule } from './rewards/rewards.module';
 import { SuggestionsModule } from './suggestions/suggestions.module';
-import { PaymentsModule } from './payments/payments.module';
+import { UsersModule } from './users/users.module';
+import { VouchersModule } from './vouchers/vouchers.module';
+import { WishlistModule } from './wishlist/wishlist.module';
 
 @Module({
   imports: [
@@ -59,6 +64,11 @@ import { PaymentsModule } from './payments/payments.module';
     CouponsModule,
     DonationItemsModule,
     InquiriesModule,
+    PartnersModule,
+    RewardsModule,
+    RewardsCatalogModule,
+    VouchersModule,
+    RedemptionsModule,
   ],
   providers: [
     JwtStrategy,

@@ -496,40 +496,49 @@ model marketplace_moderation_events {
 }
 
 model coupon_usages {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  coupon_id String   @db.Uuid
-  user_id   String   @db.Uuid
-  order_id  String?  @db.Uuid
-  discount  Decimal  @db.Decimal(12, 2)
-  used_at   DateTime @default(now()) @db.Timestamptz(6)
+  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  coupon_id       String              @db.Uuid
+  user_id         String              @db.Uuid
+  order_id        String?             @db.Uuid
+  discount        Decimal             @db.Decimal(12, 2)
+  status          coupon_usage_status @default(APPLIED)
+  reversal_reason String?
+  reversed_at     DateTime?           @db.Timestamptz(6)
+  used_at         DateTime            @default(now()) @db.Timestamptz(6)
 
   @@unique([coupon_id, user_id, order_id], map: "coupon_usages_unique")
   @@index([order_id])
+  @@index([status])
 }
 
 model coupons {
-  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code            String    @unique @db.VarChar(100)
-  description     String?
-  discount_type   String    @default("PERCENTAGE") @db.VarChar(20)
-  discount_value  Decimal   @db.Decimal(10, 2)
-  min_order_value Decimal   @default(0) @db.Decimal(12, 2)
-  max_discount    Decimal?  @db.Decimal(12, 2)
-  usage_limit     Int?
-  used_count      Int       @default(0)
-  per_user_limit  Int       @default(1)
-  is_active       Boolean   @default(true)
-  applicable_to   String    @default("ALL") @db.VarChar(50)
-  starts_at       DateTime  @default(now()) @db.Timestamptz(6)
-  expires_at      DateTime? @db.Timestamptz(6)
-  created_by_id   String    @db.Uuid
-  created_at      DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at      DateTime  @default(now()) @db.Timestamptz(6)
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code             String    @unique @db.VarChar(100)
+  description      String?
+  discount_type    String    @default("PERCENTAGE") @db.VarChar(20)
+  discount_value   Decimal   @db.Decimal(10, 2)
+  min_order_value  Decimal   @default(0) @db.Decimal(12, 2)
+  max_discount     Decimal?  @db.Decimal(12, 2)
+  usage_limit      Int?
+  used_count       Int       @default(0)
+  per_user_limit   Int       @default(1)
+  is_active        Boolean   @default(true)
+  applicable_to    String    @default("ALL") @db.VarChar(50)
+  partner_store_id String?   @db.Uuid
+  stacking_allowed Boolean   @default(false)
+  stacking_group   String?   @db.VarChar(50)
+  free_shipping    Boolean   @default(false)
+  starts_at        DateTime  @default(now()) @db.Timestamptz(6)
+  expires_at       DateTime? @db.Timestamptz(6)
+  created_by_id    String    @db.Uuid
+  created_at       DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime  @default(now()) @db.Timestamptz(6)
 
   /// Manual NOT VALID foreign key is installed in the commerce integrity migration.
   @@index([is_active])
   @@index([created_at])
   @@index([created_by_id])
+  @@index([partner_store_id])
 }
 
 model delivery_fees {
@@ -1492,23 +1501,153 @@ model reward_configurations {
   @@index([updated_by_id])
 }
 
+model partner_stores {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String    @db.VarChar(255)
+  slug           String    @unique @db.VarChar(100)
+  description    String?
+  logo_url       String?
+  website_url    String?
+  category       String    @default("FOOD_BEVERAGE") @db.VarChar(100)
+  adapter_type   String    @default("MOCK") @db.VarChar(50)
+  api_endpoint   String?
+  api_key_hash   String?
+  config         Json?
+  is_active      Boolean   @default(true)
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([is_active])
+  @@index([category])
+  @@index([created_at])
+}
+
+model rewards_catalog_items {
+  id                   String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  partner_store_id     String?           @db.Uuid
+  title                String            @db.VarChar(255)
+  description          String?
+  image_url            String?
+  category             String            @default("VOUCHER") @db.VarChar(100)
+  points_cost          Int
+  monetary_value       Decimal           @db.Decimal(10, 2)
+  item_type            catalog_item_type @default(PARTNER_VOUCHER)
+  stock                Int?
+  validity_days        Int               @default(30)
+  min_user_tier        String            @default("BRONZE") @db.VarChar(50)
+  terms_and_conditions String?
+  is_active            Boolean           @default(true)
+  starts_at            DateTime?         @db.Timestamptz(6)
+  expires_at           DateTime?         @db.Timestamptz(6)
+  created_at           DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime          @default(now()) @db.Timestamptz(6)
+
+  @@index([is_active])
+  @@index([partner_store_id])
+  @@index([category])
+  @@index([points_cost])
+  @@index([created_at])
+}
+
+model vouchers {
+  id                      String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                    String         @unique @db.VarChar(100)
+  user_id                 String         @db.Uuid
+  catalog_item_id         String?        @db.Uuid
+  partner_store_id        String?        @db.Uuid
+  title                   String         @db.VarChar(255)
+  description             String?
+  points_spent            Int
+  monetary_value          Decimal        @db.Decimal(10, 2)
+  status                  voucher_status @default(ACTIVE)
+  security_pin            String?        @db.VarChar(20)
+  qr_payload              String?
+  partner_reference       String?        @db.VarChar(255)
+  issued_at               DateTime       @default(now()) @db.Timestamptz(6)
+  expires_at              DateTime       @db.Timestamptz(6)
+  redeemed_at             DateTime?      @db.Timestamptz(6)
+  redeemed_store_location String?        @db.VarChar(255)
+  redeemed_by_partner_id  String?        @db.VarChar(255)
+  idempotency_key         String?        @unique @db.VarChar(128)
+  created_at              DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime       @default(now()) @db.Timestamptz(6)
+
+  @@index([user_id])
+  @@index([status])
+  @@index([partner_store_id])
+  @@index([catalog_item_id])
+  @@index([expires_at])
+  @@index([created_at])
+}
+
+model reward_ledger_entries {
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wallet_id        String            @db.Uuid
+  user_id          String            @db.Uuid
+  entry_type       ledger_entry_type
+  activity         reward_activity?
+  rule_id          String?           @db.Uuid
+  points           Int
+  remaining_points Int               @default(0)
+  balance_after    Int
+  reference_type   String?           @db.VarChar(100)
+  reference_id     String?           @db.Uuid
+  description      String
+  expires_at       DateTime?         @db.Timestamptz(6)
+  is_expired       Boolean           @default(false)
+  idempotency_key  String?           @unique @db.VarChar(128)
+  performed_by_id  String?           @db.Uuid
+  created_at       DateTime          @default(now()) @db.Timestamptz(6)
+
+  @@index([wallet_id])
+  @@index([user_id])
+  @@index([entry_type])
+  @@index([expires_at, is_expired])
+  @@index([created_at])
+  @@index([reference_type, reference_id])
+}
+
+model redemption_audit_logs {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_type  String   @db.VarChar(100)
+  actor_type  String   @db.VarChar(50)
+  actor_id    String?  @db.Uuid
+  entity_type String   @db.VarChar(50)
+  entity_id   String   @db.Uuid
+  metadata    Json?
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([entity_type, entity_id])
+  @@index([event_type])
+  @@index([actor_id])
+  @@index([created_at])
+}
+
 model reward_redemptions {
-  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id        String         @db.Uuid
-  wallet_id      String         @db.Uuid
-  points_used    Int
-  monetary_value Decimal        @db.Decimal(10, 2)
-  order_id       String?        @db.Uuid
-  rental_id      String?        @db.Uuid
-  status         payment_status @default(PENDING)
-  transaction_id String?        @db.Uuid
-  created_at     DateTime       @default(now()) @db.Timestamptz(6)
-  updated_at     DateTime       @default(now()) @db.Timestamptz(6)
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          String            @db.Uuid
+  wallet_id        String            @db.Uuid
+  voucher_id       String?           @db.Uuid
+  catalog_item_id  String?           @db.Uuid
+  partner_store_id String?           @db.Uuid
+  points_used      Int
+  monetary_value   Decimal           @db.Decimal(10, 2)
+  order_id         String?           @db.Uuid
+  rental_id        String?           @db.Uuid
+  status           redemption_status @default(PENDING)
+  idempotency_key  String?           @unique @db.VarChar(128)
+  failure_reason   String?
+  transaction_id   String?           @db.Uuid
+  created_at       DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime          @default(now()) @db.Timestamptz(6)
 
   @@index([status])
   @@index([created_at])
   @@index([user_id])
   @@index([wallet_id])
+  @@index([voucher_id])
+  @@index([catalog_item_id])
+  @@index([partner_store_id])
   @@index([order_id])
   @@index([rental_id])
   @@index([transaction_id])
@@ -2218,6 +2357,39 @@ enum reward_transaction_type {
   ADJUSTED
   BONUS
   REVERSED
+}
+
+enum catalog_item_type {
+  PARTNER_VOUCHER
+  STORE_COUPON
+  PRODUCT
+  DONATION_BOOST
+}
+
+enum voucher_status {
+  ACTIVE
+  REDEEMED
+  EXPIRED
+  CANCELLED
+  VOIDED
+}
+
+enum ledger_entry_type {
+  CREDIT
+  DEBIT
+}
+
+enum coupon_usage_status {
+  APPLIED
+  REVERSED
+}
+
+enum redemption_status {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
 }
 
 enum seller_status {

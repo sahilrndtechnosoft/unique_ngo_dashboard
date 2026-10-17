@@ -17,7 +17,7 @@ import {
   ListDonationsQueryDto,
   UpdateDonationStatusDto,
 } from '../dto/donation.dto';
-import { RewardsService } from './rewards.service';
+import { RewardsService } from '../../rewards/services/rewards.service';
 
 @Injectable()
 export class DonationsService {

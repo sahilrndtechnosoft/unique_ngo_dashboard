@@ -10,9 +10,16 @@ import { RewardsService } from '../services/rewards.service';
 export class RewardsController {
   constructor(private readonly rewardsService: RewardsService) {}
 
+  @Get('me')
+  @ResponseMessage('Wallet details fetched successfully')
+  getMyRewards(@CurrentUser() user: JwtPayload) {
+    return this.rewardsService.getMyRewards(user.sub);
+  }
+
+  // Alias for backward compatibility
   @Get()
   @ResponseMessage('Rewards fetched successfully')
-  getMyRewards(@CurrentUser() user: JwtPayload) {
+  getLegacyRewards(@CurrentUser() user: JwtPayload) {
     return this.rewardsService.getMyRewards(user.sub);
   }
 }
