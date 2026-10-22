@@ -9,6 +9,7 @@ import { AdminDataTable, AdminPageHeader, BulkActionsBar } from '../../component
 import AdminFormModal from '../../components/Admin/AdminFormModal';
 import { FormField, FormSection, RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
 import { confirmAction, showAlert } from '../../utils/alerts';
+import { validateImageFile } from '../../utils/file-validation';
 
 type Mode = 'create' | 'edit' | 'view';
 
@@ -120,10 +121,34 @@ export default function AdminCampaigns() {
         setPendingBanner(null);
     };
 
+    const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) {
+            setPendingBanner(null);
+            return;
+        }
+        const validationError = validateImageFile(file);
+        if (validationError) {
+            showAlert(validationError, 'error');
+            e.target.value = '';
+            setPendingBanner(null);
+            return;
+        }
+        setPendingBanner(file);
+    };
+
     const submit = async (event: FormEvent) => {
         event.preventDefault();
+        if (pendingBanner) {
+            const validationError = validateImageFile(pendingBanner);
+            if (validationError) {
+                showAlert(validationError, 'error');
+                return;
+            }
+        }
         setBusy(true);
         setError('');
+        let createdId: string | null = null;
         try {
             const body = {
                 name: form.name,
@@ -142,17 +167,28 @@ export default function AdminCampaigns() {
                 targetUnits: form.targetUnits ? Number(form.targetUnits) : undefined,
                 sheetUrl: form.sheetUrl || undefined,
             };
-            let id = editingId;
             if (mode === 'create') {
                 const created = (await adminApi.createCampaign(body)) as any;
-                id = created?.id;
+                createdId = created?.id;
+                if (createdId && pendingBanner) {
+                    try {
+                        await adminApi.uploadCampaignBanner(createdId, pendingBanner);
+                    } catch (uploadErr) {
+                        try {
+                            await adminApi.deleteCampaign(createdId);
+                        } catch (rollbackErr) {
+                            console.error('Failed to rollback campaign creation:', rollbackErr);
+                        }
+                        throw new Error(`Campaign creation aborted: banner upload failed. ${getErrorMessage(uploadErr)}`);
+                    }
+                }
                 showAlert('Campaign created successfully');
             } else if (editingId) {
                 await adminApi.updateCampaign(editingId, body);
+                if (pendingBanner) {
+                    await adminApi.uploadCampaignBanner(editingId, pendingBanner);
+                }
                 showAlert('Campaign updated successfully');
-            }
-            if (id && pendingBanner) {
-                await adminApi.uploadCampaignBanner(id, pendingBanner);
             }
             setMode(null);
             selection.clear();
@@ -383,7 +419,7 @@ export default function AdminCampaigns() {
                             <div className="flex items-center gap-4">
                                 {form.bannerUrl ? <img src={mediaUrl(form.bannerUrl)} alt="" className="h-16 w-28 rounded object-cover" /> : null}
                                 {!readOnly ? (
-                                    <input type="file" accept="image/*" className="form-input" onChange={(e) => setPendingBanner(e.target.files?.[0] ?? null)} />
+                                    <input type="file" accept="image/*" className="form-input" onChange={handleBannerChange} />
                                 ) : null}
                             </div>
                         </FormField>

@@ -52,7 +52,7 @@ const emptyForm = {
     price: 0,
     compareAtPrice: '',
     stockQuantity: 0,
-    status: 'ACTIVE',
+    status: 'PENDING_REVIEW',
     tags: '',
 };
 
@@ -279,7 +279,7 @@ export default function SellerDetail() {
         setForm({
             ...emptyForm,
             categoryId: categories[0]?.id ?? '',
-            status: 'ACTIVE',
+            status: 'PENDING_REVIEW',
         });
         setMode('create');
     };
@@ -1019,14 +1019,14 @@ export default function SellerDetail() {
                                 onChange={(e) => setForm({ ...form, stockQuantity: Number(e.target.value) })}
                             />
                         </FormField>
-                        <FormField label="Status" required>
+                        <FormField label="Status" required hint={mode === 'create' ? 'Seller products start as Pending Review and are activated via the Approve button.' : undefined}>
                             <select
                                 className="form-select"
-                                disabled={readOnly}
+                                disabled={readOnly || mode === 'create'}
                                 value={form.status}
                                 onChange={(e) => setForm({ ...form, status: e.target.value })}
                             >
-                                {STATUSES.map((status) => (
+                                {STATUSES.filter((s) => mode !== 'create' || s !== 'ACTIVE').map((status) => (
                                     <option key={status} value={status}>
                                         {status}
                                     </option>

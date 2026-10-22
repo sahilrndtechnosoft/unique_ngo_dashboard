@@ -140,7 +140,8 @@ export default function AdminProducts() {
         setForm({
             ...emptyForm,
             categoryId: categories[0]?.id ?? '',
-            sellerId: sellers[0]?.id ?? '',
+            sellerId: '',
+            status: 'ACTIVE',
         });
         setMode('create');
     };
@@ -229,7 +230,12 @@ export default function AdminProducts() {
         try {
             const body: Record<string, unknown> = buildBody();
             if (mode === 'create') {
-                if (form.sellerId) body.sellerId = form.sellerId;
+                if (form.sellerId) {
+                    body.sellerId = form.sellerId;
+                    if (body.status === 'ACTIVE') {
+                        body.status = 'PENDING_REVIEW';
+                    }
+                }
                 await adminApi.createProduct(body);
                 showAlert('Product created successfully');
             } else if (editingId) {
@@ -520,7 +526,18 @@ export default function AdminProducts() {
                         </FormField>
                         {mode === 'create' ? (
                             <FormField label="Seller">
-                                <select className="form-select" value={form.sellerId} onChange={(e) => setForm({ ...form, sellerId: e.target.value })}>
+                                <select
+                                    className="form-select"
+                                    value={form.sellerId}
+                                    onChange={(e) => {
+                                        const nextSellerId = e.target.value;
+                                        setForm((prev) => ({
+                                            ...prev,
+                                            sellerId: nextSellerId,
+                                            status: nextSellerId && prev.status === 'ACTIVE' ? 'PENDING_REVIEW' : prev.status,
+                                        }));
+                                    }}
+                                >
                                     <option value="">Platform-owned product</option>
                                     {sellers.map((seller) => (
                                         <option key={seller.id} value={seller.id}>

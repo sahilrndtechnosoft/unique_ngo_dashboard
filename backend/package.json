@@ -6,8 +6,9 @@
   "scripts": {
     "build": "nest build",
     "test:admin-user": "tsx --test src/admin/dto/admin-user-validation.test.ts src/users/users.service.test.ts",
-        "test:blood-requests": "tsx --test src/blood-bank/blood-request-regression.test.ts",
-        "test:blood-appointments": "tsx --test src/blood-bank/appointment-regression.test.ts",
+    "test:blood-requests": "tsx --test src/blood-bank/blood-request-regression.test.ts",
+    "test:blood-appointments": "tsx --test src/blood-bank/appointment-regression.test.ts",
+    "test:blood-donations": "tsx --test src/blood-bank/donation-update-regression.test.ts",
         "test:donation-items": "tsx --test src/donation-items/donation-items-state.test.ts",
         "test:notifications": "tsx --test src/notifications/fcm.service.test.ts src/notifications/device-tokens.service.test.ts src/notifications/notifications.service.test.ts",
         "test:rewards": "tsx --test src/rewards/rewards-redemption.test.ts src/coupons/coupon-features.test.ts",

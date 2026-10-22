@@ -180,8 +180,19 @@ export const adminApi = {
             .post('/admin/donations', form, { headers: { 'Content-Type': 'multipart/form-data' } })
             .then((r) => unwrap(r));
     },
-    updateDonation: (id: string, body: Record<string, unknown>) =>
-        api.patch(`/admin/donations/${id}`, body).then((r) => unwrap(r)),
+    updateDonation: (id: string, body: Record<string, unknown>, file?: File | null) => {
+        if (!file) {
+            return api.patch(`/admin/donations/${id}`, body).then((r) => unwrap(r));
+        }
+        const form = new FormData();
+        Object.entries(body).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && value !== '') form.append(key, String(value));
+        });
+        form.append('file', file);
+        return api
+            .patch(`/admin/donations/${id}`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
+            .then((r) => unwrap(r));
+    },
     deleteDonation: (id: string) => api.delete(`/admin/donations/${id}`).then((r) => unwrap(r)),
     reviewDonation: (id: string, body: { status: string; rejectionReason?: string; adminNote?: string }) =>
         api.patch(`/admin/donations/${id}/status`, body).then((r) => unwrap(r)),

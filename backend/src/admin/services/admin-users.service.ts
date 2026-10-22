@@ -220,6 +220,28 @@ export class AdminUsersService {
       await this.ensureNotLastSuperAdmin(userId);
     }
 
+    deleteUploadedFile(user.profile_image_url);
+
+    const [ordersCount, donationsCount, appointmentsCount, bloodRequestsCount, sellerCount] =
+      await Promise.all([
+        this.prisma.orders.count({ where: { buyer_id: userId } }),
+        this.prisma.blood_donations.count({ where: { donor_id: userId } }),
+        this.prisma.blood_donation_appointments.count({ where: { donor_id: userId } }),
+        this.prisma.blood_requests.count({ where: { requester_id: userId } }),
+        this.prisma.seller_profiles.count({ where: { user_id: userId } }),
+      ]);
+
+    if (
+      ordersCount === 0 &&
+      donationsCount === 0 &&
+      appointmentsCount === 0 &&
+      bloodRequestsCount === 0 &&
+      sellerCount === 0
+    ) {
+      await this.prisma.users.delete({ where: { id: userId } });
+      return;
+    }
+
     await this.prisma.users.update({
       where: { id: userId },
       data: {
@@ -272,13 +294,16 @@ export class AdminUsersService {
     const existing = await this.prisma.users.findFirst({
       where: {
         email,
-        deleted_at: null,
         ...(excludeId ? { NOT: { id: excludeId } } : {}),
       },
     });
 
     if (existing) {
-      throw new ConflictException('Email is already in use');
+      throw new ConflictException(
+        existing.deleted_at
+          ? 'Email belongs to a deactivated account'
+          : 'Email is already in use',
+      );
     }
   }
 
@@ -286,13 +311,16 @@ export class AdminUsersService {
     const existing = await this.prisma.users.findFirst({
       where: {
         mobile,
-        deleted_at: null,
         ...(excludeId ? { NOT: { id: excludeId } } : {}),
       },
     });
 
     if (existing) {
-      throw new ConflictException('Mobile number is already in use');
+      throw new ConflictException(
+        existing.deleted_at
+          ? 'Mobile number belongs to a deactivated account'
+          : 'Mobile number is already in use',
+      );
     }
   }
 

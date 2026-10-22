@@ -30,6 +30,7 @@ import {
 } from '../../common/constants';
 import {
   CurrentUser,
+  RequireAnyPermission,
   RequirePermissions,
   ResponseMessage,
   Roles,
@@ -88,7 +89,10 @@ export class AdminUsersController {
   }
 
   @Post(':id/image')
-  @RequirePermissions(AppModule.USERS, PermissionAction.EDIT)
+  @RequireAnyPermission(
+    { module: AppModule.USERS, action: PermissionAction.EDIT },
+    { module: AppModule.USERS, action: PermissionAction.CREATE },
+  )
   @ResponseMessage('User profile picture uploaded successfully')
   @ApiOperation({ summary: 'Upload profile picture for a user' })
   @ApiConsumes('multipart/form-data')

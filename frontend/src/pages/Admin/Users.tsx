@@ -9,6 +9,7 @@ import { AdminDataTable, AdminPageHeader, BulkActionsBar } from '../../component
 import AdminFormModal from '../../components/Admin/AdminFormModal';
 import { FormField, FormSection, RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
 import { confirmAction, showAlert } from '../../utils/alerts';
+import { validateImageFile } from '../../utils/file-validation';
 
 const ACCOUNT_TYPES = ['USER', 'SELLER', 'ADMIN', 'SUPER_ADMIN'] as const;
 const STATUSES = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'BANNED', 'PENDING_VERIFICATION'];
@@ -157,6 +158,22 @@ export default function AdminUsers() {
         setMode('edit');
     };
 
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) {
+            setPendingImage(null);
+            return;
+        }
+        const validationError = validateImageFile(file);
+        if (validationError) {
+            showAlert(validationError, 'error');
+            e.target.value = '';
+            setPendingImage(null);
+            return;
+        }
+        setPendingImage(file);
+    };
+
     const submit = async (event: FormEvent) => {
         event.preventDefault();
 
@@ -171,7 +188,16 @@ export default function AdminUsers() {
             return;
         }
 
+        if (pendingImage) {
+            const validationError = validateImageFile(pendingImage);
+            if (validationError) {
+                showAlert(validationError, 'error');
+                return;
+            }
+        }
+
         setBusy(true);
+        let createdId: string | null = null;
         try {
             const body: Record<string, unknown> = {
                 fullName,
@@ -189,22 +215,34 @@ export default function AdminUsers() {
             if (form.email) body.email = form.email;
             if (form.mobile) body.mobile = form.mobile;
             if (form.password) body.password = form.password;
-            let id = editingId;
             if (mode === 'create') {
                 if (!form.password) {
                     showAlert('Password is required for new users', 'error');
+                    setBusy(false);
                     return;
                 }
                 body.password = form.password;
                 const created = (await adminApi.createUser(body)) as any;
-                id = created?.id;
+                createdId = created?.id;
+                if (createdId && pendingImage) {
+                    try {
+                        await adminApi.uploadUserImage(createdId, pendingImage);
+                    } catch (uploadErr) {
+                        try {
+                            await adminApi.deleteUser(createdId);
+                        } catch (rollbackErr) {
+                            console.error('Failed to rollback user creation:', rollbackErr);
+                        }
+                        throw new Error(`User creation aborted: image upload failed. ${getErrorMessage(uploadErr)}`);
+                    }
+                }
                 showAlert('User created successfully');
             } else if (editingId) {
                 await adminApi.updateUser(editingId, body);
+                if (pendingImage) {
+                    await adminApi.uploadUserImage(editingId, pendingImage);
+                }
                 showAlert('User updated successfully');
-            }
-            if (id && pendingImage) {
-                await adminApi.uploadUserImage(id, pendingImage);
             }
             setMode(null);
             selection.clear();
@@ -420,7 +458,7 @@ export default function AdminUsers() {
                                     type="file"
                                     accept="image/*"
                                     className="form-input"
-                                    onChange={(e) => setPendingImage(e.target.files?.[0] ?? null)}
+                                    onChange={handleImageChange}
                                 />
                             </div>
                         </FormField>

@@ -405,7 +405,7 @@ export default function AdminBloodDonations() {
                 await adminApi.createDonation({ ...body, userId: donationForm.userId }, pendingFile);
                 showAlert('Donation created successfully');
             } else if (editingDonationId) {
-                await adminApi.updateDonation(editingDonationId, body);
+                await adminApi.updateDonation(editingDonationId, body, pendingFile);
                 showAlert('Donation updated successfully');
             }
             setCrudMode(null);
@@ -1071,16 +1071,37 @@ export default function AdminBloodDonations() {
                                 onChange={(e) => setDonationForm({ ...donationForm, state: e.target.value })}
                             />
                         </FormField>
-                        {crudMode === 'create' ? (
-                            <FormField label="Certificate / Proof Image" className="md:col-span-2" hint="Optional at creation time">
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="form-input"
-                                    onChange={(e) => setPendingFile(e.target.files?.[0] ?? null)}
-                                />
-                            </FormField>
-                        ) : null}
+                        <FormField
+                            label="Certificate / Proof Image"
+                            className="md:col-span-2"
+                            hint={crudMode === 'create' ? 'Optional at creation time' : 'Optional: upload a new image to replace current proof'}
+                        >
+                            <input
+                                type="file"
+                                accept="image/*"
+                                className="form-input"
+                                onChange={(e) => setPendingFile(e.target.files?.[0] ?? null)}
+                            />
+                            {crudMode === 'edit' && editingDonationId ? (() => {
+                                const currentDonation = items.find((d) => d.id === editingDonationId);
+                                if (currentDonation?.proofImageUrl) {
+                                    return (
+                                        <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                                            <span>Current proof image:</span>
+                                            <a
+                                                href={mediaUrl(currentDonation.proofImageUrl)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-primary hover:underline font-medium"
+                                            >
+                                                View current file
+                                            </a>
+                                        </div>
+                                    );
+                                }
+                                return null;
+                            })() : null}
+                        </FormField>
                         <FormField label="Consent Form" className="md:col-span-2" hint="Informed donor consent form status">
                             <div className="flex items-center h-[38px]">
                                 <label className="flex items-center gap-2 cursor-pointer">
