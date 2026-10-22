@@ -321,6 +321,32 @@ export class AdminSellersService {
   async deleteSeller(sellerId: string) {
     const profile = await this.findSellerOrThrow(sellerId);
 
+    const [productsCount, ordersCount] = await Promise.all([
+      this.prisma.products.count({ where: { seller_id: sellerId } }),
+      this.prisma.orders.count({ where: { seller_id: sellerId } }),
+    ]);
+
+    const user = await this.prisma.users.findUnique({
+      where: { id: profile.user_id },
+      select: { profile_image_url: true },
+    });
+    deleteUploadedFile(user?.profile_image_url);
+
+    if (productsCount === 0 && ordersCount === 0) {
+      await this.prisma.$transaction([
+        this.prisma.marketplace_moderation_events.deleteMany({
+          where: { entity_type: 'SELLER', entity_id: sellerId },
+        }),
+        this.prisma.seller_profiles.delete({
+          where: { id: sellerId },
+        }),
+        this.prisma.users.delete({
+          where: { id: profile.user_id },
+        }),
+      ]);
+      return;
+    }
+
     await this.prisma.$transaction([
       this.prisma.seller_profiles.update({
         where: { id: sellerId },
@@ -357,12 +383,15 @@ export class AdminSellersService {
     const existing = await this.prisma.users.findFirst({
       where: {
         email,
-        deleted_at: null,
         ...(excludeId ? { NOT: { id: excludeId } } : {}),
       },
     });
     if (existing) {
-      throw new ConflictException('Email is already in use');
+      throw new ConflictException(
+        existing.deleted_at
+          ? 'Email belongs to a deactivated account'
+          : 'Email is already in use',
+      );
     }
   }
 
@@ -370,12 +399,15 @@ export class AdminSellersService {
     const existing = await this.prisma.users.findFirst({
       where: {
         mobile,
-        deleted_at: null,
         ...(excludeId ? { NOT: { id: excludeId } } : {}),
       },
     });
     if (existing) {
-      throw new ConflictException('Mobile number is already in use');
+      throw new ConflictException(
+        existing.deleted_at
+          ? 'Mobile number belongs to a deactivated account'
+          : 'Mobile number is already in use',
+      );
     }
   }
 

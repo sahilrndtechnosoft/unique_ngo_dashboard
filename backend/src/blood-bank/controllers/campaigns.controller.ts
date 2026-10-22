@@ -17,7 +17,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AppModule, JwtPayload, PermissionAction, UserRole } from '../../common/constants';
-import { CurrentUser, Public, RequirePermissions, ResponseMessage, Roles } from '../../common/decorators';
+import { CurrentUser, Public, RequireAnyPermission, RequirePermissions, ResponseMessage, Roles } from '../../common/decorators';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { buildUploadedFilePath, createImageUploadOptions } from '../../common/utils/image-upload.util';
@@ -61,7 +61,10 @@ export class AdminCampaignsController {
   }
 
   @Post(':id/banner')
-  @RequirePermissions(AppModule.BLOOD_BANK, PermissionAction.EDIT)
+  @RequireAnyPermission(
+    { module: AppModule.BLOOD_BANK, action: PermissionAction.EDIT },
+    { module: AppModule.BLOOD_BANK, action: PermissionAction.CREATE },
+  )
   @ResponseMessage('Campaign banner uploaded successfully')
   @ApiConsumes('multipart/form-data')
   @ApiBody({

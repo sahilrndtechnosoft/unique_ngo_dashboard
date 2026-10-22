@@ -28,6 +28,11 @@ export const adminMenuGroups: AdminMenuGroup[] = [
         { label: 'Categories', to: '/admin/categories', permission: 'PRODUCTS:VIEW' },
         { label: 'Coupons', to: '/admin/coupons', permission: 'COUPONS:VIEW' },
     ] },
+    { label: 'Rewards & partners', items: [
+        { label: 'Partner stores', to: '/admin/partners', permission: 'REWARDS:VIEW' },
+        { label: 'Rewards catalog', to: '/admin/rewards-catalog', permission: 'REWARDS:VIEW' },
+        { label: 'Redemptions', to: '/admin/redemptions', permission: 'REWARDS:VIEW' },
+    ] },
     { label: 'Relationships', items: [
         { label: 'Members', to: '/admin/users', permission: 'USERS:VIEW' },
         { label: 'Inquiries', to: '/admin/inquiries', permission: 'INQUIRIES:VIEW' },

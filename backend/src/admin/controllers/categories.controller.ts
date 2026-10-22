@@ -29,6 +29,7 @@ import {
 } from '../../common/constants';
 import {
   Public,
+  RequireAnyPermission,
   RequirePermissions,
   ResponseMessage,
   Roles,
@@ -84,7 +85,10 @@ export class AdminCategoriesController {
   }
 
   @Post(':id/image')
-  @RequirePermissions(AppModule.PRODUCTS, PermissionAction.EDIT)
+  @RequireAnyPermission(
+    { module: AppModule.PRODUCTS, action: PermissionAction.EDIT },
+    { module: AppModule.PRODUCTS, action: PermissionAction.CREATE },
+  )
   @ResponseMessage('Category image uploaded successfully')
   @ApiConsumes('multipart/form-data')
   @ApiBody({

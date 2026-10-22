@@ -9,15 +9,17 @@ import {
   users,
 } from '../../../generated/prisma/client';
 import { generateSecureToken } from '../../common/utils/crypto.util';
+import { deleteUploadedFile } from '../../common/utils/image-upload.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   AdminCreateDonationDto,
   AdminUpdateDonationDto,
   CreateDonationDto,
   ListDonationsQueryDto,
+  UpdateDonationDto,
   UpdateDonationStatusDto,
 } from '../dto/donation.dto';
-import { RewardsService } from './rewards.service';
+import { RewardsService } from '../../rewards/services/rewards.service';
 
 @Injectable()
 export class DonationsService {
@@ -77,6 +79,51 @@ export class DonationsService {
 
   async getMyDonation(donorId: string, donationId: string) {
     return this.toPublic(await this.findOrThrow(donationId, { donorId }));
+  }
+
+  async updateMyDonation(donorId: string, donationId: string, dto: UpdateDonationDto, proofImagePath?: string) {
+    const existing = await this.findOrThrow(donationId, { donorId });
+
+    if (existing.status !== donation_status.PENDING && existing.status !== donation_status.UNDER_REVIEW) {
+      throw new BadRequestException('Only pending or under-review donations can be edited');
+    }
+
+    if (proofImagePath && existing.proof_image_url) {
+      deleteUploadedFile(existing.proof_image_url);
+    }
+
+    const updated = await this.prisma.blood_donations.update({
+      where: { id: donationId },
+      data: {
+        ...(dto.hospitalId !== undefined && { hospital_id: dto.hospitalId }),
+        ...(dto.campaignId !== undefined && { campaign_id: dto.campaignId, is_camp_donation: !!dto.campaignId }),
+        ...(dto.bloodGroup !== undefined && { blood_group: dto.bloodGroup }),
+        ...(dto.donationDate !== undefined && { donation_date: new Date(dto.donationDate) }),
+        ...(dto.unitsDonated !== undefined && { units_donated: dto.unitsDonated }),
+        ...(dto.donationCenter !== undefined && { donation_center: dto.donationCenter }),
+        ...(dto.hospitalName !== undefined && { hospital_name: dto.hospitalName }),
+        ...(dto.city !== undefined && { city: dto.city }),
+        ...(dto.state !== undefined && { state: dto.state }),
+        ...(dto.notes !== undefined && { notes: dto.notes }),
+        ...(dto.hasConsentForm !== undefined && { has_consent_form: dto.hasConsentForm }),
+        ...(dto.consentForm !== undefined && { has_consent_form: dto.consentForm }),
+        ...(dto.forSelf !== undefined && {
+          for_self: dto.forSelf,
+          beneficiary_name: dto.forSelf ? null : dto.beneficiaryName,
+          beneficiary_mobile: dto.forSelf ? null : dto.beneficiaryMobile,
+          beneficiary_relation: dto.forSelf ? null : dto.beneficiaryRelation,
+        }),
+        ...(dto.forSelf === false && {
+          ...(dto.beneficiaryName !== undefined && { beneficiary_name: dto.beneficiaryName }),
+          ...(dto.beneficiaryMobile !== undefined && { beneficiary_mobile: dto.beneficiaryMobile }),
+          ...(dto.beneficiaryRelation !== undefined && { beneficiary_relation: dto.beneficiaryRelation }),
+        }),
+        ...(proofImagePath !== undefined && { proof_image_url: proofImagePath }),
+        updated_at: new Date(),
+      },
+    });
+
+    return this.toPublic(updated);
   }
 
   async listDonations(query: ListDonationsQueryDto, options?: { donorId?: string }) {
@@ -170,8 +217,12 @@ export class DonationsService {
     return this.toPublic(donation, undefined, donor);
   }
 
-  async adminUpdateDonation(donationId: string, dto: AdminUpdateDonationDto) {
-    await this.findOrThrow(donationId);
+  async adminUpdateDonation(donationId: string, dto: AdminUpdateDonationDto, proofImagePath?: string) {
+    const existing = await this.findOrThrow(donationId);
+
+    if (proofImagePath && existing.proof_image_url) {
+      deleteUploadedFile(existing.proof_image_url);
+    }
 
     const updated = await this.prisma.blood_donations.update({
       where: { id: donationId },
@@ -188,15 +239,29 @@ export class DonationsService {
         ...(dto.notes !== undefined && { notes: dto.notes }),
         ...(dto.hasConsentForm !== undefined && { has_consent_form: dto.hasConsentForm }),
         ...(dto.consentForm !== undefined && { has_consent_form: dto.consentForm }),
-        ...(dto.forSelf !== undefined && { for_self: dto.forSelf }),
-        ...(dto.beneficiaryName !== undefined && { beneficiary_name: dto.beneficiaryName }),
-        ...(dto.beneficiaryMobile !== undefined && { beneficiary_mobile: dto.beneficiaryMobile }),
-        ...(dto.beneficiaryRelation !== undefined && { beneficiary_relation: dto.beneficiaryRelation }),
+        ...(dto.forSelf !== undefined && {
+          for_self: dto.forSelf,
+          beneficiary_name: dto.forSelf ? null : dto.beneficiaryName,
+          beneficiary_mobile: dto.forSelf ? null : dto.beneficiaryMobile,
+          beneficiary_relation: dto.forSelf ? null : dto.beneficiaryRelation,
+        }),
+        ...(dto.forSelf === false && {
+          ...(dto.beneficiaryName !== undefined && { beneficiary_name: dto.beneficiaryName }),
+          ...(dto.beneficiaryMobile !== undefined && { beneficiary_mobile: dto.beneficiaryMobile }),
+          ...(dto.beneficiaryRelation !== undefined && { beneficiary_relation: dto.beneficiaryRelation }),
+        }),
+        ...(proofImagePath !== undefined && {
+          proof_image_url: proofImagePath,
+          ...(existing.certificate_url && existing.certificate_url === existing.proof_image_url
+            ? { certificate_url: proofImagePath }
+            : {}),
+        }),
         updated_at: new Date(),
       },
     });
 
-    return this.toPublic(updated);
+    const donor = await this.prisma.users.findUnique({ where: { id: updated.donor_id } });
+    return this.toPublic(updated, undefined, donor ?? undefined);
   }
 
   async adminDeleteDonation(donationId: string) {

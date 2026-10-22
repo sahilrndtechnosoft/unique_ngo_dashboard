@@ -9,6 +9,7 @@ import { AdminDataTable, AdminPageHeader, BulkActionsBar } from '../../component
 import AdminFormModal from '../../components/Admin/AdminFormModal';
 import { FormField, FormSection, RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
 import { confirmAction, showAlert } from '../../utils/alerts';
+import { validateImageFile } from '../../utils/file-validation';
 
 type Mode = 'create' | 'edit';
 
@@ -97,10 +98,34 @@ export default function AdminCategories() {
         setPendingImage(null);
     };
 
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) {
+            setPendingImage(null);
+            return;
+        }
+        const validationError = validateImageFile(file);
+        if (validationError) {
+            showAlert(validationError, 'error');
+            e.target.value = '';
+            setPendingImage(null);
+            return;
+        }
+        setPendingImage(file);
+    };
+
     const submit = async (event: FormEvent) => {
         event.preventDefault();
+        if (pendingImage) {
+            const validationError = validateImageFile(pendingImage);
+            if (validationError) {
+                showAlert(validationError, 'error');
+                return;
+            }
+        }
         setBusy(true);
         setError('');
+        let createdId: string | null = null;
         try {
             const body = {
                 name: form.name,
@@ -114,17 +139,28 @@ export default function AdminCategories() {
                 metaTitle: form.metaTitle || undefined,
                 metaDescription: form.metaDescription || undefined,
             };
-            let id = editingId;
             if (mode === 'create') {
                 const created = (await adminApi.createCategory(body)) as any;
-                id = created?.id;
+                createdId = created?.id;
+                if (createdId && pendingImage) {
+                    try {
+                        await adminApi.uploadCategoryImage(createdId, pendingImage);
+                    } catch (uploadErr) {
+                        try {
+                            await adminApi.deleteCategory(createdId);
+                        } catch (rollbackErr) {
+                            console.error('Failed to rollback category creation:', rollbackErr);
+                        }
+                        throw new Error(`Category creation aborted: image upload failed. ${getErrorMessage(uploadErr)}`);
+                    }
+                }
                 showAlert('Category created successfully');
             } else if (editingId) {
                 await adminApi.updateCategory(editingId, body);
+                if (pendingImage) {
+                    await adminApi.uploadCategoryImage(editingId, pendingImage);
+                }
                 showAlert('Category updated successfully');
-            }
-            if (id && pendingImage) {
-                await adminApi.uploadCategoryImage(id, pendingImage);
             }
             setMode(null);
             selection.clear();
@@ -337,7 +373,7 @@ export default function AdminCategories() {
                         <FormField label="Image" className="md:col-span-2">
                             <div className="flex items-center gap-4">
                                 {form.imageUrl ? <img src={mediaUrl(form.imageUrl)} alt="" className="h-16 w-16 rounded object-cover" /> : null}
-                                <input type="file" accept="image/*" className="form-input" onChange={(e) => setPendingImage(e.target.files?.[0] ?? null)} />
+                                <input type="file" accept="image/*" className="form-input" onChange={handleImageChange} />
                             </div>
                         </FormField>
                     </div>

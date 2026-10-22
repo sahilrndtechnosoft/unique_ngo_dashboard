@@ -180,8 +180,19 @@ export const adminApi = {
             .post('/admin/donations', form, { headers: { 'Content-Type': 'multipart/form-data' } })
             .then((r) => unwrap(r));
     },
-    updateDonation: (id: string, body: Record<string, unknown>) =>
-        api.patch(`/admin/donations/${id}`, body).then((r) => unwrap(r)),
+    updateDonation: (id: string, body: Record<string, unknown>, file?: File | null) => {
+        if (!file) {
+            return api.patch(`/admin/donations/${id}`, body).then((r) => unwrap(r));
+        }
+        const form = new FormData();
+        Object.entries(body).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && value !== '') form.append(key, String(value));
+        });
+        form.append('file', file);
+        return api
+            .patch(`/admin/donations/${id}`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
+            .then((r) => unwrap(r));
+    },
     deleteDonation: (id: string) => api.delete(`/admin/donations/${id}`).then((r) => unwrap(r)),
     reviewDonation: (id: string, body: { status: string; rejectionReason?: string; adminNote?: string }) =>
         api.patch(`/admin/donations/${id}/status`, body).then((r) => unwrap(r)),
@@ -290,4 +301,33 @@ export const adminApi = {
     getSuggestion: (id: string) => api.get(`/admin/suggestions/${id}`).then((r) => unwrap(r)),
     updateSuggestion: (id: string, body: Record<string, unknown>) => api.patch(`/admin/suggestions/${id}`, body).then((r) => unwrap(r)),
     deleteSuggestion: (id: string) => api.delete(`/admin/suggestions/${id}`).then((r) => unwrap(r)),
+
+    listPartners: (params?: Record<string, unknown>) =>
+        api.get('/admin/partners', { params }).then((r) => unwrapPaginated<any>(r)),
+    getPartner: (id: string) => api.get(`/admin/partners/${id}`).then((r) => unwrap(r)),
+    createPartner: (body: Record<string, unknown>) => api.post('/admin/partners', body).then((r) => unwrap(r)),
+    updatePartner: (id: string, body: Record<string, unknown>) => api.patch(`/admin/partners/${id}`, body).then((r) => unwrap(r)),
+    deletePartner: (id: string) => api.delete(`/admin/partners/${id}`).then((r) => unwrap(r)),
+
+    listCatalogItems: (params?: Record<string, unknown>) =>
+        api.get('/admin/rewards-catalog', { params }).then((r) => unwrapPaginated<any>(r)),
+    getCatalogItem: (id: string) => api.get(`/admin/rewards-catalog/${id}`).then((r) => unwrap(r)),
+    createCatalogItem: (body: Record<string, unknown>) => api.post('/admin/rewards-catalog', body).then((r) => unwrap(r)),
+    updateCatalogItem: (id: string, body: Record<string, unknown>) =>
+        api.patch(`/admin/rewards-catalog/${id}`, body).then((r) => unwrap(r)),
+    deleteCatalogItem: (id: string) => api.delete(`/admin/rewards-catalog/${id}`).then((r) => unwrap(r)),
+
+    listVouchers: (params?: Record<string, unknown>) =>
+        api.get('/admin/vouchers', { params }).then((r) => unwrapPaginated<any>(r)),
+    cancelVoucher: (id: string, reason: string) =>
+        api.post(`/admin/vouchers/${id}/cancel`, { reason }).then((r) => unwrap(r)),
+
+    listRedemptions: (params?: Record<string, unknown>) =>
+        api.get('/admin/redemptions', { params }).then((r) => unwrapPaginated<any>(r)),
+    getRedemption: (id: string) => api.get(`/admin/redemptions/${id}`).then((r) => unwrap(r)),
+    refundRedemption: (id: string, reason: string) =>
+        api.post(`/admin/redemptions/${id}/refund`, { reason }).then((r) => unwrap(r)),
+
+    listRewardRules: () => api.get('/admin/rewards/rules').then((r) => unwrap<any[]>(r)),
+    adjustPoints: (body: Record<string, unknown>) => api.post('/admin/rewards/adjust', body).then((r) => unwrap(r)),
 };

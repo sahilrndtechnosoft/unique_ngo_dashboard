@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsDateString,
@@ -15,6 +15,12 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { blood_group, donation_status } from '../../../generated/prisma/client';
+
+function normalizeBoolean(value: unknown): unknown {
+  if (value === true || value === 'true' || value === '1') return true;
+  if (value === false || value === 'false' || value === '0') return false;
+  return value;
+}
 
 export class ListDonationsQueryDto {
   @ApiPropertyOptional({ example: 1 })
@@ -120,19 +126,19 @@ export class CreateDonationDto {
 
   @ApiPropertyOptional({ example: true, default: false, description: 'Has the donor signed / agreed to the consent form?' })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => normalizeBoolean(value))
   @IsBoolean()
   hasConsentForm?: boolean;
 
   @ApiPropertyOptional({ example: true, default: false, description: 'Alias for hasConsentForm' })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => normalizeBoolean(value))
   @IsBoolean()
   consentForm?: boolean;
 
   @ApiPropertyOptional({ example: true, default: true, description: 'Did the account holder personally donate, or a family member?' })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => normalizeBoolean(value))
   @IsBoolean()
   forSelf?: boolean = true;
 
@@ -161,7 +167,12 @@ export class AdminCreateDonationDto extends CreateDonationDto {
   userId!: string;
 }
 
-export class AdminUpdateDonationDto {
+export class UpdateDonationDto {
+  @ApiPropertyOptional({ description: 'Appointment this donation fulfils, if any' })
+  @IsOptional()
+  @IsUUID()
+  appointmentId?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()
@@ -218,42 +229,44 @@ export class AdminUpdateDonationDto {
   @IsString()
   notes?: string;
 
-  @ApiPropertyOptional({ example: true })
+  @ApiPropertyOptional({ example: true, description: 'Has the donor signed / agreed to the consent form?' })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => normalizeBoolean(value))
   @IsBoolean()
   hasConsentForm?: boolean;
 
-  @ApiPropertyOptional({ example: true })
+  @ApiPropertyOptional({ example: true, description: 'Alias for hasConsentForm' })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => normalizeBoolean(value))
   @IsBoolean()
   consentForm?: boolean;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: true, description: 'Did the account holder personally donate, or a family member?' })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => normalizeBoolean(value))
   @IsBoolean()
   forSelf?: boolean;
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiPropertyOptional({ description: 'Required when forSelf is false: name of the person who actually donated' })
+  @ValidateIf((dto: UpdateDonationDto) => dto.forSelf === false)
   @IsString()
   @MaxLength(255)
   beneficiaryName?: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiPropertyOptional({ description: 'Required when forSelf is false: mobile number of the person who actually donated' })
+  @ValidateIf((dto: UpdateDonationDto) => dto.forSelf === false)
   @IsString()
   @MaxLength(20)
   beneficiaryMobile?: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiPropertyOptional({ example: 'Spouse', description: 'Required when forSelf is false: relationship to the account holder' })
+  @ValidateIf((dto: UpdateDonationDto) => dto.forSelf === false)
   @IsString()
   @MaxLength(100)
   beneficiaryRelation?: string;
 }
+
+export class AdminUpdateDonationDto extends UpdateDonationDto {}
 
 export class UpdateDonationStatusDto {
   @ApiProperty({ enum: donation_status, example: donation_status.APPROVED })

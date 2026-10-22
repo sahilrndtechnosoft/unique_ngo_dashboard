@@ -124,6 +124,12 @@ const AdminInquiries = lazy(() => import('../pages/Admin/Inquiries'));
 const AdminInquiryDetail = lazy(() => import('../pages/Admin/InquiryDetail'));
 const AdminSuggestions = lazy(() => import('../pages/Admin/Suggestions'));
 const AdminSuggestionDetail = lazy(() => import('../pages/Admin/SuggestionDetail'));
+const AdminPartners = lazy(() => import('../pages/Admin/Partners'));
+const AdminPartnerDetail = lazy(() => import('../pages/Admin/PartnerDetail'));
+const AdminRewardsCatalog = lazy(() => import('../pages/Admin/RewardsCatalog'));
+const AdminRewardsCatalogDetail = lazy(() => import('../pages/Admin/RewardsCatalogDetail'));
+const AdminRedemptions = lazy(() => import('../pages/Admin/Redemptions'));
+const AdminRedemptionDetail = lazy(() => import('../pages/Admin/RedemptionDetail'));
 const DonateBlood = lazy(() => import('../pages/Public/DonateBlood'));
 
 const routes = [
@@ -211,6 +217,30 @@ const routes = [
     {
         path: '/admin/coupons/:id',
         element: <AdminCouponDetail />,
+    },
+    {
+        path: '/admin/partners',
+        element: <AdminPartners />,
+    },
+    {
+        path: '/admin/partners/:id',
+        element: <AdminPartnerDetail />,
+    },
+    {
+        path: '/admin/rewards-catalog',
+        element: <AdminRewardsCatalog />,
+    },
+    {
+        path: '/admin/rewards-catalog/:id',
+        element: <AdminRewardsCatalogDetail />,
+    },
+    {
+        path: '/admin/redemptions',
+        element: <AdminRedemptions />,
+    },
+    {
+        path: '/admin/redemptions/:id',
+        element: <AdminRedemptionDetail />,
     },
     {
         path: '/admin/donation-items',

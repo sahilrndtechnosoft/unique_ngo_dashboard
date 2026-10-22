@@ -108,17 +108,32 @@ export function unwrapPaginated<T>(response: { data?: unknown }): {
 } {
     const payload = unwrap<unknown>(response);
     const result = payload && typeof payload === 'object' && !Array.isArray(payload)
-        ? payload as { items?: unknown; meta?: Record<string, unknown> }
+        ? payload as Record<string, unknown>
         : undefined;
-    if (!Array.isArray(payload) && !Array.isArray(result?.items)) {
+
+    const candidateArray = Array.isArray(payload)
+        ? payload
+        : (Array.isArray(result?.items)
+            ? result?.items
+            : Array.isArray(result?.redemptions)
+            ? result?.redemptions
+            : Array.isArray(result?.vouchers)
+            ? result?.vouchers
+            : Array.isArray(result?.partners)
+            ? result?.partners
+            : Array.isArray(result?.catalogItems)
+            ? result?.catalogItems
+            : Array.isArray(result?.data)
+            ? result?.data
+            : undefined);
+
+    if (!candidateArray) {
         throw new Error(typeof payload === 'string' && payload.trimStart().startsWith('<')
             ? 'The API URL returned an HTML page instead of JSON. Check VITE_API_URL and restart the frontend.'
             : 'The server returned an unexpected list response. Please reload and try again.');
     }
-    const items = Array.isArray(payload)
-        ? payload as T[]
-        : result!.items as T[];
-    const meta = result?.meta;
+    const items = candidateArray as T[];
+    const meta = result?.meta as Record<string, unknown> | undefined;
     const numberOr = (value: unknown, fallback: number) => {
         const number = Number(value);
         return Number.isFinite(number) && number >= 0 ? number : fallback;

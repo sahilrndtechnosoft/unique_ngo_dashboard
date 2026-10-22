@@ -1,10 +1,27 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AppModule, JwtPayload, PermissionAction, UserRole } from '../../common/constants';
 import { CurrentUser, RequirePermissions, ResponseMessage, Roles } from '../../common/decorators';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { CreateCouponDto, ListCouponsQueryDto, UpdateCouponDto } from '../dto/coupon.dto';
+import {
+  CreateCouponDto,
+  ListCouponsQueryDto,
+  UpdateCouponDto,
+  ValidateCouponCartDto,
+} from '../dto/coupon.dto';
 import { CouponsService } from '../services/coupons.service';
 
 @ApiTags('Coupons')
@@ -17,6 +34,16 @@ export class CouponsController {
   @ResponseMessage('Available coupons fetched successfully')
   listAvailable(@CurrentUser() user: JwtPayload) {
     return this.couponsService.listAvailableForUser(user.sub);
+  }
+
+  @Post('validate')
+  @HttpCode(HttpStatus.OK)
+  @ResponseMessage('Coupon validated successfully')
+  validateForCart(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: ValidateCouponCartDto,
+  ) {
+    return this.couponsService.validateCouponForCart(dto, user.sub);
   }
 }
 

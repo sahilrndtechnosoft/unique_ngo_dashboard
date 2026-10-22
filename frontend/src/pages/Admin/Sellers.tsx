@@ -9,6 +9,7 @@ import { AdminDataTable, AdminPageHeader, BulkActionsBar } from '../../component
 import AdminFormModal from '../../components/Admin/AdminFormModal';
 import { FormField, FormSection, RowActionsMenu, StatusBadge } from '../../components/Admin/FormPrimitives';
 import { confirmAction, showAlert } from '../../utils/alerts';
+import { validateImageFile } from '../../utils/file-validation';
 
 const STATUSES = ['PENDING', 'ACTIVE', 'SUSPENDED', 'REJECTED', 'UNDER_REVIEW'];
 type Mode = 'create' | 'edit';
@@ -129,12 +130,35 @@ export default function AdminSellers() {
         setMode('edit');
     };
 
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) {
+            setPendingImage(null);
+            return;
+        }
+        const validationError = validateImageFile(file);
+        if (validationError) {
+            showAlert(validationError, 'error');
+            e.target.value = '';
+            setPendingImage(null);
+            return;
+        }
+        setPendingImage(file);
+    };
+
     const submit = async (event: FormEvent) => {
         event.preventDefault();
+        if (pendingImage) {
+            const validationError = validateImageFile(pendingImage);
+            if (validationError) {
+                showAlert(validationError, 'error');
+                return;
+            }
+        }
         setBusy(true);
         setError('');
+        let createdId: string | null = null;
         try {
-            let id = editingId;
             if (mode === 'create') {
                 const created = (await adminApi.createSeller({
                     fullName: form.fullName,
@@ -150,7 +174,19 @@ export default function AdminSellers() {
                     commissionRate: form.commissionRate === '' ? null : Number(form.commissionRate),
                     ...pickupOriginBody(),
                 })) as any;
-                id = created?.id;
+                createdId = created?.id;
+                if (createdId && pendingImage) {
+                    try {
+                        await adminApi.uploadSellerImage(createdId, pendingImage);
+                    } catch (uploadErr) {
+                        try {
+                            await adminApi.deleteSeller(createdId);
+                        } catch (rollbackErr) {
+                            console.error('Failed to rollback seller creation:', rollbackErr);
+                        }
+                        throw new Error(`Seller creation aborted: image upload failed. ${getErrorMessage(uploadErr)}`);
+                    }
+                }
                 showAlert('Seller created successfully');
             } else if (editingId) {
                 const body: Record<string, unknown> = {
@@ -169,10 +205,10 @@ export default function AdminSellers() {
                 };
                 if (form.password) body.password = form.password;
                 await adminApi.updateSeller(editingId, body);
+                if (pendingImage) {
+                    await adminApi.uploadSellerImage(editingId, pendingImage);
+                }
                 showAlert('Seller updated successfully');
-            }
-            if (id && pendingImage) {
-                await adminApi.uploadSellerImage(id, pendingImage);
             }
             setMode(null);
             selection.clear();
@@ -350,7 +386,7 @@ export default function AdminSellers() {
                                     type="file"
                                     accept="image/*"
                                     className="form-input"
-                                    onChange={(e) => setPendingImage(e.target.files?.[0] ?? null)}
+                                    onChange={handleImageChange}
                                 />
                             </div>
                         </FormField>
